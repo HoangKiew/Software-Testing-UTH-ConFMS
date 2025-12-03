@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  # --- 1. DATABASE (Dùng chung cho tiết kiệm RAM) ---
+  postgres:
+    image: postgres:15-alpine
+    container_name: uth_postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+    volumes:
+      - ./database/init-scripts:/docker-entrypoint-initdb.d
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - uth-net
+
+networks:
+  uth-net:
+    driver: bridge
+
+volumes:
+  postgres_data:

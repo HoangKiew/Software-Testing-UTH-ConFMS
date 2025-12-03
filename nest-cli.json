@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "apps/uth-confms/src",
+  "compilerOptions": {
+    "deleteOutDir": true,
+    "webpack": true,
+    "tsConfigPath": "apps/uth-confms/tsconfig.app.json"
+  },
+  "monorepo": true,
+  "root": "apps/uth-confms",
+  "projects": {
+    "api-gateway": {
+      "type": "application",
+      "root": "apps/api-gateway",
+      "entryFile": "main",
+      "sourceRoot": "apps/api-gateway/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/api-gateway/tsconfig.app.json"
+      }
+    },
+    "conference-service": {
+      "type": "application",
+      "root": "apps/conference-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/conference-service/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/conference-service/tsconfig.app.json"
+      }
+    },
+    "identity-service": {
+      "type": "application",
+      "root": "apps/identity-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/identity-service/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/identity-service/tsconfig.app.json"
+      }
+    },
+    "review-service": {
+      "type": "application",
+      "root": "apps/review-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/review-service/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/review-service/tsconfig.app.json"
+      }
+    },
+    "submission-service": {
+      "type": "application",
+      "root": "apps/submission-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/submission-service/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/submission-service/tsconfig.app.json"
+      }
+    },
+    "uth-confms": {
+      "type": "application",
+      "root": "apps/uth-confms",
+      "entryFile": "main",
+      "sourceRoot": "apps/uth-confms/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/uth-confms/tsconfig.app.json"
+      }
+    }
+  }
+}
