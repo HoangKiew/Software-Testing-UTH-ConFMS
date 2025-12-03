@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # --- 1. DATABASE (Dùng chung cho tiết kiệm RAM) ---
+  # Database 
   postgres:
     image: postgres:15-alpine
     container_name: uth_postgres
@@ -13,6 +13,23 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    networks:
+      - uth-net
+
+  identity-service:
+    build:
+      context: .
+      dockerfile: ./apps/identity-service/Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=admin
+      - DB_PASSWORD=admin123
+      - DB_DATABASE=db_identity
+    depends_on:
+      - postgres 
     networks:
       - uth-net
 
