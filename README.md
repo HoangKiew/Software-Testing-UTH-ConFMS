@@ -1,1 +1,1 @@
-## UTH - ConFMS
+# UTH - Conference Management System (ConFMS)

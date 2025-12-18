@@ -26,7 +26,7 @@ export class RefreshToken {
   user: User;
 
   @Column({ name: 'user_id' })
-  userId: string;
+  userId: number;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
