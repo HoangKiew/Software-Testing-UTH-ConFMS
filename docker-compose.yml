@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin123
     volumes:
-      - ./database/init-scripts:/docker-entrypoint-initdb.d
+      - ./database/init-script:/docker-entrypoint-initdb.d
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
@@ -32,6 +32,26 @@ services:
       - postgres 
     networks:
       - uth-net
+
+  submission-service:
+    build:
+      context: .
+      dockerfile: ./apps/submission-service/Dockerfile
+    ports:
+      - "3003:3003"
+    environment:
+      - SUPABASE_URL=https://blrxodghcsytpqjtwnoo.supabase.co
+      - SUPABASE_ANON_KEY=sb_publishable_tcunR__quMCm0PoaiBxHlw_sqJANldF
+      - SUPABASE_BUCKET_NAME=submission
+      - DB_HOST=postgres               
+      - DB_PORT=5432
+      - DB_USERNAME=admin
+      - DB_PASSWORD=admin123      
+      - DB_DATABASE=db_submission
+    networks:
+      - uth-net
+    depends_on:
+      - postgres
 
 networks:
   uth-net:
