@@ -14,6 +14,7 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { User } from '../users/entities/user.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { RoleName } from '../users/entities/role.entity';
 
 @Injectable()
 export class AuthService {
@@ -36,7 +37,14 @@ export class AuthService {
   async register(dto: RegisterDto) {
     const existing = await this.usersService.findByEmail(dto.email);
     if (existing) {
-      throw new BadRequestException('Email already exists');
+      throw new BadRequestException('Email đã tồn tại');
+    }
+    const adminRole = await this.usersService.findRoleByName(RoleName.ADMIN);
+    if (!adminRole || !adminRole.id) {
+      console.error('[Register] LỖI: Không tìm thấy role ADMIN!');
+      throw new BadRequestException(
+        'Không tìm thấy vai trò ADMIN. Vui lòng chạy seed dữ liệu trước.',
+      );
     }
 
     const hashed = await bcrypt.hash(dto.password, 10);
@@ -44,8 +52,20 @@ export class AuthService {
       email: dto.email,
       password: hashed,
       fullName: dto.fullName,
-      role: dto.role,
+      roles: [adminRole],
     });
+    if (!user.roles || user.roles.length === 0) {
+      console.warn('[Register] WARNING: User has no roles! Reloading...');
+      // Nếu roles không được load, reload lại
+      const userWithRoles = await this.usersService.findById(user.id);
+      if (!userWithRoles) {
+        throw new BadRequestException('Tạo người dùng thất bại');
+      }
+      
+      const tokens = await this.issueTokens(userWithRoles);
+      return { user: this.stripPassword(userWithRoles), ...tokens };
+    }
+
 
     const tokens = await this.issueTokens(user);
     return { user: this.stripPassword(user), ...tokens };
@@ -54,12 +74,12 @@ export class AuthService {
   async login(dto: LoginDto) {
     const user = await this.usersService.findByEmail(dto.email);
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Thông tin đăng nhập không hợp lệ');
     }
 
     const isValid = await bcrypt.compare(dto.password, user.password);
     if (!isValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Thông tin đăng nhập không hợp lệ');
     }
 
     const tokens = await this.issueTokens(user);
@@ -73,17 +93,17 @@ export class AuthService {
     });
 
     if (!stored) {
-      throw new UnauthorizedException('Refresh token revoked');
+      throw new UnauthorizedException('Refresh token đã bị thu hồi');
     }
 
     if (stored.expiryDate.getTime() < Date.now()) {
       await this.refreshTokenRepository.delete({ id: stored.id });
-      throw new UnauthorizedException('Refresh token expired');
+      throw new UnauthorizedException('Refresh token đã hết hạn');
     }
 
     const user = await this.usersService.findById(payload.sub);
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException('Không tìm thấy người dùng');
     }
 
     // Rotate refresh token: remove old, issue new
@@ -94,7 +114,7 @@ export class AuthService {
 
   async logout(dto: RefreshTokenDto) {
     await this.refreshTokenRepository.delete({ token: dto.refreshToken });
-    return { message: 'Logged out' };
+    return { message: 'Đăng xuất thành công' };
   }
 
   private stripPassword(user: User) {
@@ -104,10 +124,13 @@ export class AuthService {
   }
 
   private async issueTokens(user: User) {
+    // Get role names from user roles
+    const roleNames = user.roles?.map((role) => role.name) || [];
+    
     const accessToken = await this.jwtService.signAsync({
       sub: user.id,
       email: user.email,
-      role: user.role,
+      roles: roleNames,
     });
 
     const refreshToken = await this.jwtService.signAsync(
@@ -148,7 +171,7 @@ export class AuthService {
         secret: this.refreshSecret,
       });
     } catch (err) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException('Refresh token không hợp lệ');
     }
   }
 
@@ -171,4 +194,3 @@ export class AuthService {
     return value * unitSec;
   }
 }
-
