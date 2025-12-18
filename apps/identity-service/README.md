@@ -4,6 +4,7 @@
 
 ```bash
 # Từ thư mục root của project
+docker-compose up --build
 docker-compose up -d postgres
 ```
 
