@@ -4,6 +4,6 @@ import { ReviewServiceModule } from './review-service.module';
 async function bootstrap() {
   const app = await NestFactory.create(ReviewServiceModule);
   app.setGlobalPrefix('api');
-  await app.listen(process.env.port ?? 3004);
+  await app.listen(process.env.PORT || 3004);
 }
 bootstrap();

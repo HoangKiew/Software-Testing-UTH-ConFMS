@@ -9,8 +9,8 @@ services:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin123
     volumes:
-      - ./database/init-scripts:/docker-entrypoint-initdb.d
-      - postgres_data:/var/lib/postgresql/data
+      - ./database/init-script:/docker-entrypoint-initdb.d
+      - postgres_data:/var/lib/postgresql/data 
     ports:
       - "5432:5432"
     networks:
@@ -32,6 +32,26 @@ services:
       - postgres 
     networks:
       - uth-net
+
+  review-service:
+    build:
+      context: .
+      dockerfile: ./apps/review-service/Dockerfile
+    ports:
+      - "3004:3004"
+    environment:
+      - PORT=3004
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=admin
+      - DB_PASSWORD=admin123
+      - DB_DATABASE=db_review
+      - JWT_SECRET=bi_mat_khong_duoc_bat_mi_2025
+    depends_on:
+      - postgres
+    networks:
+      - uth-net
+
 
 networks:
   uth-net:
