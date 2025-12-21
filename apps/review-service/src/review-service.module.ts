@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ReviewServiceController } from './review-service.controller';
+import { Review } from './reviews/review.entity';
 import { ReviewServiceService } from './review-service.service';
-import { Review } from './review/review.entity';
+import { ReviewServiceController } from './review-service.controller';
 
 @Module({
   imports: [
@@ -14,7 +14,7 @@ import { Review } from './review/review.entity';
       password: process.env.DB_PASSWORD,
       database: process.env.DB_DATABASE,
       autoLoadEntities: true,
-      synchronize: true,
+      synchronize: false, // ❗ CỰC KỲ QUAN TRỌNG
     }),
     TypeOrmModule.forFeature([Review]),
   ],

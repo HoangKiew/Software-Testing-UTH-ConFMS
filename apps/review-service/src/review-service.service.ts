@@ -1,26 +1,61 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Review } from './review/review.entity';
-import { CreateReviewDto } from './review/dto/create-review.dto';
+import { Review } from './reviews/review.entity';
 
 @Injectable()
 export class ReviewServiceService {
   constructor(
     @InjectRepository(Review)
-    private reviewRepo: Repository<Review>,
+    private readonly reviewRepo: Repository<Review>,
   ) {}
 
-  createReview(dto: CreateReviewDto) {
-    const review = this.reviewRepo.create(dto);
+  // ============================
+  // Health check
+  // ============================
+  getHealthStatus() {
+    return {
+      dichVu: 'review-service',
+      trangThai: 'ok',
+      thoiGian: new Date().toISOString(),
+    };
+  }
+
+  // ============================
+  // Reviewer ghi / cập nhật review
+  // ============================
+  async saveReview(
+    reviewId: number,
+    data: Partial<Review>,
+  ) {
+    const review = await this.reviewRepo.findOne({ where: { id: reviewId } });
+    if (!review) throw new NotFoundException('Không tìm thấy review');
+
+    if (review.submitted) {
+      throw new BadRequestException('Review đã được nộp, không thể sửa');
+    }
+
+    Object.assign(review, data);
     return this.reviewRepo.save(review);
   }
 
-  getBySubmission(submissionId: string) {
-    return this.reviewRepo.find({ where: { submissionId } });
+  // ============================
+  // Reviewer nộp review (KHÓA)
+  // ============================
+  async submitReview(reviewId: number) {
+    const review = await this.reviewRepo.findOne({ where: { id: reviewId } });
+    if (!review) throw new NotFoundException('Không tìm thấy review');
+
+    review.submitted = true;
+    return this.reviewRepo.save(review);
   }
 
-  getByReviewer(reviewerId: string) {
-    return this.reviewRepo.find({ where: { reviewerId } });
+  // ============================
+  // Xem review của mình
+  // ============================
+  async getReview(reviewId: number) {
+    const review = await this.reviewRepo.findOne({ where: { id: reviewId } });
+    if (!review) throw new NotFoundException('Không tìm thấy review');
+    return review;
   }
 }

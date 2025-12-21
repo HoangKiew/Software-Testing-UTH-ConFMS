@@ -1,7 +1,9 @@
 version: '3.8'
 
 services:
-  # Database 
+  # =========================
+  # Database (PostgreSQL)
+  # =========================
   postgres:
     image: postgres:15-alpine
     container_name: uth_postgres
@@ -10,12 +12,15 @@ services:
       POSTGRES_PASSWORD: admin123
     volumes:
       - ./database/init-script:/docker-entrypoint-initdb.d
-      - postgres_data:/var/lib/postgresql/data 
+      - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     networks:
       - uth-net
 
+  # =========================
+  # Identity Service
+  # =========================
   identity-service:
     build:
       context: .
@@ -29,10 +34,13 @@ services:
       - DB_PASSWORD=admin123
       - DB_DATABASE=db_identity
     depends_on:
-      - postgres 
+      - postgres
     networks:
       - uth-net
 
+  # =========================
+  # Review Service
+  # =========================
   review-service:
     build:
       context: .
@@ -40,6 +48,7 @@ services:
     ports:
       - "3004:3004"
     environment:
+      - NODE_ENV=development
       - PORT=3004
       - DB_HOST=postgres
       - DB_PORT=5432
@@ -47,11 +56,14 @@ services:
       - DB_PASSWORD=admin123
       - DB_DATABASE=db_review
       - JWT_SECRET=bi_mat_khong_duoc_bat_mi_2025
+      - IDENTITY_SERVICE_URL=http://identity-service:3001
+      - CONFERENCE_SERVICE_URL=http://conference-service:3002
+      - SUBMISSION_SERVICE_URL=http://submission-service:3003
     depends_on:
       - postgres
+      - identity-service
     networks:
       - uth-net
-
 
 networks:
   uth-net:

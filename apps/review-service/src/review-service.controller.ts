@@ -1,28 +1,39 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import { Controller, Get, Patch, Param, Body, Post } from '@nestjs/common';
 import { ReviewServiceService } from './review-service.service';
-import { CreateReviewDto } from './review/dto/create-review.dto';
 
-@Controller('reviews')
+@Controller()
 export class ReviewServiceController {
-  constructor(private readonly service: ReviewServiceService) {}
+  constructor(private readonly reviewService: ReviewServiceService) {}
 
+  // ============================
+  // Health check
+  // ============================
   @Get('health')
-  health() {
-    return { status: 'ok', service: 'review-service' };
+  healthCheck() {
+    return this.reviewService.getHealthStatus();
   }
 
-  @Post()
-  create(@Body() dto: CreateReviewDto) {
-    return this.service.createReview(dto);
+  // ============================
+  // Xem review theo ID
+  // ============================
+  @Get('reviews/:id')
+  getReview(@Param('id') id: number) {
+    return this.reviewService.getReview(+id);
   }
 
-  @Get('submission/:id')
-  getBySubmission(@Param('id') id: string) {
-    return this.service.getBySubmission(id);
+  // ============================
+  // Cập nhật review
+  // ============================
+  @Patch('reviews/:id')
+  saveReview(@Param('id') id: number, @Body() body: any) {
+    return this.reviewService.saveReview(+id, body);
   }
 
-  @Get('reviewer/:id')
-  getByReviewer(@Param('id') id: string) {
-    return this.service.getByReviewer(id);
+  // ============================
+  // Nộp review (KHÓA)
+  // ============================
+  @Post('reviews/:id/submit')
+  submitReview(@Param('id') id: number) {
+    return this.reviewService.submitReview(+id);
   }
 }
