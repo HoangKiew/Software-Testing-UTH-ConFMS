@@ -10,15 +10,10 @@
 
 Review Service thực hiện **4 nghiệp vụ cốt lõi**:
 
-- Ghi **điểm số** (`score`)
-- Ghi **nhận xét** (`comment`)
-- Ghi **quyết định** (`decision`)
-
-* `accept`
-* `reject`
-* `revise`
-
-- Ghi **trạng thái đã nộp hay chưa** (`submitted`)
+* Ghi **điểm số** (`score`)
+* Ghi **nhận xét** (`comment`)
+* Ghi **quyết định** (`decision`)
+* Ghi **trạng thái đã nộp hay chưa** (`submitted`)
 
 ---
 
