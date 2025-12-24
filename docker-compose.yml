@@ -33,6 +33,23 @@ services:
     networks:
       - uth-net
 
+  conference-service:
+    build:
+      context: .
+      dockerfile: ./apps/conference-service/Dockerfile
+    ports:
+      - "3002:3002"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=admin
+      - DB_PASSWORD=admin123
+      - DB_DATABASE=db_conference
+    depends_on:
+      - postgres
+    networks:
+      - uth-net
+
 networks:
   uth-net:
     driver: bridge

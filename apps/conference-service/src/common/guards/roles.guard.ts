@@ -1,34 +1,40 @@
 import {
   CanActivate,
   ExecutionContext,
-  Injectable,
   ForbiddenException,
+  Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { JwtPayload } from '../../auth/strategies/jwt.strategy';
-import { RoleName } from '../../users/entities/role.entity';
+import { RoleName } from '../enums/role-name.enum';
 
 export const ROLES_KEY = 'roles';
 
+export interface JwtPayload {
+  sub: number;
+  email: string;
+  roles: string[];
+}
+
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<RoleName[]>(
-      ROLES_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const requiredRoles =
+      this.reflector.getAllAndOverride<RoleName[]>(ROLES_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]);
 
     if (!requiredRoles) {
-      return true; // Không có yêu cầu role nào, cho phép truy cập
+      return true;
     }
 
     const request = context.switchToHttp().getRequest();
-    const user = request.user as JwtPayload;
+    const user = request.user as JwtPayload | undefined;
 
     if (!user) {
-      throw new ForbiddenException('User not authenticated');
+      throw new ForbiddenException('User is not authenticated');
     }
 
     const userRoles = user.roles || [];
@@ -45,9 +51,4 @@ export class RolesGuard implements CanActivate {
     return true;
   }
 }
-
-
-
-
-
 

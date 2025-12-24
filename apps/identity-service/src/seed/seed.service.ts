@@ -16,7 +16,7 @@ export class SeedService implements OnModuleInit {
 
   private async seedRoles() {
     const roleNames = Object.values(RoleName);
-
+    
     for (const roleName of roleNames) {
       const existingRole = await this.roleRepository.findOne({
         where: { name: roleName },
@@ -25,9 +25,7 @@ export class SeedService implements OnModuleInit {
       if (!existingRole) {
         const role = this.roleRepository.create({ name: roleName });
         await this.roleRepository.save(role);
-        console.log(`[Seed] Đã tạo vai trò: ${roleName}`);
       }
     }
-    console.log('[Seed] Hoàn tất khởi tạo dữ liệu vai trò');
   }
 }

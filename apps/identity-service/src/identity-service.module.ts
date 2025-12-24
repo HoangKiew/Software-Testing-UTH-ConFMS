@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { IdentityServiceController } from './identity-service.controller';
-import { IdentityServiceService } from './identity-service.service';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { SeedModule } from './seed/seed.module';
 import { User } from './users/entities/user.entity';
 import { Role } from './users/entities/role.entity';
 import { RefreshToken } from './auth/entities/refresh-token.entity';
+import { EmailVerificationToken } from './auth/entities/email-verification-token.entity';
+import { PasswordResetToken } from './users/entities/password-reset-token.entity';
 
 @Module({
   imports: [
@@ -29,7 +29,6 @@ import { RefreshToken } from './auth/entities/refresh-token.entity';
         const username = config.get<string>('DB_USERNAME') || 'admin';
         const password = config.get<string>('DB_PASSWORD') || 'admin123';
         const database = config.get<string>('DB_DATABASE') || 'db_identity';
-
         console.log(
           `[Identity-Service] DB -> host=${host} port=${port} user=${username} db=${database}`,
         );
@@ -41,8 +40,8 @@ import { RefreshToken } from './auth/entities/refresh-token.entity';
           username,
           password,
           database,
-          entities: [User, Role, RefreshToken],
-          synchronize: true,
+          entities: [User, Role, RefreshToken, PasswordResetToken, EmailVerificationToken],
+          synchronize: true, 
         };
       },
     }),
@@ -50,7 +49,7 @@ import { RefreshToken } from './auth/entities/refresh-token.entity';
     UsersModule,
     AuthModule,
   ],
-  controllers: [IdentityServiceController],
-  providers: [IdentityServiceService],
+  controllers: [],
+  providers: [],
 })
 export class IdentityServiceModule {}
