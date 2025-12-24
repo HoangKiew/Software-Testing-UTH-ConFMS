@@ -1,308 +1,265 @@
-```markdown
 # Conference Service - UTH ConfMS
 
 Conference Service là microservice chịu trách nhiệm quản lý hội nghị và bài nộp trong hệ thống **UTH ConfMS** (Hệ thống Quản lý Bài báo Hội nghị Khoa học UTH).
 
-## Yêu cầu trước khi chạy
+---
 
-- PostgreSQL đang chạy qua Docker (container `uth-database`)
-- Identity Service đã chạy và hoạt động (để xác thực JWT và quản lý role)
+## 🔌 Postman & Test End-to-End (Tích hợp)
 
-## Bước 1: Khởi động Database
+Phần dưới đây được tích hợp từ các file tài liệu test và Postman collection, giúp bạn **chạy toàn bộ luồng hệ thống từ đầu đến cuối chỉ với README này**.
 
-```bash
-# Từ thư mục root của project
-docker-compose down -v          # (Tùy chọn) Reset sạch dữ liệu cũ nếu cần
-docker-compose up -d postgres   # Khởi động PostgreSQL
-```
+## Kịch bản test tổng thể (End-to-End)
 
-Kiểm tra container đang chạy:
-```bash
-docker ps
-```
-→ Thấy container `uth-database` trạng thái **Up**
-
-## Bước 2: Tạo Database
+### Chuẩn bị môi trường
 
 ```bash
-docker exec -it uth-database psql -U admin -d postgres -c "CREATE DATABASE db_conference;"
+docker compose down -v
+docker compose up --build -d
 ```
 
-> Nếu báo `already exists` → tốt, database đã sẵn sàng.
+Tạo database:
 
-## Bước 3: Cấu hình Environment Variables
+```bash
+docker exec -it uth-database psql -U admin -d postgres -c "CREATE DATABASE db_identity OWNER admin;"
+docker exec -it uth-database psql -U admin -d postgres -c "CREATE DATABASE db_conference OWNER admin;"
+```
 
-Tạo file `.env` hoặc `.env.local` trong thư mục `apps/conference-service/`:
-```env
+Cấu hình Environment Variables
+Tạo file .env hoặc .env.local trong thư mục apps/conference-service/:
+```bash
 NODE_ENV=development
 PORT=3002
-
-# Database Config (local dev - kết nối tới PostgreSQL trong Docker)
 DB_HOST=localhost
 DB_PORT=5432
 DB_USERNAME=admin
 DB_PASSWORD=admin123
 DB_DATABASE=db_conference
-
-# JWT Secret (phải giống hệt identity-service)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com          
+SMTP_PASS=your-app-password                   
+SMTP_FROM=no-reply@uth-confms.vn              
+OPENAI_API_KEY=sk-your-openai-key-here    
+IDENTITY_SERVICE_URL=http://identity-service:3001/api   
+REVIEW_SERVICE_URL=http://review-service:3004/api       
 JWT_ACCESS_SECRET=jZE6YIUoP_j7SOTLPWgS8kSfX5g4dlOmPMWJVNLMOyg-SMoqXiMRkR0ocJQEGr9HVUjonNIlZNwHzduFfOCJOQ
+
 ```
 
-## Bước 4: Khởi động Service
+---
 
-```bash
-# Từ thư mục root của project
-npm run start:dev conference-service
-```
+## Identity Service
 
-→ Service chạy tại: **http://localhost:3002/api**
+### 1. Đăng ký ADMIN
 
-Khi khởi động thành công, TypeORM sẽ tự động tạo 2 bảng:
-- `conferences`
-- `submissions`
+`POST /auth/register`
 
-## 📝 Test với Postman
-
-### Base URL cho Conference Service
-```
-http://localhost:3002/api
-```
-
-### Base URL cho Identity Service (để đăng ký/đăng nhập)
-```
-http://localhost:3001/api
-```
-
-### Header bắt buộc cho các request bảo vệ
-
-| Key           | Value                                      | Ghi chú                           |
-|---------------|--------------------------------------------|-----------------------------------|
-| Authorization | Bearer {accessToken}                       | Bắt buộc cho mọi API cần xác thực |
-| Content-Type  | application/json                           | Bắt buộc khi gửi body JSON        |
-
-> Lấy `accessToken` từ Identity Service (xem phần Đăng nhập dưới đây)
-
-### 1. Đăng ký tài khoản mới (Identity Service)
-
-**Endpoint:** `POST http://localhost:3001/api/auth/register`
-
-**Header:**
-```
-Content-Type: application/json
-```
-
-**Body (raw JSON):**
 ```json
 {
-  "email": "admin@uth.edu.vn",
+  "email": "admin@uth.vn",
   "password": "Admin123!",
-  "fullName": "Quản trị viên UTH"
+  "fullName": "Quản trị viên hệ thống"
 }
 ```
 
-→ User này tự động nhận role **ADMIN**
+### 2. Đăng nhập ADMIN
 
-### 2. Đăng nhập để lấy accessToken (Identity Service)
+`POST /auth/login`
+→ Lưu `accessToken` vào biến môi trường `jwtToken`
 
-**Endpoint:** `POST http://localhost:3001/api/auth/login`
+---
 
-**Header:**
-```
-Content-Type: application/json
-```
+## Tạo các role cần thiết (ADMIN)
 
-**Body (raw JSON):**
-```json
-{
-  "email": "admin@uth.edu.vn",
-  "password": "Admin123!"
-}
-```
+Tạo các tài khoản:
 
-→ Response sẽ trả về `accessToken` và `refreshToken`. **Copy accessToken** để dùng cho các request tiếp theo.
+* **CHAIR**: [chair@uth.vn](mailto:chair@uth.vn)
+* **AUTHOR**: [author@uth.vn](mailto:author@uth.vn)
+* **REVIEWER**: [reviewer1@uth.vn](mailto:reviewer1@uth.vn), [reviewer2@uth.vn](mailto:reviewer2@uth.vn), [reviewer3@uth.vn](mailto:reviewer3@uth.vn)
 
-### 3. Gán role CHAIR cho user (nếu cần tạo hội nghị)
+Endpoint:
+`POST /users/create`
 
-**Endpoint:** `PATCH http://localhost:3001/api/users/{userId}/roles`
+---
 
-**Header:**
-```
-Authorization: Bearer {accessToken của ADMIN}
-Content-Type: application/json
-```
+## Conference Service
 
-**Body (raw JSON):**
-```json
-{
-  "roles": ["ADMIN", "CHAIR"]
-}
-```
+### 3. Chair tạo hội nghị
 
-### 4. Tạo hội nghị mới (Yêu cầu role **CHAIR**)
+`POST /conferences`
 
-**Endpoint:** `POST http://localhost:3002/api/conferences`
-
-**Header:**
-```
-Authorization: Bearer {accessToken}
-Content-Type: application/json
-```
-
-**Body (raw JSON):**
 ```json
 {
   "name": "Hội nghị Khoa học Công nghệ UTH 2026",
-  "acronym": "UTHConf2026",
-  "description": "Hội nghị nghiên cứu khoa học thường niên của Đại học UTH",
-  "startDate": "2026-06-15",
-  "endDate": "2026-06-17",
-  "topics": [
-    "Trí tuệ nhân tạo",
-    "Khoa học dữ liệu",
-    "An ninh mạng",
-    "Công nghệ sinh học"
-  ],
+  "acronym": "UTHCONF2026",
+  "description": "Hội nghị thường niên về CNTT",
+  "startDate": "2026-06-01",
+  "endDate": "2026-06-03",
+  "topics": ["Trí tuệ nhân tạo", "Machine Learning", "An ninh mạng", "IoT"],
   "deadlines": {
-    "submission": "2026-03-01T23:59:59",
-    "review": "2026-04-15T23:59:59",
-    "cameraReady": "2026-05-15T23:59:59"
+    "submission": "2026-04-01",
+    "review": "2026-05-01",
+    "cameraReady": "2026-05-20"
   }
 }
 ```
 
-### 5. Lấy danh sách hội nghị
+### 4. Mở nộp bài
 
-**Endpoint:** `GET http://localhost:3002/api/conferences`
+`PATCH /conferences/{conferenceId}/status?status=OPEN_FOR_SUBMISSION`
 
-### 6. Lấy chi tiết một hội nghị
+---
 
-**Endpoint:** `GET http://localhost:3002/api/conferences/{conferenceId}`
+## Author nộp bài
 
-### 7. Cập nhật hội nghị (Yêu cầu role **CHAIR**)
+`POST /submissions`
 
-**Endpoint:** `PATCH http://localhost:3002/api/conferences/{conferenceId}`
-
-**Body (raw JSON):**
-```json
-{
-  "description": "Mô tả hội nghị đã được cập nhật"
-}
-```
-
-### 8. Xóa hội nghị (soft delete - Yêu cầu role **CHAIR**)
-
-**Endpoint:** `DELETE http://localhost:3002/api/conferences/{conferenceId}`
-
-### 9. Cập nhật topics (Yêu cầu role **CHAIR**)
-
-**Endpoint:** `PATCH http://localhost:3002/api/conferences/{conferenceId}/topics`
-
-**Body (raw JSON):**
-```json
-{
-  "topics": ["AI mới", "Blockchain"]
-}
-```
-
-### 10. Cập nhật deadlines (Yêu cầu role **CHAIR**)
-
-**Endpoint:** `PATCH http://localhost:3002/api/conferences/{conferenceId}/deadlines`
-
-**Body (raw JSON):**
-```json
-{
-  "submission": "2026-03-15T23:59:59"
-}
-```
-
-### 11. Thay đổi trạng thái hội nghị (Yêu cầu role **CHAIR**)
-
-**Endpoint:** `PATCH http://localhost:3002/api/conferences/{conferenceId}/status`
-
-**Body (raw JSON):**
-```json
-{
-  "status": "open_for_submission"
-}
-```
-
-> Các trạng thái hợp lệ: `draft`, `open_for_submission`, `submission_closed`, `under_review`, `review_completed`, `decision_made`, `camera_ready`, `finalized`, `archived`
-
-### 12. Đăng ký tài khoản tác giả (AUTHOR)
-
-**Endpoint:** `POST http://localhost:3001/api/auth/register`
-
-**Body (raw JSON):**
-```json
-{
-  "email": "author1@uth.edu.vn",
-  "password": "Author123!",
-  "fullName": "Nguyễn Văn A"
-}
-```
-
-→ Tự động nhận role **AUTHOR**
-
-### 13. Nộp bài báo (Yêu cầu role **AUTHOR**)
-
-**Endpoint:** `POST http://localhost:3002/api/submissions`
-
-**Header:**
-```
-Authorization: Bearer {accessToken của AUTHOR}
-Content-Type: application/json
-```
-
-**Body (raw JSON):**
 ```json
 {
   "conferenceId": "{conferenceId}",
-  "title": "Ứng dụng Trí tuệ nhân tạo trong Y khoa",
-  "abstract": "Nghiên cứu này đề xuất mô hình deep learning...",
-  "keywords": "AI, deep learning, y tế",
+  "title": "Ứng dụng Deep Learning trong nhận diện khuôn mặt",
+  "abstract": "Bài báo trình bày mô hình deep learning...",
+  "keywords": "deep learning, computer vision",
   "authors": [3]
 }
 ```
-> **Không truyền field `status`** → hệ thống tự động set thành `submitted`
 
-### 14. Lấy danh sách bài nộp theo hội nghị
+---
 
-**Endpoint:** `GET http://localhost:3002/api/submissions/conference/{conferenceId}`
+## PC Member & Reviewer
 
-### 15. Lấy chi tiết bài nộp
+### 5. Chair mời PC Member
 
-**Endpoint:** `GET http://localhost:3002/api/submissions/{submissionId}`
+`POST /pc-members/invite`
 
-### 16. Cập nhật bài nộp (Yêu cầu role **AUTHOR**)
+### 6. Reviewer chấp nhận lời mời
 
-**Endpoint:** `PATCH http://localhost:3002/api/submissions/{submissionId}`
+`PATCH /pc-members/{memberId}/accept`
 
-### 17. Xóa bài nộp (Yêu cầu role **AUTHOR**)
+### 7. Reviewer cập nhật chuyên môn
 
-**Endpoint:** `DELETE http://localhost:3002/api/submissions/{submissionId}`
+`PATCH /pc-members/{memberId}/topics`
 
-## Roles liên quan đến Conference Service
+```json
+{
+  "topics": ["Trí tuệ nhân tạo", "Machine Learning"]
+}
+```
 
-| Role          | Mô tả                                      | Quyền chính                                |
-|---------------|--------------------------------------------|--------------------------------------------|
-| `ADMIN`       | Quản trị viên hệ thống                     | Có quyền cao nhất, có thể gán role         |
-| `CHAIR`       | Chủ tịch hội nghị                          | Tạo, quản lý, thay đổi trạng thái hội nghị |
-| `AUTHOR`      | Tác giả bài báo                            | Nộp, cập nhật, xóa bài nộp                 |
-| `REVIEWER`    | Người đánh giá                             | (Sẽ implement sau)                         |
-| `PC_MEMBER`   | Thành viên ban chương trình                | (Sẽ implement sau)                         |
+---
 
-## Kiểm tra bảng dữ liệu (nếu cần)
+## AI Gợi ý Reviewer
+
+`GET /assignments/suggest/{submissionId}?top=5`
+
+→ Trả về danh sách reviewer kèm **score + reason** từ AI
+
+---
+
+## Phân công & Quyết định
+
+### 8. Phân công reviewer
+
+`POST /assignments/assign`
+
+### 9. Ra quyết định
+
+`POST /decisions`
+
+```json
+{
+  "submissionId": "{submissionId}",
+  "decision": "accept",
+  "feedback": "Bài báo chất lượng tốt"
+}
+```
+
+---
+
+## Báo cáo & Proceedings
+
+* Xuất proceedings: `GET /conferences/{id}/export-proceedings?format=pdf`
+* Thống kê bài nộp: `GET /reports/conference/{id}/submission-stats`
+
+---
+
+## Ghi chú triển khai
+
+### Cài package nếu gặp lỗi dependency
 
 ```bash
-docker exec -it uth-database psql -U admin -d db_conference -c "\dt"
+npm install --legacy-peer-deps
+npm install pdfkit @nestjs/swagger swagger-ui-express @nestjs/axios
 ```
 
-→ Thấy 2 bảng: `conferences` và `submissions`
+### Cron job
 
-## Cron tự động
+* Tự động đóng nộp bài khi quá deadline (00:00 mỗi ngày)
 
-Hệ thống có cron job chạy hàng ngày lúc 00:00 để kiểm tra deadline submission → tự động chuyển trạng thái hội nghị sang `submission_closed` nếu hết hạn.
+---
 
-**UTH-ConfMS Conference Service đã sẵn sàng hoạt động!**  
-Bạn có thể bắt đầu tạo hội nghị, mở nộp bài và nhận bài báo từ tác giả ngay lập tức.
+## Bảng tổng kết chức năng & cấu trúc Conference Service (theo source code)
+
+### Tổng quan
+
+Conference Service đảm nhiệm **toàn bộ nghiệp vụ hội nghị khoa học**, bao gồm:
+
+* Quản lý hội nghị & bài nộp
+* PC Member / Reviewer
+* Phân công & quyết định
+* Gợi ý reviewer bằng AI
+* Báo cáo & audit
+* Gửi email thông báo
+
+---
+
+### 📋 Bảng chức năng chi tiết
+```text
+| STT | Thư mục                        | Chức năng chính       | Mô tả nghiệp vụ                                                             |
+| --- | ------------------------------ | --------------------- | --------------------------------------------------------------------------- |
+| 1   | `ai/`                          | AI Service            | Xử lý logic AI, gợi ý reviewer phù hợp dựa trên topic, keywords, chuyên môn |
+| 2   | `assignments/`                 | Phân công reviewer    | Gợi ý reviewer, phân công reviewer cho bài nộp                              |
+| 3   | `audit/`                       | Audit & Logging       | Ghi log các hành động quan trọng (assign, decision, status change, …)       |
+| 4   | `auth/`                        | Xác thực nội bộ       | Guard, kiểm tra JWT, role khi gọi Conference Service                        |
+| 5   | `common/`                      | Thành phần dùng chung | Guard, decorator, enum, base response, utils                                |
+| 6   | `conferences/`                 | Quản lý hội nghị      | Tạo, cập nhật, xóa, đổi trạng thái, deadline                                |
+| 7   | `decisions/`                   | Quyết định bài nộp    | Accept / Reject / Feedback bài báo                                          |
+| 8   | `emails/`                      | Gửi email             | Gửi mail mời reviewer, thông báo quyết định, trạng thái                     |
+| 9   | `pc-members/`                  | PC Member             | Mời, chấp nhận lời mời, cập nhật chuyên môn                                 |
+| 10  | `reports/`                     | Báo cáo thống kê      | Thống kê bài nộp theo trạng thái, hội nghị                                  |
+| 11  | `reviews/`                     | Review bài báo        | Reviewer thực hiện đánh giá (score, comment)                                |
+| 12  | `submissions/`                 | Bài nộp               | Author nộp, sửa, xóa, xem bài báo                                           |
+| 13  | `users/`                       | Người dùng liên quan  | Lấy thông tin user từ Identity Service                                      |
+| 14  | `conference-service.module.ts` | Module gốc            | Khai báo module, import các feature module                                  |
+| 15  | `main.ts`                      | Bootstrap             | Khởi động NestJS application                                                |
 ```
+---
+
+### 📂 Sơ đồ thư mục Conference Service
+
+```text
+conference-service/
+├── src/
+│   ├── ai/                 # AI reviewer suggestion
+│   ├── assignments/        # Phân công reviewer
+│   ├── audit/              # Audit log
+│   ├── auth/               # JWT & role guard
+│   ├── common/             # Dùng chung (decorator, enum, utils)
+│   ├── conferences/        # Hội nghị
+│   ├── decisions/          # Quyết định bài nộp
+│   ├── emails/             # Gửi email thông báo
+│   ├── pc-members/         # PC Member / Reviewer
+│   ├── reports/            # Báo cáo & thống kê
+│   ├── reviews/            # Review bài báo
+│   ├── submissions/        # Bài nộp
+│   ├── users/              # Kết nối Identity Service
+│   ├── conference-service.module.ts
+│   └── main.ts
+├── .env
+├── Dockerfile
+├── README.md
+└── tsconfig.app.json
+```
+
+
+
