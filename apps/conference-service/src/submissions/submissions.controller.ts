@@ -52,7 +52,16 @@ export class SubmissionsController {
   ) {
     return this.submissionsService.update(id, updateDto, userId);
   }
-
+  @Patch(':id/camera-ready')
+  @UseGuards(RolesGuard)
+  @Roles(RoleName.AUTHOR)
+  async uploadCameraReady(
+    @Param('id') id: string,
+    @Body('fileUrl') fileUrl: string,
+    @CurrentUser('userId') userId: number,
+  ) {
+    return this.submissionsService.uploadCameraReady(id, fileUrl, userId);
+  }
   @Delete(':id')
   @UseGuards(RolesGuard)
   @Roles(RoleName.AUTHOR)

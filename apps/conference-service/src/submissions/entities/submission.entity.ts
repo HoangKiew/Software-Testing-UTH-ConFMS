@@ -49,4 +49,7 @@ export class Submission {
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
+    // Thêm vào entity
+  @Column({ default: false })
+  cameraReadyUploaded: boolean;
 }

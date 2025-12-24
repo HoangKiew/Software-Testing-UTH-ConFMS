@@ -1,4 +1,4 @@
-// src/conferences/entities/conference.entity.ts
+// apps/conference-service/src/conferences/entities/conference.entity.ts
 import {
   Column,
   Entity,
@@ -31,7 +31,7 @@ export class Conference {
   acronym: string;
 
   @Column({ type: 'text', nullable: true })
-  description: string;  // Sửa truncated
+  description: string;
 
   @Column({ type: 'timestamptz' })
   startDate: Date;
@@ -63,7 +63,7 @@ export class Conference {
   })
   status: ConferenceStatus;
 
-  @Column({ name: 'chair_id', type: 'integer' })  // Đổi sang number (int) khớp identity User.id
+  @Column({ name: 'chair_id', type: 'integer' })
   chairId: number;
 
   @Column({ default: true })
@@ -74,4 +74,37 @@ export class Conference {
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
+
+  @Column({ type: 'jsonb', default: [] })
+  schedule: Array<{
+    time: string;
+    sessionName: string;
+    paperIds: string[];
+  }>;
+
+  // === Các field mới (chỉ giữ 1 lần duy nhất) ===
+
+  // Bật/tắt AI tổng thể cho hội nghị
+  @Column({ name: 'ai_features_enabled', default: false })
+  aiFeaturesEnabled: boolean;
+
+  // Cấu hình chi tiết từng tính năng AI
+  @Column({
+    type: 'jsonb',
+    name: 'ai_config',
+    default: {
+      emailDraft: true,
+      keywordSuggestion: true,  // Dùng tên này để khớp với ai.service.ts
+      neutralSummary: true,
+    },
+  })
+  aiConfig: {
+    emailDraft?: boolean;
+    keywordSuggestion?: boolean;
+    neutralSummary?: boolean;
+  };
+
+  // Cho phép public proceedings
+  @Column({ default: false })
+  openAccess: boolean;
 }
