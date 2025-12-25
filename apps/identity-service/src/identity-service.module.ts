@@ -3,7 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
-import { SeedModule } from './seed/seed.module';
+//import { SeedModule } from './seed/seed.module';
 import { User } from './users/entities/user.entity';
 import { Role } from './users/entities/role.entity';
 import { RefreshToken } from './auth/entities/refresh-token.entity';
@@ -45,7 +45,7 @@ import { PasswordResetToken } from './users/entities/password-reset-token.entity
         };
       },
     }),
-    SeedModule,
+    //SeedModule,
     UsersModule,
     AuthModule,
   ],

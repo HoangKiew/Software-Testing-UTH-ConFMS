@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # Database 
+  # Database
   postgres:
     image: postgres:15-alpine
     container_name: uth-database
@@ -12,7 +12,7 @@ services:
       - ./database/init-scripts:/docker-entrypoint-initdb.d
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5435:5435"
+      - '5435:5432'
     networks:
       - uth-net
 
@@ -21,7 +21,7 @@ services:
       context: .
       dockerfile: ./apps/identity-service/Dockerfile
     ports:
-      - "3001:3001"
+      - '3001:3001'
     environment:
       - DB_HOST=postgres
       - DB_PORT=5432
@@ -29,7 +29,7 @@ services:
       - DB_PASSWORD=admin123
       - DB_DATABASE=db_identity
     depends_on:
-      - postgres 
+      - postgres
     networks:
       - uth-net
 
@@ -38,7 +38,7 @@ services:
       context: .
       dockerfile: ./apps/conference-service/Dockerfile
     ports:
-      - "3002:3002"
+      - '3002:3002'
     environment:
       - DB_HOST=postgres
       - DB_PORT=5432

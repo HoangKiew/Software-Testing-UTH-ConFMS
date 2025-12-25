@@ -14,7 +14,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RoleName } from '../common/enums/role-name.enum';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { JwtPayload } from '../common/guards/roles.guard';
+import type { JwtPayload } from '../common/guards/roles.guard';
 
 @Controller('conferences')
 @UseGuards(RolesGuard)
