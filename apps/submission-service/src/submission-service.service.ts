@@ -101,7 +101,7 @@ export class SubmissionServiceService implements OnModuleInit {
 
       // 4. Upload Supabase
       const { error: uploadError } = await this.supabase.storage
-        .from(process.env.SUPABASE_BUCKET || 'papers')
+        .from(process.env.SUPABASE_BUCKET_NAME || 'submission')
         .upload(path, file.buffer, {
           contentType: file.mimetype,
           upsert: true
@@ -113,7 +113,7 @@ export class SubmissionServiceService implements OnModuleInit {
 
       // 5. Lấy URL công khai
       const { data: { publicUrl } } = this.supabase.storage
-        .from(process.env.SUPABASE_BUCKET || 'papers')
+        .from(process.env.SUPABASE_BUCKET_NAME || 'submission')
         .getPublicUrl(path);
 
       // 6. Lưu vào Database
@@ -271,7 +271,91 @@ export class SubmissionServiceService implements OnModuleInit {
     }
   }
 
-  // --- API 6: WITHDRAW SUBMISSION (AUTHOR ONLY) ---
+  // --- API 6: UPDATE SUBMISSION METADATA (AUTHOR ONLY) ---
+  async updateSubmission(id: number, userId: number, updateData: any) {
+    try {
+      const submission = await this.subRepo.findOne({
+        where: { id },
+        relations: ['authors']
+      });
+
+      if (!submission) {
+        throw new NotFoundException(`Không tìm thấy bài nộp với ID ${id}`);
+      }
+
+      // Kiểm tra ownership
+      if (submission.created_by !== userId) {
+        throw new ForbiddenException('Bạn chỉ có thể sửa bài nộp của mình');
+      }
+
+      // Không cho phép sửa nếu đã được chấp nhận hoặc đã rút
+      if (submission.status === SubmissionStatus.ACCEPTED) {
+        throw new BadRequestException('Không thể sửa bài đã được chấp nhận');
+      }
+
+      if (submission.status === SubmissionStatus.WITHDRAWN) {
+        throw new BadRequestException('Không thể sửa bài đã rút');
+      }
+
+      // Check deadline
+      console.log('🔍 Checking deadline for conference:', submission.conference_id);
+      await this.conferenceClient.checkDeadline(submission.conference_id);
+      console.log('✅ Deadline check passed');
+
+      try {
+        // Cập nhật các trường
+        console.log('📝 Starting field updates...');
+
+        if (updateData.title) {
+          submission.title = updateData.title;
+          console.log('✅ Title updated:', updateData.title);
+        }
+
+        if (updateData.abstract !== undefined) {
+          submission.abstract = updateData.abstract;
+          console.log('✅ Abstract updated');
+        }
+
+        if (updateData.authors) {
+          // Parse authors if it's a string (from form-data)
+          const authorsData = typeof updateData.authors === 'string'
+            ? JSON.parse(updateData.authors)
+            : updateData.authors;
+          submission.authors = authorsData;
+          console.log('✅ Authors updated');
+        }
+
+        console.log('🔄 Saving submission...');
+        await this.subRepo.save(submission);
+        console.log('✅ Submission saved');
+      } catch (updateError) {
+        console.error('❌ Error during update:', updateError);
+        throw updateError;
+      }
+
+      // Audit log
+      await this.logAudit(
+        'UPDATE',
+        'SUBMISSION',
+        id,
+        userId,
+        `Updated submission metadata: ${JSON.stringify(updateData)}`
+      );
+
+      return {
+        status: 'success',
+        message: 'Đã cập nhật bài nộp thành công',
+        data: submission
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof ForbiddenException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Lỗi khi cập nhật bài nộp');
+    }
+  }
+
+  // --- API 7: WITHDRAW SUBMISSION (AUTHOR ONLY) ---
   async withdrawSubmission(id: number, userId: number) {
     try {
       const submission = await this.subRepo.findOne({ where: { id } });
@@ -310,6 +394,101 @@ export class SubmissionServiceService implements OnModuleInit {
         throw error;
       }
       throw new InternalServerErrorException('Lỗi khi rút bài nộp');
+    }
+  }
+
+  // --- API 8: UPLOAD CAMERA-READY (AUTHOR ONLY) ---
+  async uploadCameraReady(id: number, file: Express.Multer.File, userId: number) {
+    try {
+      const submission = await this.subRepo.findOne({
+        where: { id },
+        relations: ['files']
+      });
+
+      if (!submission) {
+        throw new NotFoundException(`Không tìm thấy bài nộp với ID ${id}`);
+      }
+
+      // Kiểm tra ownership
+      if (submission.created_by !== userId) {
+        throw new ForbiddenException('Bạn chỉ có thể upload camera-ready cho bài nộp của mình');
+      }
+
+      // Chỉ cho phép upload camera-ready nếu đã được chấp nhận
+      if (submission.status !== SubmissionStatus.ACCEPTED) {
+        throw new BadRequestException('Chỉ có thể upload camera-ready cho bài đã được chấp nhận');
+      }
+
+      // Tính version cho camera-ready (bắt đầu từ camera_ready_v1)
+      const cameraReadyFiles = await this.fileRepo.find({
+        where: { submission_id: id },
+        order: { version: 'DESC' }
+      });
+
+      // Count camera-ready versions (files with version >= 100)
+      const cameraReadyCount = cameraReadyFiles.filter(f => f.version >= 100).length;
+      const cameraReadyVersion = 100 + cameraReadyCount + 1; // Start from 101
+
+      // Chuẩn bị đường dẫn
+      const fileExt = file.originalname.split('.').pop();
+      const fileName = `camera_ready_v${cameraReadyCount + 1}.${fileExt}`;
+      const path = `papers/${submission.id}/camera-ready/${fileName}`;
+
+      // Upload to Supabase
+      const { error: uploadError } = await this.supabase.storage
+        .from(process.env.SUPABASE_BUCKET_NAME || 'submission')
+        .upload(path, file.buffer, {
+          contentType: file.mimetype,
+          upsert: true
+        });
+
+      if (uploadError) {
+        throw new BadRequestException(`Lỗi Cloud Storage: ${uploadError.message}`);
+      }
+
+      // Lấy URL công khai
+      const { data: { publicUrl } } = this.supabase.storage
+        .from(process.env.SUPABASE_BUCKET_NAME || 'submission')
+        .getPublicUrl(path);
+
+      // Lưu vào Database
+      const savedFile = await this.fileRepo.save({
+        submission_id: id,  // Use id parameter directly
+        file_path: publicUrl,
+        version: cameraReadyVersion
+      });
+
+      // Update submission camera_ready timestamp using update to avoid cascade
+      await this.subRepo.update(id, {
+        camera_ready_submitted_at: new Date()
+      });
+
+      // Audit log
+      await this.logAudit(
+        'UPLOAD_CAMERA_READY',
+        'FILE',
+        savedFile.id,
+        userId,
+        `Uploaded camera-ready version ${cameraReadyCount + 1}`
+      );
+
+      return {
+        status: 'success',
+        message: `Đã upload camera-ready version ${cameraReadyCount + 1} thành công`,
+        data: {
+          submissionId: submission.id,
+          fileId: savedFile.id,
+          version: cameraReadyVersion,
+          url: publicUrl,
+          submittedAt: submission.camera_ready_submitted_at
+        }
+      };
+    } catch (error) {
+      console.error('Camera-ready upload error:', error);
+      if (error instanceof NotFoundException || error instanceof ForbiddenException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Lỗi khi upload camera-ready');
     }
   }
 }

@@ -20,6 +20,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { SubmissionServiceService } from './submission-service.service';
 import { CreateSubmissionDto } from './dtos/create-submission.dto';
 import { UpdateStatusDto } from './dtos/update-status.dto';
+import { UpdateSubmissionDto } from './dtos/update-submission.dto';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { Roles } from './auth/roles.decorator';
@@ -49,7 +50,7 @@ export class SubmissionServiceController {
     @Request() req,
   ) {
     // Lấy User ID từ Token
-    createDto.createdBy = req.user.id;
+    createDto.createdBy = req.user.userId;
 
     // Xử lý type conversion cho conferenceId (do formData gửi lên là string)
     if (typeof createDto.conferenceId === 'string') {
@@ -80,7 +81,7 @@ export class SubmissionServiceController {
   async getSubmissionById(@Param('id') id: string, @Request() req) {
     return this.submissionService.getSubmissionById(
       Number(id),
-      req.user.id,
+      req.user.userId,
       req.user.roles
     );
   }
@@ -92,7 +93,22 @@ export class SubmissionServiceController {
     return this.submissionService.getSubmissionsByConference(Number(conferenceId));
   }
 
-  // --- 5. API CẬP NHẬT TRẠNG THÁI SUBMISSION (PATCH) ---
+  // --- 5. API CẬP NHẬT METADATA SUBMISSION (AUTHOR ONLY) ---
+  @Patch(':id')
+  @Roles('AUTHOR')
+  async updateSubmission(
+    @Param('id') id: string,
+    @Body() updateDto: UpdateSubmissionDto,
+    @Request() req
+  ) {
+    return this.submissionService.updateSubmission(
+      Number(id),
+      req.user.userId,
+      updateDto
+    );
+  }
+
+  // --- 6. API CẬP NHẬT TRẠNG THÁI SUBMISSION (PATCH) ---
   @Patch(':id/status')
   @Roles('CHAIR')
   async updateStatus(
@@ -104,14 +120,39 @@ export class SubmissionServiceController {
       Number(id),
       updateStatusDto.status,
       updateStatusDto.comment || '',
-      req.user.id
+      req.user.userId
     );
   }
 
-  // --- 6. API WITHDRAW SUBMISSION (DELETE) ---
+  // --- 7. API WITHDRAW SUBMISSION (DELETE) ---
   @Delete(':id')
   @Roles('AUTHOR')
   async withdrawSubmission(@Param('id') id: string, @Request() req) {
-    return this.submissionService.withdrawSubmission(Number(id), req.user.id);
+    return this.submissionService.withdrawSubmission(Number(id), req.user.userId);
+  }
+
+  // --- 8. API UPLOAD CAMERA-READY (POST) ---
+  @Post(':id/camera-ready')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor('file'))
+  @Roles('AUTHOR')
+  async uploadCameraReady(
+    @Param('id') id: string,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 15 * 1024 * 1024 }), // 15MB for camera-ready
+          new FileTypeValidator({ fileType: /(pdf)/ }), // Only PDF for final version
+        ],
+        fileIsRequired: true,
+      }),
+    ) file: Express.Multer.File,
+    @Request() req,
+  ) {
+    return this.submissionService.uploadCameraReady(
+      Number(id),
+      file,
+      req.user.userId
+    );
   }
 }

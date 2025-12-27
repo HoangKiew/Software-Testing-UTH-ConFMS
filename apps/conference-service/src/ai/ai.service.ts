@@ -23,9 +23,11 @@ export class AiService {
   ) {
     const apiKey = this.configService.get<string>('OPENAI_API_KEY');
     if (!apiKey) {
-      throw new Error('OPENAI_API_KEY is not defined in .env');
+      console.warn('⚠️  OPENAI_API_KEY is not defined - AI features will be disabled');
+      // Don't throw error, just log warning
+    } else {
+      this.openai = new OpenAI({ apiKey });
     }
-    this.openai = new OpenAI({ apiKey });
   }
 
   private async logAudit(
@@ -63,6 +65,10 @@ export class AiService {
     conferenceId: string | null = null,
     userId: number | null = null,
   ): Promise<string> {
+    if (!this.openai) {
+      return 'AI features are disabled. Please configure OPENAI_API_KEY to use this feature.';
+    }
+
     try {
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
@@ -94,6 +100,11 @@ export class AiService {
     submissionId: string | null = null,
     userId: number | null = null,
   ): Promise<string[]> {
+    if (!this.openai) {
+      console.warn('AI features disabled - returning empty keywords');
+      return [];
+    }
+
     try {
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
@@ -132,6 +143,10 @@ export class AiService {
     submissionId: string | null = null,
     userId: number | null = null,
   ): Promise<string> {
+    if (!this.openai) {
+      return 'AI features are disabled. Please configure OPENAI_API_KEY to use this feature.';
+    }
+
     try {
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
@@ -162,6 +177,10 @@ export class AiService {
     conferenceId: string | null = null,
     userId: number | null = null,
   ): Promise<KeywordSuggestionResponse> {
+    if (!this.openai) {
+      return { score: 0, reason: 'AI features are disabled' };
+    }
+
     try {
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',

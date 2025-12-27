@@ -10,7 +10,6 @@ import { DecisionsModule } from './decisions/decisions.module';
 import { EmailsModule } from './emails/emails.module';
 import { ReportsModule } from './reports/reports.module';
 import { ConferencesModule } from './conferences/conferences.module';
-import { SubmissionsModule } from './submissions/submissions.module';
 import { AiModule } from './ai/ai.module';
 
 // Module mới chúng ta vừa làm
@@ -71,16 +70,15 @@ import { JwtStrategy } from './auth/jwt.strategy';
 
     // === Các feature module ===
     ConferencesModule,
-    SubmissionsModule,
     AiModule,
     EmailsModule,
     ReportsModule,
-    
+
     // === Module mới ===
     PcMembersModule,
     AssignmentsModule, // Đã thêm
     DecisionsModule,
-    // Nếu sau này có thêm DecisionsModule hoặc ReviewsModule thì thêm ở đây
+    // Submissions handled by dedicated Submission Service (port 3003)
   ],
 
   providers: [
@@ -88,4 +86,4 @@ import { JwtStrategy } from './auth/jwt.strategy';
     ConferencesCron,
   ],
 })
-export class ConferenceServiceModule {}
+export class ConferenceServiceModule { }

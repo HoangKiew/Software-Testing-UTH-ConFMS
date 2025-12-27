@@ -32,6 +32,8 @@ export class Submission {
   @Column({ type: 'timestamp', nullable: true })
   withdrawn_at: Date;
 
+  @Column({ type: 'timestamp', nullable: true })
+  camera_ready_submitted_at: Date;
 
   @OneToMany(() => SubmissionFile, (file) => file.submission)
   files: SubmissionFile[];

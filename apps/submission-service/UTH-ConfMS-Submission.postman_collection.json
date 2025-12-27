@@ -1,0 +1,333 @@
+{
+    "info": {
+        "name": "UTH-ConfMS Submission Service",
+        "description": "API collection for testing Submission Service endpoints",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "http://localhost:3003/api",
+            "type": "string"
+        },
+        {
+            "key": "identityUrl",
+            "value": "http://localhost:3001/api",
+            "type": "string"
+        },
+        {
+            "key": "adminToken",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "authorToken",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "submissionId",
+            "value": "",
+            "type": "string"
+        }
+    ],
+    "item": [
+        {
+            "name": "0. Setup - Identity Service",
+            "item": [
+                {
+                    "name": "1. Register ADMIN",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"admin@uth.vn\",\n  \"password\": \"Admin123!\",\n  \"fullName\": \"Quản trị viên hệ thống\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{identityUrl}}/auth/register",
+                            "host": [
+                                "{{identityUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "register"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "2. Login ADMIN",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "pm.collectionVariables.set(\"adminToken\", jsonData.accessToken);"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"admin@uth.vn\",\n  \"password\": \"Admin123!\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{identityUrl}}/auth/login",
+                            "host": [
+                                "{{identityUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "login"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "3. Create AUTHOR Account",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{adminToken}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"author@uth.vn\",\n  \"password\": \"Author123!\",\n  \"fullName\": \"Nguyễn Văn A\",\n  \"role\": \"AUTHOR\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{identityUrl}}/users/create",
+                            "host": [
+                                "{{identityUrl}}"
+                            ],
+                            "path": [
+                                "users",
+                                "create"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "4. Login AUTHOR",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "pm.collectionVariables.set(\"authorToken\", jsonData.accessToken);"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"author@uth.vn\",\n  \"password\": \"Author123!\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{identityUrl}}/auth/login",
+                            "host": [
+                                "{{identityUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "login"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "1. Submit Paper",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "var jsonData = pm.response.json();",
+                            "if (jsonData.data && jsonData.data.submissionId) {",
+                            "  pm.collectionVariables.set(\"submissionId\", jsonData.data.submissionId);",
+                            "}"
+                        ]
+                    }
+                }
+            ],
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{authorToken}}"
+                    }
+                ],
+                "body": {
+                    "mode": "formdata",
+                    "formdata": [
+                        {
+                            "key": "file",
+                            "type": "file",
+                            "src": "/path/to/your/paper.pdf"
+                        },
+                        {
+                            "key": "conferenceId",
+                            "value": "1",
+                            "type": "text"
+                        },
+                        {
+                            "key": "title",
+                            "value": "Ứng dụng Deep Learning trong nhận diện khuôn mặt",
+                            "type": "text"
+                        },
+                        {
+                            "key": "abstract",
+                            "value": "Bài báo trình bày mô hình deep learning để nhận diện khuôn mặt với độ chính xác cao...",
+                            "type": "text"
+                        },
+                        {
+                            "key": "authors",
+                            "value": "[{\"name\":\"Nguyễn Văn A\",\"email\":\"author@uth.vn\",\"affiliation\":\"UTH\"}]",
+                            "type": "text"
+                        }
+                    ]
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/submissions/upload",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "submissions",
+                        "upload"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "2. Get My Submissions",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{authorToken}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/submissions/user/me",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "submissions",
+                        "user",
+                        "me"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "3. Get Submission by ID",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{authorToken}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/submissions/{{submissionId}}",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "submissions",
+                        "{{submissionId}}"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "4. Update Submission Metadata",
+            "request": {
+                "method": "PATCH",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{authorToken}}"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"title\": \"Tiêu đề đã chỉnh sửa - Deep Learning cho Face Recognition\",\n  \"abstract\": \"Tóm tắt đã cập nhật với thông tin chi tiết hơn về phương pháp và kết quả...\",\n  \"authors\": [\n    {\n      \"name\": \"Nguyễn Văn A\",\n      \"email\": \"author@uth.vn\",\n      \"affiliation\": \"UTH\"\n    },\n    {\n      \"name\": \"Trần Thị B\",\n      \"email\": \"authorB@uth.vn\",\n      \"affiliation\": \"UTH\"\n    }\n  ]\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/submissions/{{submissionId}}",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "submissions",
+                        "{{submissionId}}"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "5. Withdraw Submission",
+            "request": {
+                "method": "DELETE",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{authorToken}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/submissions/{{submissionId}}",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "submissions",
+                        "{{submissionId}}"
+                    ]
+                }
+            }
+        }
+    ]
+}

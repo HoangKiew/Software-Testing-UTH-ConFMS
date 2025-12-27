@@ -35,8 +35,13 @@ export class SupabaseService {
             });
 
         if (error) {
-            // Trả về lỗi chi tiết nếu upload thất bại (ví dụ: lỗi RLS hoặc hết dung lượng)
-            throw new InternalServerErrorException(`Lỗi upload Supabase: ${error.message}`);
+            // Log chi tiết lỗi để debug
+            console.error('Supabase upload error:', JSON.stringify(error, null, 2));
+            console.error('Bucket name:', bucketName);
+            console.error('Upload path:', path);
+
+            // Trả về lỗi chi tiết nếu upload thất bại
+            throw new InternalServerErrorException(`Lỗi Cloud Storage: ${error.message}`);
         }
 
         // Lấy URL công khai của file sau khi upload thành công
