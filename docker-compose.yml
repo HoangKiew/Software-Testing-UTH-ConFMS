@@ -1,37 +1,60 @@
-version: '3.8'
-
 services:
-  # Database 
   postgres:
     image: postgres:15-alpine
     container_name: uth-database
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: postgres
+    ports:
+      - "5435:5432"
     volumes:
       - ./database/init-script:/docker-entrypoint-initdb.d
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5435:5432"
     networks:
       - uth-net
+    restart: unless-stopped
 
   identity-service:
     build:
       context: .
-      dockerfile: ./apps/identity-service/Dockerfile
+      dockerfile: apps/identity-service/Dockerfile
+    container_name: uth-identity-service
     ports:
       - "3001:3001"
     environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USERNAME=admin
-      - DB_PASSWORD=admin123
-      - DB_DATABASE=db_identity
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: admin
+      DB_PASSWORD: admin123
+      DB_DATABASE: db_identity
+      JWT_ACCESS_SECRET: jZE6YIUoP_j7SOTLPWgS8kSfX5g4dlOmPMWJVNLMOyg-SMoqXiMRkR0ocJQEGr9HVUjonNIlZNwHzduFfOCJOQ
     depends_on:
       - postgres
     networks:
       - uth-net
+    restart: unless-stopped
+
+  conference-service:
+    build:
+      context: .
+      dockerfile: apps/conference-service/Dockerfile
+    container_name: uth-conference-service
+    ports:
+      - "3002:3002"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: admin
+      DB_PASSWORD: admin123
+      DB_DATABASE: db_conference
+      JWT_ACCESS_SECRET: jZE6YIUoP_j7SOTLPWgS8kSfX5g4dlOmPMWJVNLMOyg-SMoqXiMRkR0ocJQEGr9HVUjonNIlZNwHzduFfOCJOQ
+    depends_on:
+      - postgres
+      - identity-service
+    networks:
+      - uth-net
+    restart: unless-stopped
 
   submission-service:
     build:
