@@ -12,7 +12,7 @@ describe('SubmissionServiceController', () => {
       providers: [
         {
           provide: SubmissionServiceService,
-          useValue: {}, 
+          useValue: {},
         },
       ],
     }).compile();

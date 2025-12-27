@@ -3,39 +3,40 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { SubmissionServiceController } from './submission-service.controller';
 import { SubmissionServiceService } from './submission-service.service';
-
-// Import các Entity để NestJS biết cấu trúc bảng
-import { Submission } from './entities/submission.entity';
-import { SubmissionFile } from './entities/submission-file.entity';
+import { Submission } from './modules/submission/entities/submission.entity';
+import { SubmissionFile } from './modules/submission/entities/submission-file.entity';
+import { SubmissionAuthor } from './modules/submission/entities/author.entity'; // Dùng author.entity vì file chưa đổi tên
+import { AuditTrail } from './modules/submission/entities/audit-trail.entity';
+import { AuthModule } from './auth/auth.module';
+import { IntegrationModule } from './modules/integration/integration.module';
 
 @Module({
   imports: [
-    // 1. Load biến môi trường từ Docker/file .env
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-
-    // 2. Cấu hình KẾT NỐI chính (ROOT) đến Postgres
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST || 'postgres',
       port: 5432,
       username: process.env.DB_USERNAME || 'admin',
       password: process.env.DB_PASSWORD || 'admin123',
-      database: 'db_submission', // Khớp với file 01-init.sql của nhóm cậu
-      entities: [Submission, SubmissionFile],
-      synchronize: true, // Tự động tạo bảng dựa trên Entity
-      logging: true,     // Hiện câu lệnh SQL ra terminal để cậu kiểm tra
+      database: 'db_submission',
+      entities: [Submission, SubmissionFile, SubmissionAuthor, AuditTrail],
+      synchronize: true,
+      logging: true,
     }),
-
-    // 3. Đăng ký Repository để SubmissionService có thể dùng
     TypeOrmModule.forFeature([
-      Submission, 
-      SubmissionFile, 
-    ]), 
+      Submission,
+      SubmissionFile,
+      SubmissionAuthor,
+      AuditTrail
+    ]),
+    AuthModule,
+    IntegrationModule
   ],
   controllers: [SubmissionServiceController],
   providers: [SubmissionServiceService],
-  exports: [SubmissionServiceService], 
+  exports: [SubmissionServiceService],
 })
-export class SubmissionServiceModule {}
+export class SubmissionServiceModule { }

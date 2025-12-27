@@ -12,7 +12,7 @@ services:
       - ./database/init-script:/docker-entrypoint-initdb.d
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5435:5435"
+      - "5435:5432"
     networks:
       - uth-net
 
@@ -29,7 +29,7 @@ services:
       - DB_PASSWORD=admin123
       - DB_DATABASE=db_identity
     depends_on:
-      - postgres 
+      - postgres
     networks:
       - uth-net
 
@@ -43,10 +43,12 @@ services:
       - SUPABASE_URL=https://blrxodghcsytpqjtwnoo.supabase.co
       - SUPABASE_ANON_KEY=sb_publishable_tcunR__quMCm0PoaiBxHlw_sqJANldF
       - SUPABASE_BUCKET_NAME=submission
-      - DB_HOST=postgres               
+      - SUPABASE_SERVICE_ROLE_KEY=sb_secret_puxOWB6zIThovK-fxUtT9A_WivGpXfK
+      - JWT_ACCESS_SECRET=jZE6YIUoP_j7SOTLPWgS8kSfX5g4dlOmPMWJVNLMOyg-SMoqXiMRkR0ocJQEGr9HVUjonNIlZNwHzduFfOCJOQ
+      - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USERNAME=admin
-      - DB_PASSWORD=admin123      
+      - DB_PASSWORD=admin123
       - DB_DATABASE=db_submission
     networks:
       - uth-net

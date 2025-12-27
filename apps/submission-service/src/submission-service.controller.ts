@@ -1,60 +1,117 @@
-import { 
-  Controller, 
-  Post, 
+import {
+  Controller,
+  Post,
   Get,
+  Patch,
+  Delete,
   Param,
-  Body, 
-  UploadedFile, 
-  UseInterceptors, 
-  ParseFilePipe, 
-  MaxFileSizeValidator, 
+  Body,
+  UploadedFile,
+  UseInterceptors,
+  ParseFilePipe,
+  MaxFileSizeValidator,
   FileTypeValidator,
   HttpCode,
-  HttpStatus
+  HttpStatus,
+  UseGuards,
+  Request
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { SubmissionServiceService } from './submission-service.service';
-import { CreateSubmissionDto } from './dto/create-submission.dto';
+import { CreateSubmissionDto } from './dtos/create-submission.dto';
+import { UpdateStatusDto } from './dtos/update-status.dto';
+import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { RolesGuard } from './auth/roles.guard';
+import { Roles } from './auth/roles.decorator';
 import type { Express } from 'express';
 
 @Controller('submissions')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class SubmissionServiceController {
-  constructor(private readonly submissionService: SubmissionServiceService) {}
+  constructor(private readonly submissionService: SubmissionServiceService) { }
 
   // --- 1. API NỘP BÀI (POST) ---
   @Post('upload')
   @HttpCode(HttpStatus.OK)
-  @UseInterceptors(FileInterceptor('file')) // Key gửi từ Postman phải là 'file'
+  @UseInterceptors(FileInterceptor('file'))
+  @Roles('AUTHOR', 'CHAIR', 'ADMIN')
   async create(
     @UploadedFile(
       new ParseFilePipe({
         validators: [
-          // Giới hạn 10MB
-          new MaxFileSizeValidator({ 
-            maxSize: 10 * 1024 * 1024, 
-            message: 'File quá lớn! Dung lượng tối đa là 10MB.' 
-          }),
-          // Chấp nhận PDF, Word, và các file nén
-          new FileTypeValidator({ 
-            fileType: /(pdf|vnd.openxmlformats-officedocument.wordprocessingml.document|msword|zip|x-rar-compressed)/,
-          }),
+          new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }),
+          new FileTypeValidator({ fileType: /(pdf|word|zip)/ }),
         ],
         fileIsRequired: true,
       }),
     ) file: Express.Multer.File,
     @Body() createDto: CreateSubmissionDto,
+    @Request() req,
   ) {
-    // Kiểm tra Deadline
-    await this.submissionService.checkDeadline(createDto.conferenceId);
-    
-    // Xử lý lưu bài và upload cloud
+    // Lấy User ID từ Token
+    createDto.createdBy = req.user.id;
+
+    // Xử lý type conversion cho conferenceId (do formData gửi lên là string)
+    if (typeof createDto.conferenceId === 'string') {
+      createDto.conferenceId = parseInt(createDto.conferenceId, 10);
+    }
+
     return this.submissionService.handleSubmission(file, createDto);
   }
 
   // --- 2. API LẤY DANH SÁCH BÀI NỘP CỦA USER (GET) ---
+  @Get('user/me')
+  @Roles('AUTHOR', 'CHAIR')
+  async getMySubmissions(@Request() req) {
+    const userId = req.user.id;
+    return this.submissionService.getSubmissionsByUser(userId);
+  }
+
+  // Giữ lại API cũ admin có thể dùng
   @Get('user/:userId')
+  @Roles('CHAIR')
   async getByUserId(@Param('userId') userId: string) {
-    // Chuyển userId sang kiểu number nếu cần thiết
     return this.submissionService.getSubmissionsByUser(Number(userId));
+  }
+
+  // --- 3. API LẤY CHI TIẾT MỘT SUBMISSION (GET) ---
+  @Get(':id')
+  @Roles('AUTHOR', 'CHAIR')
+  async getSubmissionById(@Param('id') id: string, @Request() req) {
+    return this.submissionService.getSubmissionById(
+      Number(id),
+      req.user.id,
+      req.user.roles
+    );
+  }
+
+  // --- 4. API LẤY DANH SÁCH SUBMISSIONS THEO CONFERENCE (GET) ---
+  @Get('conference/:conferenceId')
+  @Roles('CHAIR')
+  async getByConference(@Param('conferenceId') conferenceId: string) {
+    return this.submissionService.getSubmissionsByConference(Number(conferenceId));
+  }
+
+  // --- 5. API CẬP NHẬT TRẠNG THÁI SUBMISSION (PATCH) ---
+  @Patch(':id/status')
+  @Roles('CHAIR')
+  async updateStatus(
+    @Param('id') id: string,
+    @Body() updateStatusDto: UpdateStatusDto,
+    @Request() req
+  ) {
+    return this.submissionService.updateStatus(
+      Number(id),
+      updateStatusDto.status,
+      updateStatusDto.comment || '',
+      req.user.id
+    );
+  }
+
+  // --- 6. API WITHDRAW SUBMISSION (DELETE) ---
+  @Delete(':id')
+  @Roles('AUTHOR')
+  async withdrawSubmission(@Param('id') id: string, @Request() req) {
+    return this.submissionService.withdrawSubmission(Number(id), req.user.id);
   }
 }
