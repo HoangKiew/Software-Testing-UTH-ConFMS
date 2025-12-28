@@ -17,6 +17,7 @@ import { User } from '../users/entities/user.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { EmailVerificationToken } from './entities/email-verification-token.entity';
 import { RoleName } from '../users/entities/role.entity';
+import { EmailService } from '../common/services/email.service';
 
 @Injectable()
 export class AuthService {
@@ -31,6 +32,7 @@ export class AuthService {
     private readonly refreshTokenRepository: Repository<RefreshToken>,
     @InjectRepository(EmailVerificationToken)
     private readonly emailVerificationTokenRepository: Repository<EmailVerificationToken>,
+    private readonly emailService: EmailService,
   ) {
     this.refreshSecret =
       this.configService.get<string>('JWT_REFRESH_SECRET') || 'refresh_secret';
@@ -64,24 +66,25 @@ export class AuthService {
       message: 'Vui lòng kiểm tra email để xác minh tài khoản',
     };
   }
-// Api 2: Xác tài khoản qua email viên token
+// Api 2: Xác tài khoản qua email với mã 6 số
   private async createAndSendEmailVerificationToken(user: User) {
-    const token = await bcrypt.genSalt(10);
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    // Tạo mã 6 chữ số
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 phút
 
     const entity = this.emailVerificationTokenRepository.create({
-      token,
+      token: code,
       userId: user.id,
       expiresAt,
       used: false,
     });
     await this.emailVerificationTokenRepository.save(entity);
-
-    const appUrl =
-      this.configService.get<string>('APP_BASE_URL') || 'http://localhost:3000';
-    const verifyUrl = `${appUrl}/verify-email?token=${encodeURIComponent(
-      token,
-    )}`;
+    
+    try {
+      await this.emailService.sendVerificationEmail(user.email, code, user.fullName);
+    } catch (error) {
+      console.error(`[AuthService] Failed to send verification email to ${user.email}:`, error);
+    }
   }
 // Api 3: Đăng nhập
   async login(dto: LoginDto) {
@@ -134,17 +137,18 @@ export class AuthService {
     return { message: 'Đã đăng xuất' };
   }
 // Api 6: Xác thực tk bằng token từ gmail
-  async verifyEmail(token: string) {
+  async verifyEmail(code: string) {
     const record = await this.emailVerificationTokenRepository.findOne({
-      where: { token, used: false },
+      where: { token: code, used: false },
+      order: { createdAt: 'DESC' },
     });
 
     if (!record) {
-      throw new NotFoundException('Token xác minh không hợp lệ');
+      throw new UnauthorizedException('Mã xác minh không hợp lệ');
     }
 
     if (record.expiresAt.getTime() < Date.now()) {
-      throw new UnauthorizedException('Token xác minh đã hết hạn');
+      throw new UnauthorizedException('Mã xác minh đã hết hạn');
     }
 
     const user = await this.usersService.markEmailVerified(record.userId);
@@ -167,27 +171,26 @@ export class AuthService {
         isVerified: true,
       };
     }
-    let token = await this.emailVerificationTokenRepository.findOne({
+    await this.emailVerificationTokenRepository.delete({
+      userId: user.id,
+    });
+    
+    await this.createAndSendEmailVerificationToken(user);
+    
+    const token = await this.emailVerificationTokenRepository.findOne({
       where: { userId: user.id, used: false },
       order: { createdAt: 'DESC' },
     });
-    if (!token || token.expiresAt.getTime() < Date.now()) {
-      await this.createAndSendEmailVerificationToken(user);
-      token = await this.emailVerificationTokenRepository.findOne({
-        where: { userId: user.id, used: false },
-        order: { createdAt: 'DESC' },
-      });
 
-      if (!token) {
-        throw new NotFoundException('Không thể tạo verification token');
-      }
+    if (!token) {
+      throw new NotFoundException('Không thể tạo verification code');
     }
 
     return {
       email: user.email,
-      token: token.token,
+      code: token.token, 
       expiresAt: token.expiresAt,
-      verifyUrl: `http://localhost:3001/api/auth/verify-email?token=${encodeURIComponent(token.token)}`,
+      createdAt: token.createdAt,
       isVerified: false,
     };
   }
@@ -202,6 +205,7 @@ export class AuthService {
     const accessToken = await this.jwtService.signAsync({
       sub: user.id,
       email: user.email,
+      fullName: user.fullName,
       roles: roleNames,
     });
 
@@ -231,7 +235,7 @@ export class AuthService {
       accessToken,
       refreshToken,
       expiresIn:
-        this.configService.get<string>('JWT_ACCESS_EXPIRES_IN') || '3600',
+        this.configService.get<string>('JWT_ACCESS_EXPIRES_IN') || '1800',
       refreshExpiresIn: this.refreshExpiresIn,
     };
   }
