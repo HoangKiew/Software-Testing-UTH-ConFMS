@@ -6,26 +6,24 @@ import { ConfigService } from '@nestjs/config';
 export interface JwtPayload {
   sub: string;
   email: string;
-  role: string;
+  role: string; // 'reviewer' | 'chair'
 }
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private configService: ConfigService) { // Thêm private để TypeScript biết type
-    const secret = configService.get<string>('JWT_ACCESS_SECRET');
-
-    if (!secret) {
-      throw new Error('JWT_ACCESS_SECRET is not defined in environment variables');
-    }
-
+  constructor(configService: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: secret, // Bây giờ chắc chắn là string
+
+      // KHÔNG còn undefined
+      secretOrKey: configService.getOrThrow<string>(
+        'JWT_ACCESS_SECRET',
+      ),
     });
   }
 
   async validate(payload: JwtPayload) {
-    return payload; // { sub, email, role }
+    return payload;
   }
 }
