@@ -47,6 +47,8 @@
     "swagger-ui-express": "^5.0.1",
     "swagger-ui-react": "^5.31.0",
     "typeorm": "^0.3.27"
+    ,"@nestjs/schedule": "^6.1.0",
+    "openai": "^4.24.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

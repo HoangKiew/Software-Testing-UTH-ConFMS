@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  ParseIntPipe,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { ConferencesService } from './conferences.service';
 import { CreateConferenceDto } from './dto/create-conference.dto';
 import { CreateTrackDto } from './dto/create-track.dto';
@@ -37,16 +29,13 @@ export class ConferencesController {
   }
 
   @Get(':id')
-  async findOne(@Param('id', ParseIntPipe) id: number) {
+  async findOne(@Param('id') id: string) {
     return this.conferencesService.findOneWithTracks(id);
   }
 
   @Post(':id/tracks')
   @Roles(RoleName.ADMIN, RoleName.CHAIR)
-  async addTrack(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: CreateTrackDto,
-  ) {
+  async addTrack(@Param('id') id: string, @Body() dto: CreateTrackDto) {
     return this.conferencesService.addTrack(id, dto);
   }
 }
