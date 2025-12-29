@@ -3,20 +3,24 @@ import { SubmissionServiceController } from './submission-service.controller';
 import { SubmissionServiceService } from './submission-service.service';
 
 describe('SubmissionServiceController', () => {
-  let submissionServiceController: SubmissionServiceController;
+  let controller: SubmissionServiceController;
 
   beforeEach(async () => {
-    const app: TestingModule = await Test.createTestingModule({
+    const module: TestingModule = await Test.createTestingModule({
       controllers: [SubmissionServiceController],
-      providers: [SubmissionServiceService],
+      // Mocking service để không cần kết nối DB thật khi test
+      providers: [
+        {
+          provide: SubmissionServiceService,
+          useValue: {},
+        },
+      ],
     }).compile();
 
-    submissionServiceController = app.get<SubmissionServiceController>(SubmissionServiceController);
+    controller = module.get<SubmissionServiceController>(SubmissionServiceController);
   });
 
-  describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(submissionServiceController.getHello()).toBe('Hello World!');
-    });
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
   });
 });

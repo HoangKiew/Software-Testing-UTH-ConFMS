@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Role, RoleName } from '../users/entities/role.entity';
+import { Role, RoleName } from './entities/role.entity';
 
 @Injectable()
 export class SeedService implements OnModuleInit {

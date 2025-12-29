@@ -50,7 +50,6 @@ import { PasswordResetToken } from './users/entities/password-reset-token.entity
         };
       },
     }),
-    //SeedModule,
     UsersModule,
     AuthModule,
   ],

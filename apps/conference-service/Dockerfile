@@ -9,4 +9,3 @@ COPY . .
 RUN npm run build conference-service
 EXPOSE 3002
 CMD ["node", "dist/apps/conference-service/main"]
-
