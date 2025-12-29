@@ -33,6 +33,7 @@
     "class-validator": "^0.14.1",
     "http-proxy-middleware": "^3.0.5",
     "next-swagger-doc": "^0.4.1",
+    "nodemailer": "^7.0.12",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.16.3",
