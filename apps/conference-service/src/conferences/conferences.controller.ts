@@ -1,4 +1,5 @@
-// src/conferences/conferences.controller.ts
+// apps/conference-service/src/conferences/conferences.controller.ts
+
 import {
   Controller,
   Get,
@@ -9,9 +10,7 @@ import {
   Delete,
   Query,
   UseGuards,
-  Res,
 } from '@nestjs/common';
-import type { Response } from 'express';
 import { ConferencesService } from './conferences.service';
 import { CreateConferenceDto } from './dto/create-conference.dto';
 import { UpdateConferenceDto } from './dto/update-conference.dto';
@@ -21,16 +20,18 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ConferenceStatus } from './entities/conference.entity';
 import { RoleName } from '../common/role.enum';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiTags('Conferences')
+@ApiBearerAuth('JWT-auth')
 @Controller('conferences')
-@UseGuards(JwtAuthGuard)
 export class ConferencesController {
   constructor(private readonly conferencesService: ConferencesService) {}
 
-  // Tạo hội nghị – ADMIN & CHAIR
   @Post()
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleName.CHAIR, RoleName.ADMIN)
+  @ApiBearerAuth('JWT-auth')
   async create(
     @Body() createDto: CreateConferenceDto,
     @CurrentUser('userId') userId: number,
@@ -38,20 +39,20 @@ export class ConferencesController {
     return this.conferencesService.create(createDto, userId);
   }
 
-  // Lấy danh sách (có filter status)
   @Get()
+  @UseGuards(JwtAuthGuard)
   async findAll(@Query('status') status?: ConferenceStatus) {
     return this.conferencesService.findAll(status ? { status } : {});
   }
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard)
   async findOne(@Param('id') id: string) {
     return this.conferencesService.findOne(id);
   }
 
-  // Cập nhật chung
   @Patch(':id')
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleName.CHAIR)
   async update(
     @Param('id') id: string,
@@ -61,20 +62,8 @@ export class ConferencesController {
     return this.conferencesService.update(id, updateDto, userId);
   }
 
-  // Soft delete
-  @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles(RoleName.CHAIR)
-  async delete(
-    @Param('id') id: string,
-    @CurrentUser('userId') userId: number,
-  ) {
-    return this.conferencesService.delete(id, userId);
-  }
-
-  // Quản lý riêng topics, deadlines, status, schedule
   @Patch(':id/topics')
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleName.CHAIR)
   async updateTopics(
     @Param('id') id: string,
@@ -85,7 +74,7 @@ export class ConferencesController {
   }
 
   @Patch(':id/deadlines')
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleName.CHAIR)
   async updateDeadlines(
     @Param('id') id: string,
@@ -97,16 +86,19 @@ export class ConferencesController {
     },
     @CurrentUser('userId') userId: number,
   ) {
-    const deadlines = {
-      submission: deadlinesDto.submission ? new Date(deadlinesDto.submission) : undefined,
-      review: deadlinesDto.review ? new Date(deadlinesDto.review) : undefined,
-      cameraReady: deadlinesDto.cameraReady ? new Date(deadlinesDto.cameraReady) : undefined,
-    };
-    return this.conferencesService.updateDeadlines(id, deadlines, userId);
+    return this.conferencesService.updateDeadlines(
+      id,
+      {
+        submission: deadlinesDto.submission ? new Date(deadlinesDto.submission) : undefined,
+        review: deadlinesDto.review ? new Date(deadlinesDto.review) : undefined,
+        cameraReady: deadlinesDto.cameraReady ? new Date(deadlinesDto.cameraReady) : undefined,
+      },
+      userId,
+    );
   }
 
   @Patch(':id/status')
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleName.CHAIR)
   async updateStatus(
     @Param('id') id: string,
@@ -117,7 +109,7 @@ export class ConferencesController {
   }
 
   @Patch(':id/schedule')
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleName.CHAIR)
   async updateSchedule(
     @Param('id') id: string,
@@ -127,55 +119,33 @@ export class ConferencesController {
     return this.conferencesService.updateSchedule(id, schedule, userId);
   }
 
-  // === SIÊU PHẨM: Endpoint thống nhất xuất kỷ yếu ===
-  @Get(':id/export-proceedings')
-  @UseGuards(RolesGuard)
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleName.CHAIR)
-  async exportProceedings(
+  async delete(
     @Param('id') id: string,
-    @Query('format') format: 'csv' | 'pdf' = 'csv',
-    @Res() res: Response,
+    @CurrentUser('userId') userId: number,
   ) {
-    if (format === 'pdf') {
-      const buffer = await this.conferencesService.exportProceedingsPdf(id);
-      res.set({
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="proceedings_${id}.pdf"`,
-      });
-      return res.send(buffer);
-    }
-
-    const csv = await this.conferencesService.exportProceedings(id);
-    res.set({
-      'Content-Type': 'text/csv',
-      'Content-Disposition': `attachment; filename="${csv.filename}"`,
-    });
-    return res.send(csv.data);
+    return this.conferencesService.delete(id, userId);
   }
 
-  // (Tùy chọn) Giữ endpoint cũ để backward compatible
-  // @Get(':id/export-proceedings/pdf') ...
-  // conferences.controller.ts – thêm các route public
-
+  // ================= PUBLIC API (KHÔNG CẦN TOKEN) =================
   @Get('public')
   async getPublicConferences() {
-    return this.conferencesService.findPublic(); // chỉ hội nghị isActive && status không phải DRAFT
+    return this.conferencesService.findPublic();
   }
 
-  @Get('public/:id')
+  @Get('public/conference/:id')  // ← ĐỔI THỨ TỰ ĐỂ TRÁNH MATCH NHẦM
   async getPublicConference(@Param('id') id: string) {
     return this.conferencesService.findPublicOne(id);
   }
 
-  @Get('public/:id/program')
+  @Get('public/conference/:id/program')  // ← ĐỔI THỨ TỰ
   async getPublicProgram(@Param('id') id: string) {
-    const conf = await this.conferencesService.findOne(id);
-    return { name: conf.name, schedule: conf.schedule };
-  }
-
-  @Get('public/:id/proceedings')
-  async getPublicProceedings(@Param('id') id: string, @Query('format') format: 'csv' | 'pdf' = 'csv', @Res() res: Response) {
-    // Tương tự exportProceedings nhưng không check role
-    // Có thể thêm flag openAccess trong entity để kiểm soát
+    const conf = await this.conferencesService.findPublicOne(id);
+    return {
+      name: conf.name,
+      schedule: conf.schedule,
+    };
   }
 }

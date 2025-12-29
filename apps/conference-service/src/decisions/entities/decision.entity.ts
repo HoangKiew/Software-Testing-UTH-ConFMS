@@ -3,17 +3,15 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  ManyToOne,
   CreateDateColumn,
 } from 'typeorm';
-import { Submission } from '../../submissions/entities/submission.entity';
 
-// ĐẶT ENUM TRỰC TIẾP TRONG FILE ĐỂ TRÁNH LỖI IMPORT VÒNG HOẶC SELF-IMPORT
+// ENUM đặt trực tiếp trong file
 export enum DecisionType {
   ACCEPT = 'accept',
   REJECT = 'reject',
-  REVISE = 'revise',      // Nếu hệ thống có revise
-  WITHDRAW = 'withdraw',  // Nếu cần
+  REVISE = 'revise',
+  WITHDRAW = 'withdraw',
 }
 
 @Entity({ name: 'decisions' })
@@ -24,7 +22,6 @@ export class Decision {
   @Column({ name: 'submission_id' })
   submissionId: string;
 
-  // SỬ DỤNG ENUM ĐÃ KHAI BÁO Ở TRÊN
   @Column({ type: 'enum', enum: DecisionType })
   decision: DecisionType;
 
@@ -36,9 +33,6 @@ export class Decision {
 
   @Column({ type: 'timestamp' })
   decidedAt: Date;
-
-  @ManyToOne(() => Submission, (submission) => submission.id, { onDelete: 'CASCADE' })
-  submission: Submission;
 
   @CreateDateColumn()
   createdAt: Date;

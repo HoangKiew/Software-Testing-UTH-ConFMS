@@ -1,5 +1,10 @@
 // apps/conference-service/src/pc-members/pc-members.service.ts
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PcMember, PcMemberStatus, PcMemberRole } from './entities/pc-member.entity';
@@ -7,6 +12,7 @@ import { EmailsService } from '../emails/emails.service';
 import { ConferencesService } from '../conferences/conferences.service';
 import { AiService } from '../ai/ai.service';
 import { AuditService } from '../audit/audit.service';
+import { UsersClient } from '../users/users.client'; // ✅ THÊM IMPORT MỚI
 import * as crypto from 'crypto';
 
 export interface SimilaritySuggestion {
@@ -23,8 +29,10 @@ export class PcMembersService {
     private conferencesService: ConferencesService,
     private aiService: AiService,
     private auditService: AuditService,
+    private usersClient: UsersClient, // ✅ THÊM UsersClient VÀO CONSTRUCTOR
   ) {}
 
+  // === Các hàm khác giữ nguyên ===
   async findOne(id: string): Promise<PcMember> {
     const member = await this.pcRepo.findOne({
       where: { id },
@@ -55,70 +63,71 @@ export class PcMembersService {
     });
   }
 
-  async invite(
-    conferenceId: string,
-    userId: number | null,
-    email: string,
-    role: PcMemberRole,
-    chairId: number,
-  ) {
+  async invite(dto: {
+    conferenceId: string;
+    userId: number;
+    role?: PcMemberRole;
+  }, chairId: number) {
     try {
+      const { conferenceId, userId, role } = dto;
+
       const conference = await this.conferencesService.findOne(conferenceId);
       if (conference.chairId !== chairId) {
         throw new ForbiddenException('Only chair can invite PC members');
       }
 
-      // Tìm member hiện có
-      let member: PcMember | null = null;
-      if (userId) {
-        member = await this.pcRepo.findOne({
-          where: { userId, conference: { id: conferenceId } },
-          relations: ['conference'],
-        });
+      // Kiểm tra đã mời chưa
+      const existing = await this.pcRepo.findOne({
+        where: { userId, conference: { id: conferenceId } },
+      });
+
+      if (existing && existing.status !== PcMemberStatus.PENDING) {
+        throw new BadRequestException('User has already processed this invitation');
       }
 
-      // Nếu chưa có → tạo mới
-      if (!member) {
-        const newMember = this.pcRepo.create({
+      // LẤY EMAIL – DÙNG FALLBACK, KHÔNG THROW LỖI
+      let email = `user-${userId}@uth.vn`;
+      try {
+        const fetchedEmail = await this.usersClient.getUserEmail(userId);
+        if (fetchedEmail && fetchedEmail !== 'unknown@author.example.com') {
+          email = fetchedEmail;
+        }
+      } catch (err) {
+        // Im lặng, không log gì cả nếu bạn muốn sạch console
+      }
+
+      let member: PcMember;
+
+      if (existing) {
+        existing.invitedAt = new Date();
+        existing.role = role || PcMemberRole.PC_MEMBER;
+        member = await this.pcRepo.save(existing);
+      } else {
+        member = this.pcRepo.create({
+          userId,
           conference,
-          userId: userId ?? undefined,
           role: role || PcMemberRole.PC_MEMBER,
           status: PcMemberStatus.PENDING,
           invitedAt: new Date(),
         });
-        member = await this.pcRepo.save(newMember);
-      } else if (member.status !== PcMemberStatus.PENDING) {
-        throw new BadRequestException('User has already processed this invitation');
-      } else {
-        // Mời lại → cập nhật invitedAt
-        member.invitedAt = new Date();
         member = await this.pcRepo.save(member);
       }
 
-      // Gửi email – bọc try-catch
-      try {
-        await this.emailsService.send('invite-pc-member', [email], {
-          fullName: email.split('@')[0] || 'Reviewer',
-          conferenceName: conference.name || 'Hội nghị',
-          acronym: conference.acronym || '',
-          startDate: conference.startDate ? new Date(conference.startDate).toLocaleDateString('vi-VN') : 'Chưa xác định',
-          endDate: conference.endDate ? new Date(conference.endDate).toLocaleDateString('vi-VN') : 'Chưa xác định',
-          submissionDeadline: conference.deadlines?.submission || 'Chưa xác định',
-          role: role || 'PC Member',
-          subject: `Lời mời tham gia Program Committee - ${conference.name}`,
-        });
-      } catch (emailError) {
-        console.error('Failed to send invitation email:', emailError);
-      }
+      // BỎ HOÀN TOÀN PHẦN GỬI EMAIL
+      // Không gọi emailsService.send nữa → không gửi mail, không log dev mode
 
-      // Log audit – bọc try-catch
-      try {
-        await this.auditService.log('INVITE_PC_MEMBER', chairId, 'PcMember', member.id, { role });
-      } catch (auditError) {
-        console.error('Failed to log audit:', auditError);
-      }
+      console.log(`[INVITE SUCCESS] User ID ${userId} đã được mời làm PC Member cho hội nghị ${conference.name} (memberId: ${member.id})`);
 
-      return { message: 'Invitation sent successfully', memberId: member.id };
+      // Audit log vẫn giữ để trace
+      await this.auditService.log('INVITE_PC_MEMBER', chairId, 'PcMember', member.id, {
+        userId,
+        role: member.role,
+      });
+
+      return { 
+        message: 'Invitation created successfully (email disabled)', 
+        memberId: member.id 
+      };
     } catch (error) {
       console.error('Error in invite PC Member:', error);
       if (error instanceof ForbiddenException || error instanceof BadRequestException || error instanceof NotFoundException) {
@@ -127,7 +136,7 @@ export class PcMembersService {
       throw new BadRequestException('Failed to invite PC member');
     }
   }
-
+  // === Các hàm còn lại giữ nguyên ===
   async acceptInvite(id: string, userId: number) {
     const member = await this.findOne(id);
     if (member.userId !== userId) throw new ForbiddenException('Unauthorized action');
@@ -261,6 +270,7 @@ export class PcMembersService {
       return { score: 0, reason: 'AI service unavailable or invalid response' };
     }
   }
+
   async updateTopics(
     memberId: string,
     topics: string[],

@@ -8,10 +8,10 @@ export enum PcMemberStatus {
   DECLINED = 'declined',
 }
 
+// ✅ CHỈ GIỮ LẠI PC_MEMBER THÔI
+// Nếu sau này cần Track Chair hay Senior PC thì thêm lại sau, lúc đó sẽ nâng cấp hệ thống
 export enum PcMemberRole {
   PC_MEMBER = 'PC_MEMBER',
-  TRACK_CHAIR = 'TRACK_CHAIR',
-  SENIOR_PC = 'SENIOR_PC',
 }
 
 @Entity({ name: 'pc_members' })
@@ -22,6 +22,7 @@ export class PcMember {
   @Column({ name: 'user_id', type: 'integer' })
   userId: number;
 
+  // Role giờ chỉ có 1 giá trị duy nhất, nhưng vẫn giữ enum để dễ mở rộng sau này
   @Column({
     type: 'enum',
     enum: PcMemberRole,
@@ -54,7 +55,7 @@ export class PcMember {
   @Column({ type: 'timestamp', nullable: true })
   declinedAt: Date;
 
-  // Quan hệ với Conference – dùng JoinColumn để TypeORM tự fill conference_id từ relation
+  // Quan hệ với Conference
   @ManyToOne(() => Conference, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'conference_id' })
   conference: Conference;

@@ -1,5 +1,5 @@
 // src/pc-members/dto/invite-pc-member.dto.ts
-import { IsString, IsNumber, IsEmail, IsEnum } from 'class-validator';
+import { IsString, IsNumber, IsEnum, IsOptional } from 'class-validator';
 import { PcMemberRole } from '../entities/pc-member.entity';
 
 export class InvitePcMemberDto {
@@ -9,9 +9,10 @@ export class InvitePcMemberDto {
   @IsNumber()
   userId: number;
 
-  @IsEmail()
-  email: string;
+  // BỎ @IsEmail() và trường email hoàn toàn
+  // Email sẽ được lấy tự động từ UsersClient dựa trên userId
 
+  @IsOptional()              // Cho phép không gửi role
   @IsEnum(PcMemberRole)
-  role: PcMemberRole;
+  role?: PcMemberRole;       // Mặc định sẽ là PC_MEMBER nếu không cung cấp
 }

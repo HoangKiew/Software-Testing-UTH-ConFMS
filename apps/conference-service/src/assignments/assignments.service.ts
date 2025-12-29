@@ -1,25 +1,31 @@
 // apps/conference-service/src/assignments/assignments.service.ts
-import { Injectable, ForbiddenException, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Assignment, AssignmentStatus } from './entities/assignment.entity';
 import { AssignReviewersDto } from './dto/assign-reviewers.dto';
 import { PcMembersService } from '../pc-members/pc-members.service';
-import { SubmissionsService } from '../submissions/submissions.service';
 import { ConferencesService } from '../conferences/conferences.service';
 import { AuditService } from '../audit/audit.service';
 import { UsersClient } from '../users/users.client';
 import { PcMemberStatus } from '../pc-members/entities/pc-member.entity';
+import { SubmissionsClient } from '../integrations/submissions.client';
+
 @Injectable()
 export class AssignmentsService {
   constructor(
     @InjectRepository(Assignment)
     private assignmentRepo: Repository<Assignment>,
     private pcMembersService: PcMembersService,
-    private submissionsService: SubmissionsService,
     private conferencesService: ConferencesService,
     private auditService: AuditService,
     private usersClient: UsersClient,
+    private submissionsClient: SubmissionsClient,
   ) {}
 
   private async findOne(assignmentId: string): Promise<Assignment> {
@@ -30,9 +36,9 @@ export class AssignmentsService {
     return assignment;
   }
 
-  // Gợi ý reviewer tự động (AI similarity + filter COI)
+  // Gợi ý reviewer tự động
   async suggestReviewers(submissionId: string, top: number = 5) {
-    const submission = await this.submissionsService.findOne(submissionId);
+    const submission = await this.submissionsClient.getSubmission(submissionId);
 
     const keywords = (submission.keywords || '')
       .split(',')
@@ -43,7 +49,8 @@ export class AssignmentsService {
       return { message: 'Submission has no keywords for matching', suggestions: [] };
     }
 
-    const pcMembers = await this.pcMembersService.findAllAcceptedByConference(submission.conferenceId);
+    const pcMembers =
+      await this.pcMembersService.findAllAcceptedByConference(submission.conferenceId);
 
     if (pcMembers.length === 0) {
       return { message: 'No accepted PC members in this conference', suggestions: [] };
@@ -58,7 +65,9 @@ export class AssignmentsService {
         );
 
         const authors = submission.authors || [];
-        let hasCoi = authors.some((authorId: number) => member.coiUserIds.includes(authorId));
+        const hasCoi = authors.some((authorId: number) =>
+          member.coiUserIds.includes(authorId),
+        );
 
         return {
           memberId: member.id,
@@ -72,18 +81,14 @@ export class AssignmentsService {
       }),
     );
 
-    const validSuggestions = suggestions
+    return suggestions
       .filter((s) => !s.hasCoi && s.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, top);
-
-    return validSuggestions.length > 0
-      ? validSuggestions
-      : { message: 'No suitable reviewers found (all have COI or low similarity)', suggestions: [] };
   }
 
   async assignReviewers(dto: AssignReviewersDto, chairId: number) {
-    const submission = await this.submissionsService.findOne(dto.submissionId);
+    const submission = await this.submissionsClient.getSubmission(dto.submissionId);
     const conference = await this.conferencesService.findOne(submission.conferenceId);
 
     if (conference.chairId !== chairId) {
@@ -95,7 +100,6 @@ export class AssignmentsService {
     for (const reviewerId of dto.reviewerIds) {
       const member = await this.pcMembersService.findOne(reviewerId);
 
-      // SỬA: member.conference.id thay vì member.conferenceId
       if (member.conference.id !== conference.id || member.status !== PcMemberStatus.ACCEPTED) {
         throw new BadRequestException(`Reviewer ${reviewerId} is invalid or not accepted`);
       }
@@ -111,8 +115,6 @@ export class AssignmentsService {
           reviewerId,
           status: AssignmentStatus.ASSIGNED,
           assignedAt: new Date(),
-          similarityScore: 0,
-          hasCoi: false,
         });
       } else {
         assignment.status = AssignmentStatus.ASSIGNED;
@@ -143,7 +145,7 @@ export class AssignmentsService {
 
     return this.assignmentRepo.find({
       where: { conferenceId },
-      relations: ['reviewer', 'submission'],
+      relations: ['reviewer'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -159,6 +161,7 @@ export class AssignmentsService {
   async unassign(assignmentId: string, chairId: number) {
     const assignment = await this.findOne(assignmentId);
     const conference = await this.conferencesService.findOne(assignment.conferenceId);
+
     if (conference.chairId !== chairId) {
       throw new ForbiddenException('Only chair can unassign');
     }
