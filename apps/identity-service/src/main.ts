@@ -14,6 +14,14 @@ async function bootstrap() {
   }
 
   const app = await NestFactory.create(IdentityServiceModule);
+  
+  app.enableCors({
+    origin: true, 
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  });
+  
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
     new ValidationPipe({

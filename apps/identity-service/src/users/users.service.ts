@@ -11,6 +11,7 @@ import { User } from './entities/user.entity';
 import { Role, RoleName } from './entities/role.entity';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
+import { EmailService } from '../common/services/email.service';
 
 @Injectable()
 export class UsersService {
@@ -22,6 +23,7 @@ export class UsersService {
     @InjectRepository(PasswordResetToken)
     private readonly passwordResetTokenRepository: Repository<PasswordResetToken>,
     private readonly dataSource: DataSource,
+    private readonly emailService: EmailService,
   ) {}
   async markEmailVerified(userId: number): Promise<User> {
     const user = await this.findById(userId);
@@ -208,12 +210,67 @@ export class UsersService {
     });
     await this.passwordResetTokenRepository.save(resetToken);
 
-    // TODO: Tích hợp SMTP / notification-service để gửi email
-    // Tạm thời log ra server để dev test
-    // eslint-disable-next-line no-console
-    console.log(
-      `[ForgotPassword] Sent reset code ${code} to email ${user.email} (expires at ${expiresAt.toISOString()})`,
-    );
+    try {
+      await this.emailService.sendPasswordResetCode(user.email, code);
+    } catch (error) {
+      console.error(`[ForgotPassword] Failed to send email to ${user.email}:`, error);
+    }
+  }
+
+  async getResetCodeByEmail(email: string) {
+    const user = await this.findByEmail(email);
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+
+    const token = await this.passwordResetTokenRepository.findOne({
+      where: {
+        userId: user.id,
+        used: false,
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!token) {
+      throw new NotFoundException('Chưa có mã reset mật khẩu. Vui lòng gửi yêu cầu quên mật khẩu trước.');
+    }
+
+    if (token.expiresAt.getTime() < Date.now()) {
+      throw new UnauthorizedException('Mã reset mật khẩu đã hết hạn. Vui lòng gửi yêu cầu mới.');
+    }
+
+    return {
+      email: user.email,
+      code: token.token,
+      expiresAt: token.expiresAt,
+      createdAt: token.createdAt,
+    };
+  }
+
+  async verifyResetCode(email: string, code: string): Promise<boolean> {
+    const user = await this.findByEmail(email);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const token = await this.passwordResetTokenRepository.findOne({
+      where: {
+        userId: user.id,
+        token: code,
+        used: false,
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!token) {
+      return false;
+    }
+
+    if (token.expiresAt.getTime() < Date.now()) {
+      return false;
+    }
+
+    return true;
   }
 
   async resetPassword(

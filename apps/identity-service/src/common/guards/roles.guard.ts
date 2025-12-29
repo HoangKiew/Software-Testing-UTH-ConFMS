@@ -21,7 +21,7 @@ export class RolesGuard implements CanActivate {
     );
 
     if (!requiredRoles) {
-      return true; // Không có yêu cầu role nào, cho phép truy cập
+      return true; 
     }
 
     const request = context.switchToHttp().getRequest();
@@ -38,13 +38,17 @@ export class RolesGuard implements CanActivate {
 
     if (!hasRequiredRole) {
       throw new ForbiddenException(
-        `Access denied. Required roles: ${requiredRoles.join(', ')}`,
+        `Quyền truy cập bị từ chối. Yêu cầu vai trò bắt buộc: ${requiredRoles.join(', ')}`,
       );
     }
 
     return true;
   }
 }
+
+
+
+
 
 
 

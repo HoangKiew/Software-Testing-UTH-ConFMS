@@ -10,6 +10,7 @@ import { User } from '../users/entities/user.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { EmailVerificationToken } from './entities/email-verification-token.entity';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { EmailService } from '../common/services/email.service';
 
 @Module({
   imports: [
@@ -24,12 +25,12 @@ import { JwtStrategy } from './strategies/jwt.strategy';
         secret: config.get<string>('JWT_ACCESS_SECRET') || 'access_secret',
         signOptions: {
           expiresIn:
-            Number(config.get<string>('JWT_ACCESS_EXPIRES_IN')) || 3600,
+            Number(config.get<string>('JWT_ACCESS_EXPIRES_IN')) || 1800,
         },
       }),
     }),
   ],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, EmailService],
   controllers: [AuthController],
 })
 export class AuthModule {}

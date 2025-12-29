@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, UseGuards, Delete } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, UseGuards, Delete, Query, UnauthorizedException } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -46,12 +46,49 @@ export class UsersController {
   }
 
   @Post('forgot-password')
+  @ApiOperation({ summary: 'Gửi mã reset mật khẩu qua email' })
+  @ApiResponse({ status: 200, description: 'Đã gửi mã reset mật khẩu (luôn trả về 200 để bảo mật)' })
   async forgotPassword(@Body('email') email: string) {
     await this.usersService.forgotPassword(email);
     return { message: 'Đã gửi mã reset mật khẩu tới email (nếu tồn tại)' };
   }
 
+  @Get('get-reset-code')
+  @ApiOperation({ 
+    summary: 'Lấy code db để xác thực email',
+    description: 'Helper endpoint để lấy reset code cho user để test.'
+  })
+  @ApiQuery({ name: 'email', description: 'Email của user cần lấy code', required: true })
+  @ApiResponse({ status: 200, description: 'Lấy code thành công' })
+  @ApiResponse({ status: 404, description: 'User không tồn tại hoặc chưa có code' })
+  async getResetCode(@Query('email') email: string) {
+    const result = await this.usersService.getResetCodeByEmail(email);
+    return {
+      message: 'Lấy reset code thành công (chỉ dùng trong development)',
+      data: result,
+    };
+  }
+
+  @Post('verify-reset-code')
+  @ApiOperation({ summary: 'Xác minh mã reset mật khẩu' })
+  @ApiResponse({ status: 200, description: 'Mã hợp lệ' })
+  @ApiResponse({ status: 400, description: 'Mã không hợp lệ hoặc đã hết hạn' })
+  async verifyResetCode(
+    @Body('email') email: string,
+    @Body('code') code: string,
+  ) {
+    const isValid = await this.usersService.verifyResetCode(email, code);
+    if (!isValid) {
+      throw new UnauthorizedException('Mã reset mật khẩu không hợp lệ hoặc đã hết hạn');
+    }
+    return { message: 'Mã reset mật khẩu hợp lệ', valid: true };
+  }
+
   @Post('reset-password')
+  @ApiOperation({
+      summary: "Đặt lại password",
+      description: "Đặt lại password khi quên pass"
+  })
   async resetPassword(
     @Body('email') email: string,
     @Body('code') code: string,
