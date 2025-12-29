@@ -8,13 +8,15 @@ import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
 import { User } from '../users/entities/user.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { EmailVerificationToken } from './entities/email-verification-token.entity';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { EmailService } from '../common/services/email.service';
 
 @Module({
   imports: [
     ConfigModule,
     PassportModule,
-    TypeOrmModule.forFeature([User, RefreshToken]),
+    TypeOrmModule.forFeature([User, RefreshToken, EmailVerificationToken]),
     UsersModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -22,14 +24,13 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('JWT_ACCESS_SECRET') || 'access_secret',
         signOptions: {
-          // jose types prefer number; default 15 minutes
           expiresIn:
-            Number(config.get<string>('JWT_ACCESS_EXPIRES_IN')) || 900,
+            Number(config.get<string>('JWT_ACCESS_EXPIRES_IN')) || 1800,
         },
       }),
     }),
   ],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, EmailService],
   controllers: [AuthController],
 })
 export class AuthModule {}

@@ -6,7 +6,7 @@ services:
   # =========================
   postgres:
     image: postgres:15-alpine
-    container_name: uth_postgres
+    container_name: uth-database
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin123
@@ -14,7 +14,7 @@ services:
       - ./database/init-script:/docker-entrypoint-initdb.d
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5435:5435"
     networks:
       - uth-net
 
@@ -62,6 +62,23 @@ services:
     depends_on:
       - postgres
       - identity-service
+    networks:
+      - uth-net
+
+  conference-service:
+    build:
+      context: .
+      dockerfile: ./apps/conference-service/Dockerfile
+    ports:
+      - "3002:3002"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=admin
+      - DB_PASSWORD=admin123
+      - DB_DATABASE=db_conference
+    depends_on:
+      - postgres
     networks:
       - uth-net
 

@@ -6,29 +6,36 @@ import {
   PrimaryGeneratedColumn,
   Unique,
 } from 'typeorm';
-import { User } from '../../users/entities/user.entity';
+import { User } from './user.entity';
 
-@Entity({ name: 'refresh_tokens' })
+@Entity({ name: 'password_reset_tokens' })
 @Unique(['token'])
-export class RefreshToken {
+export class PasswordResetToken {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column()
   token: string;
 
-  @Column({ name: 'expiry_date', type: 'timestamptz' })
-  expiryDate: Date;
-
-  @ManyToOne(() => User, (user) => user.refreshTokens, {
-    onDelete: 'CASCADE',
-  })
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
   user: User;
 
   @Column({ name: 'user_id' })
   userId: number;
 
+  @Column({ name: 'expires_at', type: 'timestamptz' })
+  expiresAt: Date;
+
+  @Column({ name: 'used', default: false })
+  used: boolean;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }
+
+
+
+
+
+
 

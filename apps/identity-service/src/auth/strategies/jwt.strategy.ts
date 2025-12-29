@@ -4,9 +4,9 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 
 export interface JwtPayload {
-  sub: string;
+  sub: number;
   email: string;
-  role: string;
+  roles: string[];
 }
 
 @Injectable()

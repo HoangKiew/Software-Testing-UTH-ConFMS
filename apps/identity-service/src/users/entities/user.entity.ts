@@ -2,23 +2,19 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinTable,
+  ManyToMany,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { RefreshToken } from '../../auth/entities/refresh-token.entity';
-
-export enum UserRole {
-  AUTHOR = 'author',
-  REVIEWER = 'reviewer',
-  CHAIR = 'chair',
-  ADMIN = 'admin',
-}
+import { Role } from './role.entity';
 
 @Entity({ name: 'users' })
 export class User {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
   @Column({ unique: true })
   email: string;
@@ -29,15 +25,16 @@ export class User {
   @Column({ name: 'full_name' })
   fullName: string;
 
-  @Column({
-    type: 'enum',
-    enum: UserRole,
-    default: UserRole.AUTHOR,
-  })
-  role: UserRole;
+  @Column({ default: false, name: 'is_verified' })
+  isVerified: boolean;
 
-  @Column({ default: true, name: 'is_active' })
-  isActive: boolean;
+  @ManyToMany(() => Role, (role) => role.users)
+  @JoinTable({
+    name: 'user_roles',
+    joinColumn: { name: 'user_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'role_id', referencedColumnName: 'id' },
+  })
+  roles: Role[];
 
   @OneToMany(() => RefreshToken, (token) => token.user, { cascade: true })
   refreshTokens: RefreshToken[];
