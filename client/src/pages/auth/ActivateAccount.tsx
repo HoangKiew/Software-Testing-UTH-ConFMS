@@ -11,13 +11,11 @@ const ActivateAccount = () => {
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   
-  // Query để lấy verification token (chỉ query khi đã submit email)
   const { data: tokenData, isLoading: isLoadingToken, error: tokenError, refetch: refetchToken } = useGetVerificationTokenQuery(
     { email },
     { skip: !isSubmit || !email }
   );
 
-  // Xử lý kết quả query
   useEffect(() => {
     if (tokenData?.data) {
       if (tokenData.data.isVerified) {

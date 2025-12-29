@@ -61,37 +61,6 @@ async function bootstrap() {
       ...proxyOptions,
     }),
   );
-  app.use(
-    '/api/conferences',
-    createProxyMiddleware({
-      target: conferenceServiceUrl,
-      pathRewrite: {
-        '^/(.*)': '/api/conferences/$1',
-      },
-      ...proxyOptions,
-    }),
-  );
-  app.use(
-    '/api/submissions',
-    createProxyMiddleware({
-      target: submissionServiceUrl,
-      pathRewrite: {
-        '^/(.*)': '/api/submissions/$1',
-      },
-      ...proxyOptions,
-    }),
-  );
-  app.use(
-    '/api/reviews',
-    createProxyMiddleware({
-      target: reviewServiceUrl,
-      pathRewrite: {
-        '^/(.*)': '/api/reviews/$1',
-      },
-      ...proxyOptions,
-    }),
-  );
-
   await app.listen(3000); 
   console.log('Gateway is running on http://localhost:3000');
 }
