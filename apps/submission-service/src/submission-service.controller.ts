@@ -17,6 +17,7 @@ import {
   Request
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { SubmissionServiceService } from './submission-service.service';
 import { CreateSubmissionDto } from './dtos/create-submission.dto';
 import { UpdateStatusDto } from './dtos/update-status.dto';
@@ -26,6 +27,8 @@ import { RolesGuard } from './auth/roles.guard';
 import { Roles } from './auth/roles.decorator';
 import type { Express } from 'express';
 
+@ApiTags('submissions')
+@ApiBearerAuth('JWT-auth')
 @Controller('submissions')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class SubmissionServiceController {
@@ -36,6 +39,28 @@ export class SubmissionServiceController {
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor('file'))
   @Roles('AUTHOR', 'CHAIR', 'ADMIN')
+  @ApiOperation({ summary: 'Upload new submission', description: 'Upload paper with metadata (PDF/Word/ZIP, max 10MB)' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file', 'conferenceId', 'title'],
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        conferenceId: { type: 'number', example: 1 },
+        title: { type: 'string', example: 'Deep Learning for Face Recognition' },
+        abstract: { type: 'string', example: 'This paper presents...' },
+        authors: {
+          type: 'string',
+          example: '[{"name":"John Doe","email":"john@example.com","affiliation":"UTH"}]',
+          description: 'JSON string of authors array'
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 200, description: 'Submission uploaded successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request - file too large or invalid type' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - invalid token' })
   async create(
     @UploadedFile(
       new ParseFilePipe({
