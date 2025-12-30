@@ -13,19 +13,26 @@ import {
 import { PcMembersService } from './pc-members.service';
 import { InvitePcMemberDto } from './dto/invite-pc-member.dto';
 import { DeclareCoiDto } from './dto/declare-coi.dto';
+import { UpdateTopicsDto } from './dto/update-topics.dto';
+import { SubmissionsClient } from '../integrations/submissions.client';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { RoleName } from '../common/role.enum';
-import { UpdateTopicsDto } from './dto/update-topics.dto';
-import { SubmissionsClient } from '../integrations/submissions.client';
 
-// ← THÊM 2 IMPORT CHO SWAGGER
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+// Swagger imports
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiBody,
+  ApiResponse,
+} from '@nestjs/swagger';
 
-@ApiTags('PC Members')           // Nhóm endpoint đẹp trong Swagger
-@ApiBearerAuth('JWT-auth')       // ← QUAN TRỌNG: Bắt Swagger tự động thêm token
+@ApiTags('PC Members')
+@ApiBearerAuth('JWT-auth')
 @Controller('pc-members')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class PcMembersController {
@@ -34,19 +41,23 @@ export class PcMembersController {
     private readonly submissionsClient: SubmissionsClient,
   ) {}
 
-  // ✅ ĐÃ SỬA: Giờ chỉ truyền object dto và chairId
   @Post('invite')
   @Roles(RoleName.CHAIR)
+  @ApiOperation({ summary: 'Mời thành viên PC vào hội nghị (dựa trên userId, email lấy tự động)' })
+  @ApiBody({ type: InvitePcMemberDto })
+  @ApiResponse({ status: 201, description: 'Lời mời đã được gửi' })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ hoặc user không tồn tại' })
+  @ApiResponse({ status: 403, description: 'Chỉ Chair mới được mời' })
+  @ApiResponse({ status: 409, description: 'User đã là thành viên' })
   async invite(
     @Body() dto: InvitePcMemberDto,
     @CurrentUser('userId') chairId: number,
   ) {
-    // dto lúc này chỉ có: conferenceId, userId, role? (email đã bị loại bỏ)
     return this.pcMembersService.invite(
       {
         conferenceId: dto.conferenceId,
         userId: dto.userId,
-        role: dto.role, // optional
+        role: dto.role,
       },
       chairId,
     );
@@ -54,6 +65,11 @@ export class PcMembersController {
 
   @Get('conference/:id')
   @Roles(RoleName.CHAIR)
+  @ApiOperation({ summary: 'Lấy danh sách tất cả PC Members của hội nghị' })
+  @ApiParam({ name: 'id', description: 'ID hội nghị', type: String })
+  @ApiResponse({ status: 200, description: 'Danh sách thành viên PC (tên, role, status...)' })
+  @ApiResponse({ status: 403, description: 'Chỉ Chair mới được xem' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy hội nghị' })
   async findAllByConference(
     @Param('id') conferenceId: string,
     @CurrentUser('userId') chairId: number,
@@ -62,6 +78,11 @@ export class PcMembersController {
   }
 
   @Patch(':id/accept')
+  @ApiOperation({ summary: 'Chấp nhận lời mời tham gia PC' })
+  @ApiParam({ name: 'id', description: 'ID lời mời (conference member ID)', type: String })
+  @ApiResponse({ status: 200, description: 'Đã chấp nhận lời mời' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy lời mời' })
+  @ApiResponse({ status: 403, description: 'Không phải người nhận lời mời' })
   async acceptInvite(
     @Param('id') id: string,
     @CurrentUser('userId') userId: number,
@@ -70,6 +91,11 @@ export class PcMembersController {
   }
 
   @Patch(':id/decline')
+  @ApiOperation({ summary: 'Từ chối lời mời tham gia PC' })
+  @ApiParam({ name: 'id', description: 'ID lời mời (conference member ID)', type: String })
+  @ApiResponse({ status: 200, description: 'Đã từ chối lời mời' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy lời mời' })
+  @ApiResponse({ status: 403, description: 'Không phải người nhận lời mời' })
   async declineInvite(
     @Param('id') id: string,
     @CurrentUser('userId') userId: number,
@@ -78,6 +104,13 @@ export class PcMembersController {
   }
 
   @Patch(':id/coi')
+  @ApiOperation({ summary: 'Khai báo xung đột lợi ích (COI) cho PC Member' })
+  @ApiParam({ name: 'id', description: 'ID PC Member', type: String })
+  @ApiBody({ type: DeclareCoiDto })
+  @ApiResponse({ status: 200, description: 'COI đã được cập nhật' })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
+  @ApiResponse({ status: 403, description: 'Chỉ bản thân PC Member mới được khai báo' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy PC Member' })
   async declareCoi(
     @Param('id') id: string,
     @Body() dto: DeclareCoiDto,
@@ -93,6 +126,11 @@ export class PcMembersController {
 
   @Delete(':id')
   @Roles(RoleName.CHAIR)
+  @ApiOperation({ summary: 'Xóa thành viên khỏi PC hội nghị' })
+  @ApiParam({ name: 'id', description: 'ID PC Member', type: String })
+  @ApiResponse({ status: 200, description: 'Thành viên đã bị xóa' })
+  @ApiResponse({ status: 403, description: 'Chỉ Chair mới được xóa' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy thành viên' })
   async remove(
     @Param('id') id: string,
     @CurrentUser('userId') chairId: number,
@@ -102,6 +140,12 @@ export class PcMembersController {
 
   @Get(':id/similarity/:submissionId')
   @Roles(RoleName.CHAIR)
+  @ApiOperation({ summary: 'Tính độ tương đồng giữa PC Member và bài nộp (dựa trên keywords)' })
+  @ApiParam({ name: 'id', description: 'ID PC Member', type: String })
+  @ApiParam({ name: 'submissionId', description: 'ID bài nộp', type: String })
+  @ApiResponse({ status: 200, description: 'Điểm similarity và gợi ý phân công' })
+  @ApiResponse({ status: 403, description: 'Chỉ Chair mới được tính' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy member hoặc submission' })
   async getSimilarity(
     @Param('id') memberId: string,
     @Param('submissionId') submissionId: string,
@@ -122,6 +166,13 @@ export class PcMembersController {
   }
 
   @Patch(':id/topics')
+  @ApiOperation({ summary: 'Cập nhật danh sách chuyên môn (topics) của PC Member' })
+  @ApiParam({ name: 'id', description: 'ID PC Member', type: String })
+  @ApiBody({ type: UpdateTopicsDto })
+  @ApiResponse({ status: 200, description: 'Topics đã được cập nhật' })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
+  @ApiResponse({ status: 403, description: 'Chỉ bản thân PC Member mới được cập nhật' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy PC Member' })
   async updateTopics(
     @Param('id') id: string,
     @Body() dto: UpdateTopicsDto,
