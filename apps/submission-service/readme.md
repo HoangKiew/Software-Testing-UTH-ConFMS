@@ -3,10 +3,11 @@
 Dịch vụ quản lý nộp bài báo khoa học trong hệ thống UTH-ConfMS. Hỗ trợ upload file lên Supabase Storage, quản lý phiên bản tự động, và tích hợp với Conference Service và Review Service.
 
 ---
+## .env đã được để trong .env.example.txt
 
 ## 📊 Implementation Status
 
-### ✅ Completed Features (9/10)
+### ✅ Completed Features (10/11)
 
 #### Core CRUD Operations:
 - ✅ **Upload bài báo** (PDF/Word/ZIP, max 10MB)
@@ -14,6 +15,7 @@ Dịch vụ quản lý nộp bài báo khoa học trong hệ thống UTH-ConfMS.
 - ✅ **Rút bài nộp** (withdraw) trước deadline
 - ✅ **Xem chi tiết submission** (get by ID)
 - ✅ **Liệt kê submissions** (của user hoặc theo conference)
+- ✅ **Pagination & Filtering** (CHAIR) - Phân trang, lọc, tìm kiếm, sắp xếp **[NEW!]**
 
 #### Advanced Features:
 - ✅ **Upload camera-ready** (PDF only, max 15MB) - Bản final sau khi accept
@@ -26,8 +28,11 @@ Dịch vụ quản lý nộp bài báo khoa học trong hệ thống UTH-ConfMS.
 - ✅ **Supabase Storage** - Lưu file trên cloud
 - ✅ **Audit trail** - Ghi log mọi thao tác
 - ✅ **Database schema** - TypeORM với auto-sync
+- ✅ **Database indexes** - Tối ưu query performance **[NEW!]**
+- ✅ **Swagger UI** - API documentation tự động **[NEW!]**
+- ✅ **Authors parsing** - Parse và lưu thông tin tác giả **[FIXED!]**
 
-### ❌ Pending Features (1/10)
+### ❌ Pending Features (1/11)
 
 - ❌ **View anonymized reviews** - Xem reviews ẩn danh sau khi review xong
   - **Lý do:** Phụ thuộc vào Review Service (chưa implement)
@@ -36,10 +41,13 @@ Dịch vụ quản lý nộp bài báo khoa học trong hệ thống UTH-ConfMS.
 
 ### 🔮 Future Enhancements (Optional)
 
+- ⚪ **Filter by review results** - Lọc submissions theo kết quả review (cần Review Service)
+- ⚪ **Export to CSV/Excel** - Export danh sách submissions
+- ⚪ **Bulk operations** - Accept/Reject nhiều papers cùng lúc
+- ⚪ **Statistics dashboard** - Thống kê submissions theo status, conference
+- ⚪ **Email notifications** - Gửi email khi status thay đổi
 - ⚪ **AI spell/grammar check** - Kiểm tra chính tả cho title/abstract (optional theo đề tài)
 - ⚪ **AI keyword suggestions** - Gợi ý keywords tự động (optional theo đề tài)
-- ⚪ **Multi-version comparison** - So sánh các versions của file
-- ⚪ **Batch operations** - Upload/update nhiều submissions cùng lúc
 
 ---
 
@@ -484,7 +492,174 @@ SELECT * FROM audit_trail ORDER BY created_at DESC LIMIT 10;
 
 ---
 
-## 📞 Support & Contact
+## � Testing với Postman
+
+### Import Postman Collection
+
+Submission Service có sẵn Postman collection để test tất cả endpoints.
+
+#### **Bước 1: Import Collection**
+
+1. Mở Postman
+2. Click **Import** (góc trái trên)
+3. Chọn file: `apps/submission-service/UTH-ConfMS-Submission.postman_collection.json`
+4. Click **Import**
+
+#### **Bước 2: Setup Environment**
+
+Tạo environment với các biến:
+
+```json
+{
+  "base_url": "http://localhost:3003/api",
+  "identity_url": "http://localhost:3001/api",
+  "author_token": "",
+  "chair_token": "",
+  "admin_token": ""
+}
+```
+
+**Cách tạo:**
+1. Click **Environments** (bên trái)
+2. Click **+** để tạo mới
+3. Đặt tên: "UTH-ConfMS Local"
+4. Thêm các variables trên
+5. Click **Save**
+
+#### **Bước 3: Lấy Tokens**
+
+**3.1. Login Author:**
+```
+POST {{identity_url}}/auth/login
+Body: {
+  "email": "author@uth.vn",
+  "password": "Author123!"
+}
+```
+→ Copy `accessToken` → Paste vào `author_token`
+
+**3.2. Login Chair:**
+```
+POST {{identity_url}}/auth/login
+Body: {
+  "email": "chair@uth.vn",
+  "password": "Chair123!"
+}
+```
+→ Copy `accessToken` → Paste vào `chair_token`
+
+#### **Bước 4: Test Endpoints**
+
+Collection có sẵn các requests:
+
+**📁 Folder: Setup**
+- ✅ Register Author
+- ✅ Register Chair
+- ✅ Login Author
+- ✅ Login Chair
+
+**📁 Folder: Submissions (Author)**
+- ✅ Upload Submission
+- ✅ Get My Submissions
+- ✅ Get Submission by ID
+- ✅ Update Metadata
+- ✅ Withdraw Submission
+- ✅ Upload Camera-Ready
+
+**📁 Folder: Management (Chair)**
+- ✅ Get All Submissions (Pagination)
+- ✅ Get Submissions by Conference
+- ✅ Update Status
+
+**📁 Folder: Filters & Search**
+- ✅ Filter by Status
+- ✅ Filter by Conference
+- ✅ Search by Title
+- ✅ Date Range Filter
+- ✅ Combined Filters
+
+---
+
+### 🎯 Testing Workflow
+
+#### **Workflow 1: Submit Paper (Author)**
+
+1. **Login Author** → Lưu token
+2. **Upload Submission** → Lưu `submissionId`
+3. **Get My Submissions** → Verify submission hiện trong list
+4. **Update Metadata** (optional) → Sửa title/abstract
+5. **Get Submission by ID** → Check details
+
+#### **Workflow 2: Review & Accept (Chair)**
+
+1. **Login Chair** → Lưu token
+2. **Get All Submissions** → Xem tất cả submissions
+3. **Filter by Conference** → Lọc theo conference
+4. **Update Status** → Accept/Reject paper
+5. **Get Submissions by Status** → Verify status updated
+
+#### **Workflow 3: Camera-Ready Upload (Author)**
+
+1. **Login Author** → Lưu token
+2. **Get My Submissions** → Tìm paper đã ACCEPTED
+3. **Upload Camera-Ready** → Upload PDF final
+4. **Get Submission by ID** → Verify camera-ready uploaded
+
+---
+
+### 💡 Tips
+
+**Auto-save tokens:**
+Trong Postman, thêm script vào Login requests:
+
+```javascript
+// Tab "Tests" của Login request
+pm.test("Save token", function () {
+    var jsonData = pm.response.json();
+    pm.environment.set("author_token", jsonData.accessToken);
+});
+```
+
+**Pre-request Scripts:**
+Collection đã có sẵn scripts tự động thêm Authorization header:
+
+```javascript
+pm.request.headers.add({
+    key: 'Authorization',
+    value: 'Bearer ' + pm.environment.get("author_token")
+});
+```
+
+**Variables:**
+Dùng `{{variable}}` trong requests:
+- `{{base_url}}/submissions`
+- `{{author_token}}`
+- `{{submissionId}}`
+
+---
+
+### 🐛 Troubleshooting Postman
+
+**Lỗi 401 Unauthorized:**
+- Token chưa set hoặc hết hạn (15 phút)
+- → Login lại và update token
+
+**Lỗi 403 Forbidden:**
+- Dùng sai role (AUTHOR token cho CHAIR endpoint)
+- → Dùng đúng token
+
+**File upload không work:**
+- Chọn "form-data" trong Body
+- Key "file" phải là type "File"
+- Chọn file từ máy
+
+**Variables không work:**
+- Environment chưa select
+- → Click dropdown góc phải trên, chọn "UTH-ConfMS Local"
+
+---
+
+## �📞 Support & Contact
 
 **Issues?** Check:
 1. Troubleshooting section above
@@ -499,12 +674,26 @@ SELECT * FROM audit_trail ORDER BY created_at DESC LIMIT 10;
 
 ## 🎉 Completion Status
 
-**Overall Progress:** ✅ **90% Complete** (9/10 features)
+**Overall Progress:** ✅ **91% Complete** (10/11 features)
+
+**Completed:**
+- ✅ All core CRUD operations
+- ✅ Camera-ready upload workflow
+- ✅ Pagination & filtering (NEW!)
+- ✅ Database indexes for performance
+- ✅ Swagger UI documentation
+- ✅ Authors parsing fixed
+- ✅ Postman collection
+
+**Pending:**
+- ⚠️ View anonymized reviews (waiting for Review Service)
 
 **Ready for:**
 - ✅ Development testing
 - ✅ Integration testing with Conference Service
 - ✅ Demo presentation
-- ⚠️ Production (needs Review Service for full workflow)
+- ✅ Swagger UI testing
+- ✅ Postman testing
+- ⚠️ Production (needs Review Service for complete workflow)
 
-**Last Updated:** 2025-12-27
+**Last Updated:** 2025-12-30
