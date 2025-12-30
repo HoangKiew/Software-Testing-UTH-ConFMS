@@ -1,8 +1,21 @@
-// src/assignments/dto/suggest-reviewers.dto.ts
-import { IsOptional, IsNumber } from 'class-validator';
+// apps/conference-service/src/assignments/dto/suggest-reviewers.dto.ts
+// → Không cần DTO riêng cho query param vì NestJS tự validate @Query()
+// Nhưng nếu bạn muốn giữ file này để document Swagger, có thể chuyển thành class để dùng trong @ApiQuery
 
-export class SuggestReviewersDto {
+import { ApiProperty } from '@nestjs/swagger';
+import { IsOptional, IsInt, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class SuggestReviewersQueryDto {
+  @ApiProperty({
+    description: 'Số lượng gợi ý reviewer trả về (mặc định: 5)',
+    required: false,
+    minimum: 1,
+    example: 10,
+  })
   @IsOptional()
-  @IsNumber()
-  top?: number; // Không cần default ở đây, sẽ xử lý trong controller
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  top?: number;
 }
