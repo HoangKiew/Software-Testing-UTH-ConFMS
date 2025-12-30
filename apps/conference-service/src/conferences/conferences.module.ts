@@ -2,12 +2,14 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Conference } from './entities/conference.entity';
+import { ConferenceMember } from './entities/conference-member.entity';
+import { Track } from './entities/track.entity';
 import { ConferencesController } from './conferences.controller';
 import { ConferencesService } from './conferences.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Conference]),
+    TypeOrmModule.forFeature([Conference, ConferenceMember, Track]),
   ],
   controllers: [ConferencesController],
   providers: [ConferencesService],

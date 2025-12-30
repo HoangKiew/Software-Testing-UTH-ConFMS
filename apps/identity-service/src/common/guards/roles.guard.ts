@@ -21,14 +21,14 @@ export class RolesGuard implements CanActivate {
     );
 
     if (!requiredRoles) {
-      return true;
+      return true; 
     }
 
     const request = context.switchToHttp().getRequest();
     const user = request.user as JwtPayload;
 
     if (!user) {
-      throw new ForbiddenException('Người dùng chưa được xác thực');
+      throw new ForbiddenException('User not authenticated');
     }
 
     const userRoles = user.roles || [];
@@ -38,10 +38,20 @@ export class RolesGuard implements CanActivate {
 
     if (!hasRequiredRole) {
       throw new ForbiddenException(
-        `Từ chối truy cập. Yêu cầu các vai trò: ${requiredRoles.join(', ')}`,
+        `Quyền truy cập bị từ chối. Yêu cầu vai trò bắt buộc: ${requiredRoles.join(', ')}`,
       );
     }
 
     return true;
   }
 }
+
+
+
+
+
+
+
+
+
+
