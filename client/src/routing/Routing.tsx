@@ -5,6 +5,7 @@ import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from '../pages/auth/ResetPasswordPage';
 import ProtectedRoute from '../components/ProtectedRoute';
 import ActivateAccount from '../pages/auth/ActivateAccount';
+import HomePage from '../pages/home/HomePage';
 
 const appRouter = createBrowserRouter([
   {
@@ -21,7 +22,7 @@ const appRouter = createBrowserRouter([
   },
   {
     path: '/activate-account',
-    element : <ActivateAccount/>
+    element: <ActivateAccount />
   },
   {
     path: '/',
@@ -31,6 +32,14 @@ const appRouter = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
+      {
+        index: true,
+        element: <HomePage />,
+      },
+      {
+        path: 'home',
+        element: <HomePage />,
+      },
     ],
   },
   {
