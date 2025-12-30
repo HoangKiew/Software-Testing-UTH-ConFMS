@@ -1,5 +1,3 @@
-// apps/conference-service/src/conferences/conferences.controller.ts
-
 import {
   Controller,
   Get,
@@ -20,7 +18,13 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ConferenceStatus } from './entities/conference.entity';
 import { RoleName } from '../common/role.enum';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes, // ✅ QUAN TRỌNG
+} from '@nestjs/swagger';
+import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('Conferences')
 @ApiBearerAuth('JWT-auth')
@@ -28,11 +32,36 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 export class ConferencesController {
   constructor(private readonly conferencesService: ConferencesService) {}
 
+  // ================= PUBLIC API =================
+
+  @Get('public')
+  @Public()
+  getPublicConferences() {
+    return this.conferencesService.findPublic();
+  }
+
+  @Get('public/conference/:id')
+  @Public()
+  getPublicConference(@Param('id') id: string) {
+    return this.conferencesService.findPublicOne(id);
+  }
+
+  @Get('public/conference/:id/program')
+  @Public()
+  async getPublicProgram(@Param('id') id: string) {
+    const conf = await this.conferencesService.findPublicOne(id);
+    return {
+      name: conf.name,
+      schedule: conf.schedule,
+    };
+  }
+
+  // ================= PRIVATE API =================
+
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleName.CHAIR, RoleName.ADMIN)
-  @ApiBearerAuth('JWT-auth')
-  async create(
+  create(
     @Body() createDto: CreateConferenceDto,
     @CurrentUser('userId') userId: number,
   ) {
@@ -41,20 +70,20 @@ export class ConferencesController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  async findAll(@Query('status') status?: ConferenceStatus) {
+  findAll(@Query('status') status?: ConferenceStatus) {
     return this.conferencesService.findAll(status ? { status } : {});
   }
 
   @Get(':id')
   @UseGuards(JwtAuthGuard)
-  async findOne(@Param('id') id: string) {
+  findOne(@Param('id') id: string) {
     return this.conferencesService.findOne(id);
   }
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleName.CHAIR)
-  async update(
+  update(
     @Param('id') id: string,
     @Body() updateDto: UpdateConferenceDto,
     @CurrentUser('userId') userId: number,
@@ -65,7 +94,7 @@ export class ConferencesController {
   @Patch(':id/topics')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleName.CHAIR)
-  async updateTopics(
+  updateTopics(
     @Param('id') id: string,
     @Body('topics') topics: string[],
     @CurrentUser('userId') userId: number,
@@ -76,10 +105,9 @@ export class ConferencesController {
   @Patch(':id/deadlines')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleName.CHAIR)
-  async updateDeadlines(
+  updateDeadlines(
     @Param('id') id: string,
-    @Body()
-    deadlinesDto: {
+    @Body() deadlinesDto: {
       submission?: string;
       review?: string;
       cameraReady?: string;
@@ -89,29 +117,55 @@ export class ConferencesController {
     return this.conferencesService.updateDeadlines(
       id,
       {
-        submission: deadlinesDto.submission ? new Date(deadlinesDto.submission) : undefined,
-        review: deadlinesDto.review ? new Date(deadlinesDto.review) : undefined,
-        cameraReady: deadlinesDto.cameraReady ? new Date(deadlinesDto.cameraReady) : undefined,
+        submission: deadlinesDto.submission
+          ? new Date(deadlinesDto.submission)
+          : undefined,
+        review: deadlinesDto.review
+          ? new Date(deadlinesDto.review)
+          : undefined,
+        cameraReady: deadlinesDto.cameraReady
+          ? new Date(deadlinesDto.cameraReady)
+          : undefined,
       },
       userId,
     );
   }
 
+  // ================= UPDATE STATUS (FIX SWAGGER) =================
+
   @Patch(':id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleName.CHAIR)
-  async updateStatus(
+  @ApiConsumes('application/json') // ✅ BẮT BUỘC
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['status'],
+      properties: {
+        status: {
+          type: 'string',
+          enum: Object.values(ConferenceStatus),
+          example: ConferenceStatus.PUBLISHED,
+        },
+      },
+    },
+  })
+  updateStatus(
     @Param('id') id: string,
-    @Body('status') newStatus: ConferenceStatus,
+    @Body() updateDto: UpdateConferenceDto,
     @CurrentUser('userId') userId: number,
   ) {
-    return this.conferencesService.updateStatus(id, newStatus, userId);
+    return this.conferencesService.updateStatus(
+      id,
+      updateDto.status,
+      userId,
+    );
   }
 
   @Patch(':id/schedule')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleName.CHAIR)
-  async updateSchedule(
+  updateSchedule(
     @Param('id') id: string,
     @Body('schedule') schedule: any,
     @CurrentUser('userId') userId: number,
@@ -122,30 +176,10 @@ export class ConferencesController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleName.CHAIR)
-  async delete(
+  delete(
     @Param('id') id: string,
     @CurrentUser('userId') userId: number,
   ) {
     return this.conferencesService.delete(id, userId);
-  }
-
-  // ================= PUBLIC API (KHÔNG CẦN TOKEN) =================
-  @Get('public')
-  async getPublicConferences() {
-    return this.conferencesService.findPublic();
-  }
-
-  @Get('public/conference/:id')  // ← ĐỔI THỨ TỰ ĐỂ TRÁNH MATCH NHẦM
-  async getPublicConference(@Param('id') id: string) {
-    return this.conferencesService.findPublicOne(id);
-  }
-
-  @Get('public/conference/:id/program')  // ← ĐỔI THỨ TỰ
-  async getPublicProgram(@Param('id') id: string) {
-    const conf = await this.conferencesService.findPublicOne(id);
-    return {
-      name: conf.name,
-      schedule: conf.schedule,
-    };
   }
 }
