@@ -58,6 +58,85 @@ export class SubmissionServiceService implements OnModuleInit {
     }
   }
 
+  // --- API: LẤY DANH SÁCH TẤT CẢ BÀI NỘP VỚI PHÂN TRANG & LỌC (CHAIR) ---
+  async findAllWithPagination(query: any) {
+    const { page, limit, status, conferenceId, createdFrom, createdTo, search, sortBy, order } = query;
+
+    const qb = this.subRepo.createQueryBuilder('submission')
+      .leftJoinAndSelect('submission.authors', 'authors')
+      .leftJoinAndSelect('submission.files', 'files');
+
+    // Apply filters
+    if (status) {
+      qb.andWhere('submission.status = :status', { status });
+    }
+
+    if (conferenceId) {
+      qb.andWhere('submission.conference_id = :conferenceId', { conferenceId });
+    }
+
+    // Date range with timezone handling
+    if (createdFrom) {
+      qb.andWhere('submission.created_at >= :createdFrom', {
+        createdFrom: new Date(createdFrom)
+      });
+    }
+
+    if (createdTo) {
+      // Add 1 day to include the entire end date (23:59:59)
+      const endDate = new Date(createdTo);
+      endDate.setDate(endDate.getDate() + 1);
+      qb.andWhere('submission.created_at < :createdTo', {
+        createdTo: endDate
+      });
+    }
+
+    // Search with ILIKE (case-insensitive)
+    if (search) {
+      qb.andWhere('submission.title ILIKE :search', {
+        search: `%${search}%`
+      });
+    }
+
+    // Map camelCase to snake_case for sorting
+    const sortFieldMap = {
+      'createdAt': 'created_at',
+      'updatedAt': 'updated_at',
+      'title': 'title'
+    };
+    const dbSortField = sortFieldMap[sortBy] || 'created_at';
+
+    // Apply sorting
+    qb.orderBy(`submission.${dbSortField}`, order);
+
+    // Get total count first
+    const total = await qb.getCount();
+
+    // Calculate pagination
+    const totalPages = Math.ceil(total / limit);
+
+    // Validate page number
+    const validPage = Math.max(1, Math.min(page, totalPages || 1));
+
+    // Apply pagination
+    const skip = (validPage - 1) * limit;
+    qb.skip(skip).take(limit);
+
+    const data = await qb.getMany();
+
+    return {
+      data,
+      pagination: {
+        page: validPage,
+        limit,
+        total,
+        totalPages: totalPages || 0,
+        hasNext: validPage < totalPages,
+        hasPrev: validPage > 1
+      }
+    };
+  }
+
   // --- API 2: XỬ LÝ NỘP BÀI ---
   async handleSubmission(file: Express.Multer.File, dto: any) {
     try {
@@ -75,13 +154,33 @@ export class SubmissionServiceService implements OnModuleInit {
       });
 
       if (!sub) {
+        // Parse authors từ JSON string
+        let parsedAuthors = [];
+        if (dto.authors) {
+          try {
+            const authorsData = typeof dto.authors === 'string'
+              ? JSON.parse(dto.authors)
+              : dto.authors;
+
+            // Map camelCase fields to snake_case for database
+            parsedAuthors = authorsData.map((author: any) => ({
+              author_name: author.name,
+              email: author.email,
+              is_corresponding: author.isCorresponding || false
+            }));
+          } catch (error) {
+            console.error('Error parsing authors:', error);
+            throw new BadRequestException('Invalid authors format. Must be valid JSON array.');
+          }
+        }
+
         // Tạo mới
         sub = this.subRepo.create({
           title: dto.title,
           conference_id: dto.conferenceId,
           created_by: dto.createdBy,
           abstract: dto.abstract || '',
-          authors: dto.authors // Cascade sẽ lưu authors
+          authors: parsedAuthors // Cascade sẽ lưu authors
         });
         sub = await this.subRepo.save(sub);
 

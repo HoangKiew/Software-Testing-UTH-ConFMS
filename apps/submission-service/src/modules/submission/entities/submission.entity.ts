@@ -1,9 +1,12 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, Index } from 'typeorm';
 import { SubmissionFile } from './submission-file.entity';
 import { SubmissionAuthor } from './author.entity';
 import { SubmissionStatus } from '../../../shared/constants/submission-status.enum';
 
 @Entity('submission')
+@Index(['status'])
+@Index(['conference_id'])
+@Index(['created_at'])
 export class Submission {
   @PrimaryGeneratedColumn()
   id: number;
