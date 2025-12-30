@@ -2,7 +2,7 @@
 
 ## 🎉 Mission Accomplished
 
-Successfully implemented and deployed Submission Service with **90% completion** (9/10 features).
+Successfully implemented and deployed Submission Service with **91% completion** (10/11 features).
 
 ---
 
@@ -14,7 +14,7 @@ Successfully implemented and deployed Submission Service with **90% completion**
 |--------------|------------|--------|-------|
 | **TP1 - Admin & Platform** | 100% | ✅ Complete | Identity Service fully functional |
 | **TP2 - Conference & CFP** | 80% | ✅ Functional | Conference Service operational, missing email templates |
-| **TP3 - Submission** | 90% | ✅ Functional | **This service** - Missing only view reviews |
+| **TP3 - Submission** | 91% | ✅ Functional | **This service** - Missing only view reviews |
 | **TP4 - PC & Assignment** | 40% | ⚠️ Partial | Basic structure exists, needs testing |
 | **TP5 - Review & Discussion** | 10% | ❌ Skeleton | Review Service not implemented |
 | **TP6 - Decision & Notifications** | 70% | ✅ Functional | Status updates work, bulk email untested |
@@ -28,9 +28,10 @@ Successfully implemented and deployed Submission Service with **90% completion**
 3. Authors submit papers (PDF/Word/ZIP)
 4. Authors edit metadata before deadline
 5. Authors withdraw if needed
-6. Chair manually accepts/rejects papers
-7. Authors upload camera-ready for accepted papers
-8. Chair exports proceedings
+6. **Chair views all submissions with pagination/filtering** ← NEW!
+7. Chair manually accepts/rejects papers
+8. Authors upload camera-ready for accepted papers
+9. Chair exports proceedings
 
 ❌ **Missing (Review Workflow):**
 - Reviewer assignment
@@ -45,7 +46,7 @@ Successfully implemented and deployed Submission Service with **90% completion**
 |---------|------|--------|------------|
 | Identity Service | 3001 | ✅ Running | 100% |
 | Conference Service | 3002 | ✅ Running | 80% |
-| **Submission Service** | 3003 | ✅ Running | **90%** |
+| **Submission Service** | 3003 | ✅ Running | **91%** |
 | Review Service | 3004 | ❌ Skeleton | 10% |
 
 ### **Demo Readiness: ✅ YES**
@@ -116,30 +117,26 @@ DELETE /api/submissions/:id
 - Cannot withdraw if ACCEPTED
 - Audit trail logged
 
-### **6. Camera-Ready Upload** ✅ **NEW!**
+### **6. Camera-Ready Upload** ✅
 ```http
 POST /api/submissions/:id/camera-ready
 Content-Type: multipart/form-data
-
-Response: {submissionId, fileId, version: 101+, url}
 ```
-- **Only after ACCEPTED**
 - PDF only (max 15MB)
-- Version >= 100 (separate from submissions)
-- Stored in `papers/{id}/camera-ready/` folder
+- Only for ACCEPTED submissions
+- Version >= 100 (camera_ready_v1, v2...)
+- Separate storage path
 
 ### **7. Update Status (CHAIR)** ✅
 ```http
 PATCH /api/submissions/:id/status
-Content-Type: application/json
-
-{status: "ACCEPTED", comment: "..."}
+{status: "ACCEPTED" | "REJECTED"}
 ```
 - CHAIR role only
 - Updates submission status
-- Notifies Review Service
+- Enables camera-ready upload
 
-### **8. Get Submissions by Conference** ✅
+### **8. Get Submissions by Conference (CHAIR)** ✅
 ```http
 GET /api/submissions/conference/:conferenceId
 ```
@@ -151,27 +148,76 @@ GET /api/submissions/conference/:conferenceId
 GET /api/submissions/user/:userId
 ```
 - CHAIR role only
-- View any user's submissions
+- View specific author's submissions
+
+### **10. Pagination & Filtering (CHAIR)** ✅ **NEW!**
+```http
+GET /api/submissions?page=1&limit=10&status=ACCEPTED&conferenceId=1&search=deep learning&sortBy=createdAt&order=DESC
+```
+
+**Query Parameters:**
+- `page` (number, default: 1) - Page number
+- `limit` (number, default: 10, max: 100) - Items per page
+- `status` (enum) - Filter by status (SUBMITTED, ACCEPTED, REJECTED, etc.)
+- `conferenceId` (number) - Filter by conference
+- `createdFrom` (date) - Filter from date (ISO 8601)
+- `createdTo` (date) - Filter to date (ISO 8601)
+- `search` (string) - Search in title (case-insensitive)
+- `sortBy` (enum) - Sort field (createdAt, updatedAt, title)
+- `order` (enum) - Sort order (ASC, DESC)
+
+**Response:**
+```json
+{
+  "data": [...submissions],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 45,
+    "totalPages": 5,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
+
+**Features:**
+- ✅ Timezone handling (createdTo includes full day)
+- ✅ Field mapping (camelCase ↔ snake_case)
+- ✅ Page validation (auto-cap to valid range)
+- ✅ Database indexes for performance
+- ✅ SQL injection protection
 
 ---
 
-## ❌ Pending Features (1/10)
+## ❌ Pending Features (1/11)
 
-### **View Anonymized Reviews**
+### **11. View Anonymized Reviews** ❌
 ```http
-GET /api/submissions/:id/reviews  ❌ Not implemented
+GET /api/submissions/:id/reviews
 ```
 
-**Why not done:**
-- Depends on Review Service (currently only skeleton)
-- Review Service needs to implement: `GET /reviews/submission/:id`
-- Cannot proceed until Review Service is ready
+**Blocking:** Review Service must implement `GET /reviews/submission/:id`
 
-**When to implement:**
-1. Review Service implements review APIs
-2. Add integration client in Submission Service
-3. Create endpoint to fetch and anonymize reviews
-4. Hide reviewer identity in response
+**Expected Response:**
+```json
+{
+  "reviews": [
+    {
+      "reviewerName": "Reviewer 1", // Anonymized
+      "score": 8,
+      "comment": "Good paper",
+      "recommendation": "ACCEPT"
+    }
+  ],
+  "averageScore": 7.5
+}
+```
+
+**Why Pending:**
+- Review Service not implemented yet
+- Cannot mock this feature (needs real review data)
+- Will implement after Review Service is ready
 
 ---
 
@@ -217,6 +263,40 @@ GET /api/submissions/:id/reviews  ❌ Not implemented
 **Problem:** `submission_id` became null after INSERT due to cascade  
 **Solution:** Used `update()` instead of `save()` for timestamp  
 **File:** [submission-service.service.ts:461-463](file:///d:/1.XDPMOOP/uth-confms/apps/submission-service/src/submission-service.service.ts#L461-L463)
+
+### **Fix 8: Authors Parsing Bug** ⭐ NEW!
+**Problem:** Authors always empty (`authors: []`) in response  
+**Root Cause:** 
+- Form-data sends authors as JSON string
+- Code assigned string directly without parsing
+- Field names mismatch: `name` → `author_name`, `isCorresponding` → `is_corresponding`
+
+**Solution:**
+1. Parse JSON string from form-data
+2. Map camelCase fields to snake_case for database
+3. Validate JSON format
+
+**Code:**
+```typescript
+// Parse JSON string
+const authorsData = typeof dto.authors === 'string' 
+  ? JSON.parse(dto.authors) 
+  : dto.authors;
+
+// Map fields
+parsedAuthors = authorsData.map((author: any) => ({
+  author_name: author.name,
+  email: author.email,
+  is_corresponding: author.isCorresponding || false
+}));
+```
+
+**File:** [submission-service.service.ts:156-171](file:///d:/1.XDPMOOP/uth-confms/apps/submission-service/src/submission-service.service.ts#L156-L171)
+
+### **Fix 9: Swagger UI File Upload** ⭐ NEW!
+**Problem:** Camera-ready endpoint missing file input in Swagger UI  
+**Solution:** Added `@ApiConsumes` and `@ApiBody` decorators  
+**File:** [submission-service.controller.ts:184-197](file:///d:/1.XDPMOOP/uth-confms/apps/submission-service/src/submission-service.controller.ts#L184-L197)
 
 ---
 

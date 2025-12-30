@@ -14,14 +14,16 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
-  Request
+  Request,
+  Query
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiBearerAuth, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { SubmissionServiceService } from './submission-service.service';
 import { CreateSubmissionDto } from './dtos/create-submission.dto';
 import { UpdateStatusDto } from './dtos/update-status.dto';
 import { UpdateSubmissionDto } from './dtos/update-submission.dto';
+import { QuerySubmissionsDto } from './dtos/query-submissions.dto';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { Roles } from './auth/roles.decorator';
@@ -33,6 +35,20 @@ import type { Express } from 'express';
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class SubmissionServiceController {
   constructor(private readonly submissionService: SubmissionServiceService) { }
+
+  // --- 0. API LẤY TẤT CẢ BÀI NỘP VỚI PHÂN TRANG & LỌC (CHAIR) ---
+  @Get()
+  @Roles('CHAIR', 'ADMIN')
+  @ApiOperation({
+    summary: 'Get all submissions with pagination and filters',
+    description: 'CHAIR can view all submissions with pagination, filtering, and sorting'
+  })
+  @ApiResponse({ status: 200, description: 'Returns paginated submissions' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - requires CHAIR role' })
+  async findAll(@Query() query: QuerySubmissionsDto) {
+    return this.submissionService.findAllWithPagination(query);
+  }
 
   // --- 1. API NỘP BÀI (POST) ---
   @Post('upload')
@@ -161,6 +177,27 @@ export class SubmissionServiceController {
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor('file'))
   @Roles('AUTHOR')
+  @ApiOperation({
+    summary: 'Upload camera-ready version',
+    description: 'Upload final PDF version after paper is accepted (max 15MB, PDF only)'
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Camera-ready PDF file (max 15MB)'
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 200, description: 'Camera-ready uploaded successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request - file too large, wrong type, or submission not accepted' })
+  @ApiResponse({ status: 403, description: 'Forbidden - not the submission owner' })
   async uploadCameraReady(
     @Param('id') id: string,
     @UploadedFile(
