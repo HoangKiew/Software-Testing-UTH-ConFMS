@@ -5,7 +5,10 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
 } from 'typeorm';
+import { ConferenceMember } from './conference-member.entity';
+import { Track } from './track.entity';
 
 export enum ConferenceStatus {
   DRAFT = 'draft',
@@ -107,4 +110,11 @@ export class Conference {
   // Cho phép public proceedings
   @Column({ default: false })
   openAccess: boolean;
+
+  @OneToMany(() => ConferenceMember, (member) => member.conference)
+  members: ConferenceMember[];
+
+  @OneToMany(() => Track, (track) => track.conference)
+  tracks: Track[];
+
 }
