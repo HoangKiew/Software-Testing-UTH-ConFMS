@@ -1,15 +1,9 @@
-import { IsString, IsDateString, IsArray, IsOptional } from 'class-validator';
+import { IsDateString, IsNotEmpty, IsString } from 'class-validator';
 
 export class CreateConferenceDto {
   @IsString()
+  @IsNotEmpty()
   name: string;
-
-  @IsString()
-  acronym: string;
-
-  @IsString()
-  @IsOptional()
-  description?: string;
 
   @IsDateString()
   startDate: string;
@@ -17,14 +11,8 @@ export class CreateConferenceDto {
   @IsDateString()
   endDate: string;
 
-  @IsArray()
-  @IsOptional()
-  topics?: string[];
-
-  @IsOptional()
-  deadlines?: {
-    submission?: string;
-    review?: string;
-    cameraReady?: string;
-  };
+  @IsString()
+  @IsNotEmpty()
+  venue: string;
 }
+

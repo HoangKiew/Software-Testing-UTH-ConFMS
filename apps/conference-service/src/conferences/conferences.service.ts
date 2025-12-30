@@ -1,76 +1,125 @@
-// src/conferences/conferences.service.ts
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Conference, ConferenceStatus } from './entities/conference.entity';
+import { Track } from './entities/track.entity';
+import {
+  ConferenceMember,
+  ConferenceMemberRole,
+} from './entities/conference-member.entity';
 import { CreateConferenceDto } from './dto/create-conference.dto';
-import { UpdateConferenceDto } from './dto/update-conference.dto';
+import { CreateTrackDto } from './dto/create-track.dto';
 
 @Injectable()
 export class ConferencesService {
   constructor(
     @InjectRepository(Conference)
-    private conferenceRepository: Repository<Conference>,
+    private readonly conferenceRepository: Repository<Conference>,
+    @InjectRepository(Track)
+    private readonly trackRepository: Repository<Track>,
+    @InjectRepository(ConferenceMember)
+    private readonly conferenceMemberRepository: Repository<ConferenceMember>,
   ) {}
 
-  async create(createDto: CreateConferenceDto, userId: number) {  // Đổi userId sang number
-    const conference = new Conference();
-    Object.assign(conference, createDto);
-    conference.chairId = userId;
-    conference.status = ConferenceStatus.DRAFT;
-    conference.isActive = true;
-    return this.conferenceRepository.save(conference);
+  async createConference(
+    dto: CreateConferenceDto,
+    organizerId: number,
+  ): Promise<Conference> {
+    const startDate = new Date(dto.startDate);
+    const endDate = new Date(dto.endDate);
+
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      throw new BadRequestException('Invalid startDate or endDate');
+    }
+
+    if (startDate > endDate) {
+      throw new BadRequestException('startDate must be before endDate');
+    }
+
+    const conference = this.conferenceRepository.create({
+      name: dto.name,
+      acronym: dto.name.split(' ').map((s) => s[0]).join('').toUpperCase(),
+      description: null,
+      startDate,
+      endDate,
+      topics: [],
+      deadlines: { submission: null, review: null, cameraReady: null },
+      status: ConferenceStatus.DRAFT,
+      chairId: organizerId,
+      isActive: true,
+      schedule: [],
+      aiFeaturesEnabled: false,
+      aiConfig: { emailDraft: true, keywordSuggestion: true, neutralSummary: true },
+      openAccess: false,
+    });
+
+    const savedConference = await this.conferenceRepository.save(conference);
+
+    // Add organizer as CHAIR in conference members
+    const organizerMember = this.conferenceMemberRepository.create({
+      conference: savedConference,
+      userId: organizerId,
+      role: ConferenceMemberRole.CHAIR,
+    });
+    await this.conferenceMemberRepository.save(organizerMember);
+
+    return savedConference;
   }
 
-  async findAll(filter?: { status?: ConferenceStatus }) {
-    const where = { isActive: true };
-    if (filter?.status) where['status'] = filter.status;
-    return this.conferenceRepository.find({ where, order: { createdAt: 'DESC' } });
+  async findAll(): Promise<Conference[]> {
+    return this.conferenceRepository.find();
   }
 
-  async findOne(id: string) {
-    const conference = await this.conferenceRepository.findOne({ where: { id } });
-    if (!conference) throw new NotFoundException('Conference not found');
+  async findOneWithTracks(id: string): Promise<Conference> {
+    const conference = await this.conferenceRepository.findOne({
+      where: { id },
+      relations: ['tracks'],
+    });
+
+    if (!conference) {
+      throw new NotFoundException(`Conference with id ${id} not found`);
+    }
+
     return conference;
   }
 
-  async update(id: string, updateDto: UpdateConferenceDto, userId: number) {
-    const conference = await this.findOne(id);
-    if (conference.chairId !== userId) throw new ForbiddenException('Only the chair can update this conference');
-    Object.assign(conference, updateDto);
-    return this.conferenceRepository.save(conference);
-  }
-
-  async delete(id: string, userId: number) {
-    const conference = await this.findOne(id);
-    if (conference.chairId !== userId) throw new ForbiddenException('Only the chair can delete this conference');
-    conference.isActive = false;  // Soft delete
-    return this.conferenceRepository.save(conference);
-  }
-
-  async updateTopics(id: string, topics: string[], userId: number) {
-    const conference = await this.findOne(id);
-    if (conference.chairId !== userId) throw new ForbiddenException('Only the chair can update topics');
-    conference.topics = topics;
-    return this.conferenceRepository.save(conference);
-  }
-
-  async updateDeadlines(id: string, deadlines: { submission?: Date, review?: Date, cameraReady?: Date }, userId: number) {
-    const conference = await this.findOne(id);
-    if (conference.chairId !== userId) throw new ForbiddenException('Only the chair can update deadlines');
-    conference.deadlines = { ...conference.deadlines, ...deadlines };
-    return this.conferenceRepository.save(conference);
-  }
-
-  async updateStatus(id: string, newStatus: ConferenceStatus, userId: number) {
-    const conference = await this.findOne(id);
-    if (conference.chairId !== userId) throw new ForbiddenException('Only the chair can update status');
-    // Validation transition đơn giản (ví dụ: chỉ tăng dần)
-    const statusOrder = Object.values(ConferenceStatus);
-    if (statusOrder.indexOf(newStatus) <= statusOrder.indexOf(conference.status)) {
-      throw new BadRequestException('Invalid status transition');
+  async findOne(id: string): Promise<Conference> {
+    const conference = await this.conferenceRepository.findOne({ where: { id } });
+    if (!conference) {
+      throw new NotFoundException(`Conference with id ${id} not found`);
     }
-    conference.status = newStatus;
+    return conference;
+  }
+
+  async updateStatus(conferenceId: string, status: ConferenceStatus, chairId: number) {
+    const conference = await this.findOne(conferenceId);
+    if (conference.chairId !== chairId) {
+      throw new ForbiddenException('Only chair can update conference status');
+    }
+    conference.status = status;
     return this.conferenceRepository.save(conference);
+  }
+
+  async addTrack(conferenceId: string, dto: CreateTrackDto): Promise<Track> {
+    const conference = await this.conferenceRepository.findOne({ where: { id: conferenceId } });
+
+    if (!conference) {
+      throw new NotFoundException(
+        `Conference with id ${conferenceId} not found`,
+      );
+    }
+
+    const track = this.trackRepository.create({
+      name: dto.name,
+      conference,
+    });
+
+    return this.trackRepository.save(track);
   }
 }
+

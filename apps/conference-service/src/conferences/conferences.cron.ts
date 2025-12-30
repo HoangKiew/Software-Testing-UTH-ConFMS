@@ -26,6 +26,7 @@ export class ConferencesCron {
       // Kiểm tra deadline nộp bài
       if (
         status === ConferenceStatus.OPEN_FOR_SUBMISSION &&
+        deadlines &&
         deadlines.submission &&
         now > new Date(deadlines.submission)
       ) {

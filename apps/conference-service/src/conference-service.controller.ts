@@ -1,12 +1,14 @@
 import { Controller, Get } from '@nestjs/common';
-import { ConferenceServiceService } from './conference-service.service';
+import { ApiExcludeController } from '@nestjs/swagger';
 
-@Controller()
+// Controller này chỉ để kiểm tra health của service.
+// - Không xóa file này vì đã dùng tạm để đảm bảo build, nhưng ẩn khỏi Swagger
+//   để không xuất hiện nhóm `ConferenceService` ở đầu trang docs.
+@ApiExcludeController()
+@Controller('health')
 export class ConferenceServiceController {
-  constructor(private readonly conferenceServiceService: ConferenceServiceService) {}
-
   @Get()
-  getHello(): string {
-    return this.conferenceServiceService.getHello();
+  health() {
+    return { status: 'conference-service OK' };
   }
 }

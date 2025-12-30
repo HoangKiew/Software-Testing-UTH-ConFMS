@@ -1,11 +1,14 @@
-// src/conferences/entities/conference.entity.ts
+// apps/conference-service/src/conferences/entities/conference.entity.ts
 import {
   Column,
   Entity,
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
 } from 'typeorm';
+import { Track } from './track.entity';
+import { ConferenceMember } from './conference-member.entity';
 
 export enum ConferenceStatus {
   DRAFT = 'draft',
@@ -31,7 +34,7 @@ export class Conference {
   acronym: string;
 
   @Column({ type: 'text', nullable: true })
-  description: string;  // Sửa truncated
+  description: string | null;
 
   @Column({ type: 'timestamptz' })
   startDate: Date;
@@ -54,7 +57,7 @@ export class Conference {
     submission?: Date | null;
     review?: Date | null;
     cameraReady?: Date | null;
-  };
+  } | null;
 
   @Column({
     type: 'enum',
@@ -63,7 +66,7 @@ export class Conference {
   })
   status: ConferenceStatus;
 
-  @Column({ name: 'chair_id', type: 'integer' })  // Đổi sang number (int) khớp identity User.id
+  @Column({ name: 'chair_id', type: 'integer' })
   chairId: number;
 
   @Column({ default: true })
@@ -74,4 +77,43 @@ export class Conference {
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
+
+  @Column({ type: 'jsonb', default: [] })
+  schedule: Array<{
+    time: string;
+    sessionName: string;
+    paperIds: string[];
+  }>;
+
+  @Column({ name: 'ai_features_enabled', default: false })
+  aiFeaturesEnabled: boolean;
+
+  @Column({
+    type: 'jsonb',
+    name: 'ai_config',
+    default: {
+      emailDraft: true,
+      keywordSuggestion: true,
+      neutralSummary: true,
+    },
+  })
+  aiConfig: {
+    emailDraft?: boolean;
+    keywordSuggestion?: boolean;
+    neutralSummary?: boolean;
+  };
+
+  @Column({ default: false })
+  openAccess: boolean;
+  
+  @OneToMany(() => Track, (track) => track.conference, {
+    cascade: ['insert', 'update'],
+  })
+  tracks: Track[];
+
+  @OneToMany(() => ConferenceMember, (conferenceMember) => conferenceMember.conference, {
+    cascade: ['insert', 'update'],
+  })
+  members: ConferenceMember[];
 }
+
