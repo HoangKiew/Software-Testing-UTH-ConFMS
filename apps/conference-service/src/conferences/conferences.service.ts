@@ -9,14 +9,18 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Conference, ConferenceStatus } from './entities/conference.entity';
+import { Track } from './entities/track.entity';                    // ← THÊM IMPORT
 import { CreateConferenceDto } from './dto/create-conference.dto';
 import { UpdateConferenceDto } from './dto/update-conference.dto';
+import { CreateTrackDto } from './dto/create-track.dto';              // ← THÊM IMPORT
 
 @Injectable()
 export class ConferencesService {
   constructor(
     @InjectRepository(Conference)
     private conferenceRepository: Repository<Conference>,
+    @InjectRepository(Track)                                     // ← THÊM REPOSITORY
+    private trackRepository: Repository<Track>,
   ) {}
 
   async create(createDto: CreateConferenceDto, userId: number) {
@@ -195,5 +199,38 @@ export class ConferencesService {
     }
 
     return conf;
+  }
+
+  // ================= TRACK MANAGEMENT =================
+
+  /**
+   * Tạo track mới cho một hội nghị
+   */
+  async createTrack(conferenceId: string, dto: CreateTrackDto, userId: number) {
+    const conference = await this.findOne(conferenceId);
+
+    if (conference.chairId !== userId) {
+      throw new ForbiddenException('Only the conference chair can create tracks');
+    }
+
+    const track = this.trackRepository.create({
+      name: dto.name,
+      conference: conference,
+    });
+
+    return this.trackRepository.save(track);
+  }
+
+  /**
+   * Lấy danh sách tracks của một hội nghị
+   */
+  async getTracks(conferenceId: string) {
+    // Kiểm tra hội nghị tồn tại (ném 404 nếu không)
+    await this.findOne(conferenceId);
+
+    return this.trackRepository.find({
+      where: { conference: { id: conferenceId } },
+      order: { name: 'ASC' },
+    });
   }
 }
