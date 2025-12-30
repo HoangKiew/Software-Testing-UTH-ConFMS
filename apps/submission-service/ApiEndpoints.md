@@ -2,7 +2,7 @@
 
 ## 🎯 Overview
 
-Submission Service cung cấp 9 API endpoints để quản lý submissions (bài nộp) trong hệ thống hội nghị khoa học.
+Submission Service cung cấp 10 API endpoints để quản lý submissions (bài nộp) trong hệ thống hội nghị khoa học.
 
 **Base URL:** `http://localhost:3003/api`  
 **Authentication:** JWT Bearer Token (required for all endpoints)  
@@ -222,7 +222,87 @@ authors: JSON string (Danh sách tác giả)
 
 ---
 
-### **7. 🔵 GET `/submissions/conference/{conferenceId}`** - Xem Bài Theo Conference
+### **7. 🔵 GET `/submissions`** - Danh Sách Với Phân Trang & Lọc ⭐ NEW!
+
+**Mục đích:** CHAIR xem tất cả submissions với phân trang, lọc, tìm kiếm
+
+**Quyền:** CHAIR, ADMIN only
+
+**Query Parameters (tất cả optional):**
+```
+page: number (default: 1) - Số trang
+limit: number (default: 10, max: 100) - Số bài/trang
+status: enum - Lọc theo trạng thái (SUBMITTED, ACCEPTED, REJECTED, etc.)
+conferenceId: number - Lọc theo hội nghị
+createdFrom: string (ISO 8601) - Lọc từ ngày (VD: 2025-01-01)
+createdTo: string (ISO 8601) - Lọc đến ngày (VD: 2025-12-31)
+search: string - Tìm kiếm trong tiêu đề (không phân biệt hoa thường)
+sortBy: enum - Sắp xếp theo (createdAt, updatedAt, title)
+order: enum - Thứ tự (ASC, DESC)
+```
+
+**Example Request:**
+```http
+GET /api/submissions?page=1&limit=10&status=ACCEPTED&conferenceId=1&search=deep learning&sortBy=createdAt&order=DESC
+```
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": 5,
+      "conference_id": 1,
+      "title": "Deep Learning for Face Recognition",
+      "abstract": "This paper presents...",
+      "status": "SUBMITTED",
+      "created_by": 4,
+      "created_at": "2025-12-28T07:22:12.196Z",
+      "updated_at": "2025-12-28T07:22:12.196Z",
+      "withdrawn_at": null,
+      "camera_ready_submitted_at": null,
+      "files": [
+        {
+          "id": 9,
+          "submission_id": 5,
+          "file_path": "https://...supabase.co/.../papers/5/v1.pdf",
+          "version": 1,
+          "uploaded_at": "2025-12-28T07:22:14.512Z"
+        }
+      ],
+      "authors": []
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 45,
+    "totalPages": 5,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
+
+**Tính năng:**
+- ✅ Phân trang với page validation (tự động giới hạn trong phạm vi hợp lệ)
+- ✅ Lọc theo nhiều tiêu chí (status, conference, date range)
+- ✅ Tìm kiếm không phân biệt hoa thường
+- ✅ Sắp xếp linh hoạt (theo ngày, tiêu đề)
+- ✅ Xử lý timezone (createdTo bao gồm cả ngày)
+- ✅ Database indexes để tối ưu hiệu suất
+
+**Use Cases:**
+- Chair xem tất cả bài nộp của hội nghị với phân trang
+- Lọc chỉ bài đã ACCEPTED để chuẩn bị proceedings
+- Tìm kiếm bài theo từ khóa trong tiêu đề
+- Xem bài nộp trong khoảng thời gian cụ thể
+
+**Khi nào dùng:** Chair quản lý, tìm kiếm, lọc submissions
+
+---
+
+### **8. 🔵 GET `/submissions/conference/{conferenceId}`** - Xem Bài Theo Conference
 
 **Mục đích:** CHAIR xem tất cả submissions của một conference
 
@@ -237,7 +317,7 @@ authors: JSON string (Danh sách tác giả)
 
 ---
 
-### **8. 🟡 PATCH `/submissions/{id}/status`** - Cập Nhật Trạng Thái
+### **9. 🟡 PATCH `/submissions/{id}/status`** - Cập Nhật Trạng Thái
 
 **Mục đích:** CHAIR accept/reject paper sau khi review
 
@@ -270,7 +350,7 @@ authors: JSON string (Danh sách tác giả)
 
 ---
 
-### **9. 🟢 POST `/submissions/{id}/camera-ready`** - Upload Bản Final
+### **10. 🟢 POST `/submissions/{id}/camera-ready`** - Upload Bản Final
 
 **Mục đích:** Author upload camera-ready version sau khi được accept
 
@@ -323,19 +403,28 @@ file: PDF file only (max 15MB)
 
 ### **Workflow 2: Review Process (Chair)**
 ```
-1. GET /conference/{id} → Xem tất cả bài nộp
-2. GET /{id} → Xem chi tiết từng bài
-3. PATCH /{id}/status → Accept/Reject
+1. GET /submissions?page=1&limit=10 → Xem tất cả bài nộp (phân trang) ⭐ NEW!
+2. GET /submissions?status=SUBMITTED&conferenceId=1 → Lọc bài cần review
+3. GET /{id} → Xem chi tiết từng bài
+4. PATCH /{id}/status → Accept/Reject
 ```
 
-### **Workflow 3: Camera-Ready (Author)**
+### **Workflow 3: Search & Filter (Chair)** ⭐ NEW!
+```
+1. GET /submissions?search=deep learning → Tìm kiếm theo từ khóa
+2. GET /submissions?status=ACCEPTED&conferenceId=1 → Lọc bài đã accept
+3. GET /submissions?createdFrom=2025-01-01&createdTo=2025-12-31 → Lọc theo thời gian
+4. GET /submissions?sortBy=title&order=ASC → Sắp xếp theo tiêu đề
+```
+
+### **Workflow 4: Camera-Ready (Author)**
 ```
 1. GET /user/me → Check status = ACCEPTED
 2. POST /{id}/camera-ready → Upload bản final
 3. GET /{id} → Verify upload thành công
 ```
 
-### **Workflow 4: Withdraw (Author)**
+### **Workflow 5: Withdraw (Author)**
 ```
 1. GET /user/me → Xem bài đã nộp
 2. DELETE /{id} → Rút bài (nếu chưa accept)
@@ -391,6 +480,13 @@ created_by, created_at, updated_at, withdrawn_at,
 camera_ready_submitted_at
 ```
 
+**Indexes:** ⭐ NEW!
+```sql
+CREATE INDEX idx_submission_status ON submission(status);
+CREATE INDEX idx_submission_conference_id ON submission(conference_id);
+CREATE INDEX idx_submission_created_at ON submission(created_at);
+```
+
 ### **submission_file** table:
 ```sql
 id, submission_id, file_path, version, uploaded_at
@@ -425,6 +521,10 @@ curl -X POST http://localhost:3003/api/submissions/upload \
 # Get my submissions
 curl http://localhost:3003/api/submissions/user/me \
   -H "Authorization: Bearer YOUR_TOKEN"
+
+# Pagination & filtering ⭐ NEW!
+curl "http://localhost:3003/api/submissions?page=1&limit=10&status=ACCEPTED" \
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 ### **Với Postman:**
@@ -440,9 +540,10 @@ Import collection: `UTH-ConfMS-Submission.postman_collection.json`
 - Deadline được check tự động với Conference Service
 - Mọi thao tác đều ghi audit log
 - Camera-ready có size limit lớn hơn (15MB vs 10MB)
+- **Pagination endpoint có database indexes để tối ưu hiệu suất** ⭐ NEW!
 
 ---
 
-**Last Updated:** 2025-12-28  
-**Version:** 1.0  
+**Last Updated:** 2025-12-30  
+**Version:** 1.1  
 **Service Port:** 3003
