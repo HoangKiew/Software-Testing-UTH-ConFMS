@@ -13,6 +13,7 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { AuthModule } from './auth/auth.module';
 import { ReviewerModule } from './reviewer/reviewer.module';
+import { ChairModule } from './chair/chair.module';
 // Entities and sub-modules (reviewer/chair) will be added later.
 
 @Module({
@@ -55,6 +56,8 @@ import { ReviewerModule } from './reviewer/reviewer.module';
     // ReviewerModule (contains reviewer entities and controller)
     // will register entities via TypeOrmModule.forFeature
     ReviewerModule,
+    // ChairModule provides chair-specific endpoints and entities
+    ChairModule,
   ],
   controllers: [ReviewServiceController],
   providers: [
