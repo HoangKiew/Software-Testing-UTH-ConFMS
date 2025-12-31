@@ -259,7 +259,7 @@ const HomePage = () => {
 
                                 {/* Quick Action Button */}
                                 <Link
-                                    to="/submit-paper"
+                                    to="/submission"
                                     className="block w-full mt-4 bg-[#008689] hover:bg-[#006666] text-white text-center font-semibold py-3 px-4 rounded-lg transition duration-200 shadow-md hover:shadow-lg"
                                 >
                                     + Nộp bài mới
@@ -273,7 +273,7 @@ const HomePage = () => {
                         <h2 className="text-2xl font-bold text-gray-900 mb-6">
                             Thao tác nhanh
                         </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <Link
                                 to="/conferences"
                                 className="flex items-center p-4 border-2 border-gray-200 rounded-lg hover:border-[#008689] hover:bg-[#e6f7f7] transition-all duration-300"
@@ -290,7 +290,7 @@ const HomePage = () => {
                             </Link>
 
                             <Link
-                                to="/submit-paper"
+                                to="/submission"
                                 className="flex items-center p-4 border-2 border-gray-200 rounded-lg hover:border-[#008689] hover:bg-[#e6f7f7] transition-all duration-300"
                             >
                                 <Description className="w-8 h-8 text-[#008689] mr-4" />
@@ -298,21 +298,6 @@ const HomePage = () => {
                                     <h3 className="font-semibold text-gray-900">Nộp bài báo</h3>
                                     <p className="text-sm text-gray-600">
                                         Upload bài báo của bạn
-                                    </p>
-                                </div>
-                            </Link>
-
-                            <Link
-                                to="/reviews"
-                                className="flex items-center p-4 border-2 border-gray-200 rounded-lg hover:border-[#008689] hover:bg-[#e6f7f7] transition-all duration-300"
-                            >
-                                <RateReview className="w-8 h-8 text-[#008689] mr-4" />
-                                <div>
-                                    <h3 className="font-semibold text-gray-900">
-                                        Đánh giá bài báo
-                                    </h3>
-                                    <p className="text-sm text-gray-600">
-                                        Xem các bài cần đánh giá
                                     </p>
                                 </div>
                             </Link>

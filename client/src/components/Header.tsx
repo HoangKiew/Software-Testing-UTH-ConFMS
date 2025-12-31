@@ -20,8 +20,8 @@ const Header = () => {
 
     const navItems = [
         { name: 'Trang chủ', path: '/' },
-        { name: 'Bài nộp', path: '/submissions' },
-        { name: 'Phân biện', path: '/reviews' },
+        { name: 'Hội nghị', path: '/conferences' },
+        { name: 'Bài nộp', path: '/my-submissions' },
         { name: 'Cài đặt', path: '/settings' },
     ];
 

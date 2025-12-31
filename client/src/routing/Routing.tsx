@@ -1,11 +1,18 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import LayoutApp from '../layouts/LayoutApp';
-import LoginPage from '../pages/auth/LoginPage';
-import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
-import ResetPasswordPage from '../pages/auth/ResetPasswordPage';
-import ProtectedRoute from '../components/ProtectedRoute';
-import ActivateAccount from '../pages/auth/ActivateAccount';
-import HomePage from '../pages/home/HomePage';
+import LayoutApp from '../layouts/LayoutApp.tsx';
+import LoginPage from '../pages/auth/LoginPage.tsx';
+import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage.tsx';
+import ResetPasswordPage from '../pages/auth/ResetPasswordPage.tsx';
+import ProtectedRoute from '../components/ProtectedRoute.tsx';
+import ActivateAccount from '../pages/auth/ActivateAccount.tsx';
+import HomePage from '../pages/home/HomePage.tsx';
+import SubmitPaperPage from '../pages/submission/SubmitPaperPage.tsx';
+import ConferenceListPage from '../pages/conference/ConferenceListPage.tsx';
+import ConferenceDetailPage from '../pages/conference/ConferenceDetailPage.tsx';
+import MySubmissionsPage from '../pages/submission/MySubmissionsPage.tsx';
+import SubmissionDetailPage from '../pages/submission/SubmissionDetailPage.tsx';
+import EditSubmissionPage from '../pages/submission/EditSubmissionPage.tsx';
+import CameraReadyUploadPage from '../pages/submission/CameraReadyUploadPage.tsx';
 
 const appRouter = createBrowserRouter([
   {
@@ -39,6 +46,34 @@ const appRouter = createBrowserRouter([
       {
         path: 'home',
         element: <HomePage />,
+      },
+      {
+        path: 'submission',
+        element: <SubmitPaperPage />,
+      },
+      {
+        path: 'conferences',
+        element: <ConferenceListPage />,
+      },
+      {
+        path: 'conferences/:id',
+        element: <ConferenceDetailPage />,
+      },
+      {
+        path: 'my-submissions',
+        element: <MySubmissionsPage />,
+      },
+      {
+        path: 'submissions/:id',
+        element: <SubmissionDetailPage />,
+      },
+      {
+        path: 'submissions/:id/edit',
+        element: <EditSubmissionPage />,
+      },
+      {
+        path: 'submissions/:id/camera-ready',
+        element: <CameraReadyUploadPage />,
       },
     ],
   },
