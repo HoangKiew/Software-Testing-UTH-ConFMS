@@ -1,34 +1,14 @@
 import { Module } from '@nestjs/common';
+import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './jwt.strategy';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
-import { StringValue } from 'ms';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { RolesGuard } from './roles.guard';
 
 @Module({
-  imports: [
-    ConfigModule,
-    PassportModule,
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        // Không cho phép undefined
-        secret: config.getOrThrow<string>('JWT_ACCESS_SECRET'),
-
-        signOptions: {
-          // Ví dụ: '15m', '1h', '7d'
-          expiresIn: config.getOrThrow<StringValue>(
-            'JWT_ACCESS_EXPIRES_IN',
-          ),
-        },
-      }),
-    }),
-  ],
-  providers: [JwtStrategy, AuthService],
-  controllers: [AuthController],
-  exports: [AuthService, JwtStrategy],
+  imports: [PassportModule, ConfigModule, JwtModule],
+  providers: [JwtStrategy, JwtAuthGuard, RolesGuard],
+  exports: [JwtStrategy, JwtAuthGuard, RolesGuard],
 })
 export class AuthModule {}

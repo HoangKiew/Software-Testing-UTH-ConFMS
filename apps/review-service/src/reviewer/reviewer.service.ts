@@ -1,308 +1,250 @@
-import {
-  Injectable,
-  ForbiddenException,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
 import { ConfigService } from '@nestjs/config';
-import {
-  Assignment,
-  AssignmentStatus,
-} from '../entities/assignment.entity';
-import { Review } from '../entities/review.entity';
-import { ReviewHistory } from '../entities/review-history.entity';
-import { DiscussionMessage } from '../entities/discussion-message.entity';
-
-interface ReviewerAssignmentResponse {
-  assignmentId: number;        // ID assignment
-  submissionId: string;        // ID bài báo
-  conferenceId: string;        // ID hội nghị
-  title: string;               // Tiêu đề
-  abstract: string;            // Abstract
-  status: AssignmentStatus;    // pending | accepted | rejected
-  deadline: Date;              // Deadline
-  canAct: boolean;             // Có được accept / reject không
-}
+import { Assignment } from './entities/assignment.entity';
+import { Review } from './entities/review.entity';
+import { ReviewEditHistory } from './entities/review-edit-history.entity';
+import { DiscussionMessage } from './entities/discussion.entity';
 
 @Injectable()
 export class ReviewerService {
   constructor(
     @InjectRepository(Assignment)
-    private assignmentRepo: Repository<Assignment>,
+    private readonly assignmentRepo: Repository<Assignment>,
     @InjectRepository(Review)
-    private reviewRepo: Repository<Review>,
-    @InjectRepository(ReviewHistory)
-    private historyRepo: Repository<ReviewHistory>,
+    private readonly reviewRepo: Repository<Review>,
+    @InjectRepository(ReviewEditHistory)
+    private readonly historyRepo: Repository<ReviewEditHistory>,
     @InjectRepository(DiscussionMessage)
-    private messageRepo: Repository<DiscussionMessage>,
-    private httpService: HttpService,
-    private configService: ConfigService,
+    private readonly discussionRepo: Repository<DiscussionMessage>,
+    private readonly httpService: HttpService,
+    private readonly config: ConfigService,
   ) {}
 
+  async listAssignments(reviewerId: number) {
+    return this.assignmentRepo.find({ where: { reviewerId: reviewerId } });
+  }
+
+  async acceptAssignment(id: number, reviewerId: number) {
+    const a = await this.assignmentRepo.findOne({ where: { id } });
+    if (!a) throw new NotFoundException('Assignment not found');
+    if (a.reviewerId !== reviewerId) throw new ForbiddenException();
+    if (a.status === 'accepted') {
+      throw new BadRequestException('Assignment already accepted');
+    }
+    if (a.status === 'rejected') {
+      throw new BadRequestException('Cannot accept a rejected assignment');
+    }
+    // Kiểm tra acceptDeadline (nếu có)
+    const now = new Date();
+    const accDeadline = (a as any).acceptDeadline || a.deadline;
+    if (accDeadline && now > new Date(accDeadline)) {
+      throw new BadRequestException('Đã quá hạn chấp nhận phân công');
+    }
+
+    a.status = 'accepted';
+    return this.assignmentRepo.save(a);
+  }
+
+  async rejectAssignment(id: number, reviewerId: number) {
+    const a = await this.assignmentRepo.findOne({ where: { id } });
+    if (!a) throw new NotFoundException('Assignment not found');
+    if (a.reviewerId !== reviewerId) throw new ForbiddenException();
+    if (a.status === 'rejected') {
+      throw new BadRequestException('Assignment already rejected');
+    }
+    // Kiểm tra acceptDeadline (nếu có)
+    const now = new Date();
+    const accDeadline = (a as any).acceptDeadline || a.deadline;
+    if (accDeadline && now > new Date(accDeadline)) {
+      throw new BadRequestException('Đã quá hạn chấp nhận phân công');
+    }
+
+    a.status = 'rejected';
+    return this.assignmentRepo.save(a);
+  }
+
   /**
-   * Reviewer xem danh sách bài được phân công
+   * Kiểm tra assignment có được accept và còn trong deadline không
    */
-  async getAssignedAssignments(
-    reviewerId: string,
-  ): Promise<ReviewerAssignmentResponse[]> {
-    const assignments = await this.assignmentRepo.find({
-      where: { reviewerId },
-      order: { createdAt: 'DESC' },
+  private async validateAssignmentForReview(assignmentId: number, reviewerId: number): Promise<Assignment> {
+    const assignment = await this.assignmentRepo.findOne({ where: { id: assignmentId } });
+    if (!assignment) throw new NotFoundException('Assignment not found');
+    if (assignment.reviewerId !== reviewerId) throw new ForbiddenException();
+    // Cho phép trạng thái 'accepted' hoặc 'completed' (đã submit final) làm việc
+    if (assignment.status !== 'accepted' && assignment.status !== 'completed') {
+      throw new ForbiddenException('Chỉ có thể đánh giá bài báo đã được chấp nhận (accepted)');
+    }
+    // Kiểm tra reviewDeadline (không cho phép đánh giá nếu đã quá hạn)
+    const rd = (assignment as any).reviewDeadline || assignment.deadline;
+    if (rd && new Date() > new Date(rd)) {
+      throw new BadRequestException('Đã quá hạn deadline đánh giá, không thể đánh giá hoặc chỉnh sửa');
+    }
+    return assignment;
+  }
+
+  async getReviewByAssignment(assignmentId: number, reviewerId: number) {
+    const assignment = await this.assignmentRepo.findOne({ where: { id: assignmentId } });
+    if (!assignment) throw new NotFoundException('Assignment not found');
+    if (assignment.reviewerId !== reviewerId) throw new ForbiddenException();
+    
+    const review = await this.reviewRepo.findOne({ where: { assignmentId, reviewerId } });
+    if (!review) return null;
+    
+    // Lấy lịch sử chỉnh sửa
+    const histories = await this.historyRepo.find({ where: { reviewId: review.id } });
+    
+    return {
+      ...review,
+      histories,
+    };
+  }
+
+  async createReview(assignmentId: number, payload: Partial<Review>, reviewerId: number) {
+    // Kiểm tra assignment đã được accept/allowed và còn deadline
+    const assignment = await this.validateAssignmentForReview(assignmentId, reviewerId);
+    
+    // Kiểm tra xem đã có review chưa
+    const existingReview = await this.reviewRepo.findOne({ where: { assignmentId, reviewerId } });
+    if (existingReview) {
+      throw new BadRequestException('Review already exists. Use update endpoint to modify.');
+    }
+    
+    // Do not allow setting final via create/update here. Final submission must use submitFinal endpoint.
+    const r = this.reviewRepo.create({ ...payload, assignmentId, reviewerId, isFinal: false });
+    const saved = await this.reviewRepo.save(r);
+    return saved;
+  }
+
+  async updateReview(assignmentId: number, payload: Partial<Review>, reviewerId: number) {
+    // Kiểm tra assignment đã được accept và còn deadline
+    const assignment = await this.validateAssignmentForReview(assignmentId, reviewerId);
+    
+    const review = await this.reviewRepo.findOne({ where: { assignmentId, reviewerId } });
+    if (!review) throw new NotFoundException('Review not found');
+    
+    // Lưu lịch sử chỉnh sửa
+    await this.historyRepo.save({ 
+      reviewId: review.id, 
+      reviewerId, 
+      oldData: { ...review } 
     });
+    
+    Object.assign(review, payload);
+    const saved = await this.reviewRepo.save(review);
 
-    const result: ReviewerAssignmentResponse[] = [];
+    // Do not allow setting isFinal via update; use submitFinal endpoint instead.
+    return saved;
+  }
 
-    for (const assignment of assignments) {
-      let title = 'Không tải được thông tin bài báo';
-      let abstract = '';
-
-      try {
-        // Gọi submission-service
-        const { data } = await firstValueFrom(
-          this.httpService.get(
-            `${process.env.SUBMISSION_SERVICE_URL}/api/submissions/${assignment.submissionId}/info`,
-          ),
-        );
-
-        title = data?.title ?? 'Chưa có tiêu đề';
-        abstract = data?.abstract ?? '';
-      } catch (error) {
-        // Log nếu cần
+  /**
+   * Submit final review: require existing review with score and publicComment,
+   * mark review.isFinal = true and assignment.status = 'completed' for that reviewer.
+   */
+  async submitFinal(assignmentId: number, reviewerId: number) {
+    const assignment = await this.assignmentRepo.findOne({ where: { id: assignmentId } });
+    if (!assignment) throw new NotFoundException('Assignment not found');
+    if (assignment.reviewerId !== reviewerId) throw new ForbiddenException();
+    if (assignment.status === 'rejected') throw new BadRequestException('Cannot submit final for rejected assignment');
+    // idempotent: if already completed, ensure review.isFinal = true and return success
+    if (assignment.status === 'completed') {
+      const existing = await this.reviewRepo.findOne({ where: { assignmentId, reviewerId } });
+      if (existing && !existing.isFinal) {
+        existing.isFinal = true;
+        await this.reviewRepo.save(existing);
       }
-
-      result.push({
-        assignmentId: assignment.id,
-        submissionId: assignment.submissionId,
-        conferenceId: assignment.conferenceId,
-        title,
-        abstract,
-        status: assignment.status,
-        deadline: assignment.deadline,
-
-        // Chỉ được hành động khi:
-        // - Trạng thái là PENDING
-        // - Chưa quá deadline
-        canAct:
-          assignment.status === AssignmentStatus.PENDING &&
-          new Date() < new Date(assignment.deadline),
-      });
+      return { success: true, review: existing, assignment };
     }
 
-    return result;
-  }
-
-  /**
-   * Reviewer chấp nhận review
-   */
-  async acceptAssignment(
-    assignmentId: number,
-    reviewerId: string,
-  ): Promise<Assignment> {
-    const assignment = await this.assignmentRepo.findOne({
-      where: { id: assignmentId, reviewerId },
-    });
-
-    if (!assignment) {
-      throw new NotFoundException('Không tìm thấy nhiệm vụ phản biện');
-    }
-
-    if (assignment.status !== AssignmentStatus.PENDING) {
-      throw new ForbiddenException(
-        'Nhiệm vụ này đã được xử lý trước đó',
-      );
-    }
-
-    if (new Date() > new Date(assignment.deadline)) {
-      throw new ForbiddenException('Đã quá hạn phản hồi nhiệm vụ');
-    }
-
-    assignment.status = AssignmentStatus.ACCEPTED;
-    return this.assignmentRepo.save(assignment);
-  }
-
-  /**
-   * Reviewer từ chối review
-   */
-  async rejectAssignment(
-    assignmentId: number,
-    reviewerId: string,
-  ): Promise<Assignment> {
-    const assignment = await this.assignmentRepo.findOne({
-      where: { id: assignmentId, reviewerId },
-    });
-
-    if (!assignment) {
-      throw new NotFoundException('Không tìm thấy nhiệm vụ phản biện');
-    }
-
-    if (assignment.status !== AssignmentStatus.PENDING) {
-      throw new ForbiddenException(
-        'Nhiệm vụ này đã được xử lý trước đó',
-      );
-    }
-
-    if (new Date() > new Date(assignment.deadline)) {
-      throw new ForbiddenException('Đã quá hạn phản hồi nhiệm vụ');
-    }
-
-    assignment.status = AssignmentStatus.REJECTED;
-    return this.assignmentRepo.save(assignment);
-  }
-
-// === 2. Lấy link tải file bài báo ===
-// Thêm vào ReviewerService class
-async getPaperFileUrlForReviewer(assignmentId: number, reviewerId: string): Promise<{ fileUrl: string }> {
-  const assignment = await this.assignmentRepo.findOne({
-    where: { id: assignmentId, reviewerId, status: AssignmentStatus.ACCEPTED },
-  });
-
-  if (!assignment) {
-    throw new ForbiddenException('Bạn không có quyền truy cập file bài báo này');
-  }
-
-  const submissionUrl = this.configService.get<string>('SUBMISSION_SERVICE_URL');
-  try {
-    const res = await firstValueFrom(
-      this.httpService.get(`${submissionUrl}/submissions/${assignment.submissionId}/file`),
-    );
-    return { fileUrl: res.data.fileUrl };
-  } catch (error) {
-    throw new NotFoundException('Không thể lấy file từ submission-service');
-  }
-}
-
-  // === 3. Submit đánh giá lần đầu ===
-  async submitReview(assignmentId: number, reviewerId: string, body: any): Promise<Review> {
-    const assignment = await this.assignmentRepo.findOne({
-      where: { id: assignmentId, reviewerId, status: AssignmentStatus.ACCEPTED },
-    });
-
-    if (!assignment) {
-      throw new ForbiddenException('Bạn chưa chấp nhận nhiệm vụ này');
-    }
-
-    if (new Date() > assignment.deadline) {
-      throw new ForbiddenException('Đã quá hạn nộp đánh giá');
-    }
-
-    const existing = await this.reviewRepo.findOne({ where: { assignmentId } });
-    if (existing?.isFinal) {
-      throw new BadRequestException('Bạn đã nộp đánh giá cuối cùng rồi');
-    }
-
-    const review = existing || this.reviewRepo.create();
-    Object.assign(review, {
-      assignmentId,
-      reviewerId,
-      originality: body.originality ?? 0,
-      technicalQuality: body.technicalQuality ?? 0,
-      clarity: body.clarity ?? 0,
-      relevance: body.relevance ?? 0,
-      overall: body.overall ?? 0,
-      publicComment: body.publicComment || null,
-      privateComment: body.privateComment || null,
-      isFinal: true,
-    });
-
-    return this.reviewRepo.save(review);
-  }
-
-  // === 4. Lấy đánh giá hiện tại của mình ===
-  async getMyReview(assignmentId: number, reviewerId: string): Promise<Review> {
-    const review = await this.reviewRepo.findOne({
-      where: { assignmentId, reviewerId },
-      relations: ['histories'],
-      order: { histories: { editedAt: 'DESC' } },
-    });
-
-    if (!review) {
-      throw new NotFoundException('Chưa có đánh giá nào');
-    }
-
-    return review;
-  }
-
-  // === 5. Chỉnh sửa đánh giá (trước deadline) ===
-  async updateReview(assignmentId: number, reviewerId: string, body: any): Promise<Review> {
-    const assignment = await this.assignmentRepo.findOne({
-      where: { id: assignmentId, reviewerId, status: AssignmentStatus.ACCEPTED },
-    });
-
-    if (!assignment || new Date() > assignment.deadline) {
-      throw new ForbiddenException('Không thể chỉnh sửa: quá hạn hoặc chưa accept');
+    // Ensure within review deadline
+    const rd = (assignment as any).reviewDeadline || assignment.deadline;
+    if (rd && new Date() > new Date(rd)) {
+      throw new BadRequestException('Đã quá hạn deadline đánh giá, không thể nộp final');
     }
 
     const review = await this.reviewRepo.findOne({ where: { assignmentId, reviewerId } });
-    if (!review) {
-      throw new NotFoundException('Chưa có đánh giá để sửa');
+    if (!review) throw new BadRequestException('Không tìm thấy review để submit final');
+    if (review.score == null || !review.publicComment) {
+      throw new BadRequestException('Để nộp final cần có `score` và `publicComment`');
     }
 
-    // Lưu lịch sử trước khi sửa
-    await this.historyRepo.save({
-      reviewId: review.id,
-      ...review,
-      editedBy: reviewerId,
-    });
+    review.isFinal = true;
+    await this.reviewRepo.save(review);
 
-    // Cập nhật các trường nếu có
-    if (body.originality !== undefined) review.originality = body.originality;
-    if (body.technicalQuality !== undefined) review.technicalQuality = body.technicalQuality;
-    if (body.clarity !== undefined) review.clarity = body.clarity;
-    if (body.relevance !== undefined) review.relevance = body.relevance;
-    if (body.overall !== undefined) review.overall = body.overall;
-    if (body.publicComment !== undefined) review.publicComment = body.publicComment;
-    if (body.privateComment !== undefined) review.privateComment = body.privateComment;
+    assignment.status = 'completed';
+    await this.assignmentRepo.save(assignment);
 
-    return this.reviewRepo.save(review);
+    return { success: true, review, assignment };
   }
 
-  // === 6. Gửi tin nhắn thảo luận nội bộ ===
-  async sendDiscussionMessage(submissionId: string, senderId: string, content: string) {
-    // Kiểm tra sender có quyền (là reviewer của submission)
-    const hasAccess = await this.assignmentRepo.exist({
-      where: [
-        { submissionId, reviewerId: senderId },
-        // TODO: sau này thêm { submissionId, assignedBy: senderId } cho chair
-      ],
-    });
-
-    if (!hasAccess) {
-      throw new ForbiddenException('Bạn không có quyền tham gia thảo luận này');
-    }
-
-    const message = this.messageRepo.create({
-      submissionId,
-      senderId,
-      content,
-    });
-
-    return this.messageRepo.save(message);
+  async getReviewHistory(reviewId: string, reviewerId: number) {
+    const review = await this.reviewRepo.findOne({ where: { id: reviewId } });
+    if (!review) throw new NotFoundException('Review not found');
+    if (review.reviewerId !== reviewerId) throw new ForbiddenException();
+    
+    return this.historyRepo.find({ where: { reviewId } });
   }
 
-  // === 7. Lấy toàn bộ thảo luận của bài báo ===
-  async getDiscussion(submissionId: string, userId: string): Promise<DiscussionMessage[]> {
-    const hasAccess = await this.assignmentRepo.exist({
-      where: [
-        { submissionId, reviewerId: userId },
-        // TODO: thêm chair
-      ],
-    });
+  /**
+   * Kiểm tra reviewer có được phép tham gia discussion không
+   * Chỉ reviewers đã accept cùng submissionId mới được phép
+   */
+  private async validateDiscussionAccess(submissionId: string, reviewerId: number): Promise<void> {
+    const assignment = await this.assignmentRepo.findOne({ where: { submissionId, reviewerId } });
 
-    if (!hasAccess) {
-      throw new ForbiddenException('Không có quyền xem thảo luận');
+    if (!assignment || (assignment.status !== 'accepted' && assignment.status !== 'completed')) {
+      throw new ForbiddenException('Chỉ có thể tham gia thảo luận cho bài báo đã được chấp nhận đánh giá');
     }
+  }
 
-    return this.messageRepo.find({
-      where: { submissionId },
-      order: { createdAt: 'ASC' },
+  async listDiscussion(submissionId: string, requesterId: number) {
+    // Kiểm tra reviewer có quyền xem discussion không
+    await this.validateDiscussionAccess(submissionId, requesterId);
+    
+    return this.discussionRepo.find({ 
+      where: { submissionId }, 
+      order: { createdAt: 'ASC' } 
     });
+  }
+
+  async postDiscussion(submissionId: string, content: string, senderId: number) {
+    // Kiểm tra reviewer có quyền tham gia discussion không
+    await this.validateDiscussionAccess(submissionId, senderId);
+    
+    const m = this.discussionRepo.create({ submissionId, content, senderId });
+    return this.discussionRepo.save(m);
+  }
+
+  /**
+   * Lấy thông tin bài báo từ submission-service
+   * Tạm thời trả về 404 nếu submission-service chưa có endpoint
+   */
+  async getPaper(assignmentId: number, reviewerId: number) {
+    const assignment = await this.assignmentRepo.findOne({ where: { id: assignmentId } });
+    if (!assignment) throw new NotFoundException('Assignment not found');
+    if (assignment.reviewerId !== reviewerId) throw new ForbiddenException();
+    
+    // Chỉ cho phép xem paper nếu đã accept hoặc đã completed (submit final)
+    if (assignment.status !== 'accepted' && assignment.status !== 'completed') {
+      throw new ForbiddenException('Chỉ có thể xem bài báo sau khi đã chấp nhận đánh giá');
+    }
+    
+    // Gọi submission-service để lấy file (proxy). Nếu submission-service không có endpoint,
+    // trả về NotFound.
+    const submissionBase = this.config.get<string>('SUBMISSION_SERVICE_URL') || this.config.get<string>('SUBMISSION_SERVICE') || 'http://submission-service:3003';
+    const url = `${submissionBase}/api/submissions/${assignment.submissionId}/file`;
+    try {
+      const resp = await this.httpService.axiosRef.get(url, { responseType: 'arraybuffer' });
+      const contentType = resp.headers['content-type'] || 'application/octet-stream';
+      return {
+        filename: `${assignment.submissionId}.pdf`,
+        contentType,
+        data: Buffer.from(resp.data).toString('base64'),
+      };
+    } catch (err: any) {
+      throw new NotFoundException('Không thể lấy file từ submission-service');
+    }
   }
 }
-  
-
-
-

@@ -1,4 +1,5 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { Roles } from './auth/roles.decorator';
@@ -6,6 +7,8 @@ import { CurrentUser } from './auth/current-user.decorator';
 import { ReviewServiceService } from './review-service.service';
 
 @Controller()
+@ApiTags('ReviewService')
+@ApiBearerAuth('JWT-auth')
 export class ReviewServiceController {
   constructor(private readonly reviewService: ReviewServiceService) {}
 
@@ -31,7 +34,7 @@ export class ReviewServiceController {
 
   // 3. Route chỉ dành cho reviewer – test phân quyền role 'reviewer'
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('reviewer')
+  @Roles('REVIEWER')
   @Get('reviewer/dashboard')
   reviewerDashboard(@CurrentUser('sub') userId: string) {
     return { 
@@ -43,7 +46,7 @@ export class ReviewServiceController {
 
   // 4. Route chỉ dành cho chair/PC – test phân quyền role 'chair'
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('chair')
+  @Roles('CHAIR')
   @Get('pc/dashboard')
   pcDashboard(@CurrentUser('sub') userId: string) {
     return { 

@@ -1,24 +1,21 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HttpModule } from '@nestjs/axios';
-import { Assignment } from '../entities/assignment.entity';
-import { Review } from '../entities/review.entity';
-import { ReviewHistory } from '../entities/review-history.entity';
-import { DiscussionMessage } from '../entities/discussion-message.entity';
-import { ReviewerController } from './reviewer.controller'; // Chỉ 1 cái này
+import { ConfigModule } from '@nestjs/config';
+import { Assignment } from './entities/assignment.entity';
+import { Review } from './entities/review.entity';
+import { ReviewEditHistory } from './entities/review-edit-history.entity';
+import { DiscussionMessage } from './entities/discussion.entity';
 import { ReviewerService } from './reviewer.service';
+import { ReviewerController } from './reviewer.controller';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      Assignment,
-      Review,
-      ReviewHistory,
-      DiscussionMessage,
-    ]),
+    ConfigModule,
     HttpModule,
+    TypeOrmModule.forFeature([Assignment, Review, ReviewEditHistory, DiscussionMessage]),
   ],
-  controllers: [ReviewerController], // Chỉ 1 controller
   providers: [ReviewerService],
+  controllers: [ReviewerController],
 })
 export class ReviewerModule {}

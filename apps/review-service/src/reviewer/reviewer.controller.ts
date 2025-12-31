@@ -1,110 +1,81 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Param,
-  ParseIntPipe,
-  Body,
-  UseGuards,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Patch, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { ReviewerService } from './reviewer.service';
-import { Assignment } from '../entities/assignment.entity';
-import { Review } from '../entities/review.entity';
-import { DiscussionMessage } from '../entities/discussion-message.entity';
+import { CreateReviewDto } from './dto/create-review.dto';
+import { UpdateReviewDto } from './dto/update-review.dto';
+import { PostDiscussionDto } from './dto/post-discussion.dto';
 
+@ApiTags('Reviewer')
+@ApiBearerAuth('JWT-auth')
 @Controller('reviewer')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('reviewer')
+@Roles('REVIEWER')
 export class ReviewerController {
-  constructor(private readonly reviewerService: ReviewerService) {}
+  constructor(private readonly svc: ReviewerService) {}
 
-  // 1. Lấy danh sách bài được phân công
   @Get('assignments')
-  async getAssignments(@CurrentUser('sub') reviewerId: string): Promise<any[]> {
-    return this.reviewerService.getAssignedAssignments(reviewerId);
+  async listAssignments(@CurrentUser('sub') userId: number) {
+    return this.svc.listAssignments(userId);
   }
 
-  // 2. Chấp nhận nhiệm vụ
   @Post('assignments/:id/accept')
-  async accept(
-    @Param('id', ParseIntPipe) id: number,
-    @CurrentUser('sub') reviewerId: string,
-  ): Promise<Assignment> {
-    return this.reviewerService.acceptAssignment(id, reviewerId);
+  async accept(@Param('id') id: number, @CurrentUser('sub') userId: number) {
+    return this.svc.acceptAssignment(Number(id), userId);
   }
 
-  // 3. Từ chối nhiệm vụ
   @Post('assignments/:id/reject')
-  async reject(
-    @Param('id', ParseIntPipe) id: number,
-    @CurrentUser('sub') reviewerId: string,
-  ): Promise<Assignment> {
-    return this.reviewerService.rejectAssignment(id, reviewerId);
+  async reject(@Param('id') id: number, @CurrentUser('sub') userId: number) {
+    return this.svc.rejectAssignment(Number(id), userId);
   }
 
-  // 4. Lấy link tải file bài báo
   @Get('assignments/:id/paper')
-  async getPaperFile(
-    @Param('id', ParseIntPipe) assignmentId: number,
-    @CurrentUser('sub') reviewerId: string,
-  ): Promise<{ fileUrl: string }> {
-    return this.reviewerService.getPaperFileUrlForReviewer(assignmentId, reviewerId);
+  async getPaper(@Param('id') id: number, @CurrentUser('sub') userId: number) {
+    return this.svc.getPaper(Number(id), userId);
   }
 
-  // 5. Nộp đánh giá lần đầu
-  @Post('assignments/:id/review')
-  async submitReview(
-    @Param('id', ParseIntPipe) assignmentId: number,
-    @CurrentUser('sub') reviewerId: string,
-    @Body() body: any,
-  ): Promise<Review> {
-    return this.reviewerService.submitReview(assignmentId, reviewerId, body);
-  }
-
-  // 6. Xem đánh giá của mình
   @Get('assignments/:id/review')
-  async getMyReview(
-    @Param('id', ParseIntPipe) assignmentId: number,
-    @CurrentUser('sub') reviewerId: string,
-  ): Promise<Review> {
-    return this.reviewerService.getMyReview(assignmentId, reviewerId);
+  async getReview(@Param('id') id: number, @CurrentUser('sub') userId: number) {
+    return this.svc.getReviewByAssignment(Number(id), userId);
   }
 
-  // 7. Chỉnh sửa đánh giá
+  @Post('assignments/:id/review')
+  async createReview(
+    @Param('id') assignmentId: number,
+    @Body() dto: CreateReviewDto,
+    @CurrentUser('sub') userId: number
+  ) {
+    return this.svc.createReview(Number(assignmentId), dto, userId);
+  }
+
   @Patch('assignments/:id/review')
   async updateReview(
-    @Param('id', ParseIntPipe) assignmentId: number,
-    @CurrentUser('sub') reviewerId: string,
-    @Body() body: any,
-  ): Promise<Review> {
-    return this.reviewerService.updateReview(assignmentId, reviewerId, body);
+    @Param('id') assignmentId: number,
+    @Body() dto: UpdateReviewDto,
+    @CurrentUser('sub') userId: number
+  ) {
+    return this.svc.updateReview(Number(assignmentId), dto, userId);
   }
 
-  // 8. Gửi tin nhắn thảo luận nội bộ
-  @Post('discussion/:submissionId')
-  async sendMessage(
-    @Param('submissionId') submissionId: string,
-    @CurrentUser('sub') senderId: string,
-    @Body('content') content: string,
-  ): Promise<DiscussionMessage> {
-    if (!content || content.trim() === '') {
-      throw new ForbiddenException('Nội dung tin nhắn không được để trống');
-    }
-    return this.reviewerService.sendDiscussionMessage(submissionId, senderId, content.trim());
+  @Post('assignments/:id/submit-final')
+  async submitFinal(@Param('id') assignmentId: number, @CurrentUser('sub') userId: number) {
+    return this.svc.submitFinal(Number(assignmentId), userId);
   }
 
-  // 9. Xem thảo luận nội bộ
   @Get('discussion/:submissionId')
-  async getDiscussion(
+  async listDiscussion(@Param('submissionId') submissionId: string, @CurrentUser('sub') userId: number) {
+    return this.svc.listDiscussion(submissionId, userId);
+  }
+
+  @Post('discussion/:submissionId')
+  async postDiscussion(
     @Param('submissionId') submissionId: string,
-    @CurrentUser('sub') userId: string,
-  ): Promise<DiscussionMessage[]> {
-    return this.reviewerService.getDiscussion(submissionId, userId);
+    @Body() dto: PostDiscussionDto,
+    @CurrentUser('sub') userId: number
+  ) {
+    return this.svc.postDiscussion(submissionId, dto.content, userId);
   }
 }
