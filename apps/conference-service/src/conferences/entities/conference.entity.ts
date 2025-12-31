@@ -7,8 +7,13 @@ import {
   UpdateDateColumn,
   OneToMany,
 } from 'typeorm';
+<<<<<<< HEAD
 import { Track } from './track.entity';
 import { ConferenceMember } from './conference-member.entity';
+=======
+import { ConferenceMember } from './conference-member.entity';
+import { Track } from './track.entity';
+>>>>>>> origin/develop-new
 
 export enum ConferenceStatus {
   DRAFT = 'draft',
@@ -105,6 +110,7 @@ export class Conference {
 
   @Column({ default: false })
   openAccess: boolean;
+<<<<<<< HEAD
   
   @OneToMany(() => Track, (track) => track.conference, {
     cascade: ['insert', 'update'],
@@ -117,3 +123,13 @@ export class Conference {
   members: ConferenceMember[];
 }
 
+=======
+
+  @OneToMany(() => ConferenceMember, (member) => member.conference)
+  members: ConferenceMember[];
+
+  @OneToMany(() => Track, (track) => track.conference)
+  tracks: Track[];
+
+}
+>>>>>>> origin/develop-new

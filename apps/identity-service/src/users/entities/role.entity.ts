@@ -1,10 +1,5 @@
-import {
-  Column,
-  Entity,
-  ManyToMany,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
-import { User } from './user.entity';
+import { Column, Entity, ManyToMany, PrimaryGeneratedColumn } from 'typeorm';
+// KHÔNG import User ở đây nữa!
 
 export enum RoleName {
   ADMIN = 'ADMIN',
