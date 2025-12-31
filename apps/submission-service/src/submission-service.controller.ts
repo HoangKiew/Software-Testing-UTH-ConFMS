@@ -93,10 +93,7 @@ export class SubmissionServiceController {
     // Lấy User ID từ Token
     createDto.createdBy = req.user.userId;
 
-    // Xử lý type conversion cho conferenceId (do formData gửi lên là string)
-    if (typeof createDto.conferenceId === 'string') {
-      createDto.conferenceId = parseInt(createDto.conferenceId, 10);
-    }
+
 
     return this.submissionService.handleSubmission(file, createDto);
   }
@@ -105,7 +102,7 @@ export class SubmissionServiceController {
   @Get('user/me')
   @Roles('AUTHOR', 'CHAIR')
   async getMySubmissions(@Request() req) {
-    const userId = req.user.id;
+    const userId = req.user.userId; // ✅ FIXED: Changed from req.user.id to req.user.userId
     return this.submissionService.getSubmissionsByUser(userId);
   }
 
@@ -131,7 +128,7 @@ export class SubmissionServiceController {
   @Get('conference/:conferenceId')
   @Roles('CHAIR')
   async getByConference(@Param('conferenceId') conferenceId: string) {
-    return this.submissionService.getSubmissionsByConference(Number(conferenceId));
+    return this.submissionService.getSubmissionsByConference(conferenceId);
   }
 
   // --- 5. API CẬP NHẬT METADATA SUBMISSION (AUTHOR ONLY) ---

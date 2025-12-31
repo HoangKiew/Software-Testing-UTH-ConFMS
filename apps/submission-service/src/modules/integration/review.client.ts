@@ -5,7 +5,7 @@ import axios from 'axios';
 export class ReviewClient {
     private readonly baseUrl = process.env.REVIEW_SERVICE_URL || 'http://localhost:3002';
 
-    async notifyNewSubmission(submissionId: number, title: string, conferenceId: number, authors: any[]) {
+    async notifyNewSubmission(submissionId: number, title: string, conferenceId: string, authors: any[]) {
         try {
             await axios.post(`${this.baseUrl}/api/submissions/sync`, {
                 submissionId,

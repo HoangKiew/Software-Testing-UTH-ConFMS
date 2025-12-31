@@ -60,6 +60,7 @@ services:
     build:
       context: .
       dockerfile: ./apps/submission-service/Dockerfile
+    container_name: uth-submission-service
     ports:
       - "3003:3003"
     environment:
@@ -73,6 +74,7 @@ services:
       - DB_USERNAME=admin
       - DB_PASSWORD=admin123
       - DB_DATABASE=db_submission
+      - CONFERENCE_SERVICE_URL=http://host.docker.internal:3002/api
     networks:
       - uth-net
     depends_on:

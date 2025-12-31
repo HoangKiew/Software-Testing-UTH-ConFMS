@@ -25,7 +25,7 @@ import { RoleName } from '../common/role.enum';
 @Controller('conferences')
 @UseGuards(JwtAuthGuard)
 export class ConferencesController {
-  constructor(private readonly conferencesService: ConferencesService) {}
+  constructor(private readonly conferencesService: ConferencesService) { }
 
   // Tạo hội nghị – ADMIN & CHAIR
   @Post()
@@ -128,30 +128,31 @@ export class ConferencesController {
   }
 
   // === SIÊU PHẨM: Endpoint thống nhất xuất kỷ yếu ===
-  @Get(':id/export-proceedings')
-  @UseGuards(RolesGuard)
-  @Roles(RoleName.CHAIR)
-  async exportProceedings(
-    @Param('id') id: string,
-    @Query('format') format: 'csv' | 'pdf' = 'csv',
-    @Res() res: Response,
-  ) {
-    if (format === 'pdf') {
-      const buffer = await this.conferencesService.exportProceedingsPdf(id);
-      res.set({
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="proceedings_${id}.pdf"`,
-      });
-      return res.send(buffer);
-    }
+  // TODO: Refactor to use SubmissionsClient HTTP API
+  // @Get(':id/export-proceedings')
+  // @UseGuards(RolesGuard)
+  // @Roles(RoleName.CHAIR)
+  // async exportProceedings(
+  //   @Param('id') id: string,
+  //   @Query('format') format: 'csv' | 'pdf' = 'csv',
+  //   @Res() res: Response,
+  // ) {
+  //   if (format === 'pdf') {
+  //     const buffer = await this.conferencesService.exportProceedingsPdf(id);
+  //     res.set({
+  //       'Content-Type': 'application/pdf',
+  //       'Content-Disposition': `attachment; filename="proceedings_${id}.pdf"`,
+  //     });
+  //     return res.send(buffer);
+  //   }
 
-    const csv = await this.conferencesService.exportProceedings(id);
-    res.set({
-      'Content-Type': 'text/csv',
-      'Content-Disposition': `attachment; filename="${csv.filename}"`,
-    });
-    return res.send(csv.data);
-  }
+  //   const csv = await this.conferencesService.exportProceedings(id);
+  //   res.set({
+  //     'Content-Type': 'text/csv',
+  //     'Content-Disposition': `attachment; filename="${csv.filename}"`,
+  //   });
+  //   return res.send(csv.data);
+  // }
 
   // (Tùy chọn) Giữ endpoint cũ để backward compatible
   // @Get(':id/export-proceedings/pdf') ...

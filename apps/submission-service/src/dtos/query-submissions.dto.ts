@@ -35,7 +35,7 @@ export class QuerySubmissionsDto {
     @IsOptional()
     @Type(() => Number)
     @IsInt()
-    conferenceId?: number;
+    conferenceId?: string;
 
     @ApiPropertyOptional({ description: 'Filter from date (ISO 8601)', example: '2025-01-01' })
     @IsOptional()
