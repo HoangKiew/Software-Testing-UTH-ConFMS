@@ -1,7 +1,8 @@
-// src/main.ts
+// apps/conference-service/src/main.ts (hoặc src/main.ts tùy cấu trúc của bạn)
+
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'; // ← THÊM IMPORT
 import { ConferenceServiceModule } from './conference-service.module';
 
 async function bootstrap() {
@@ -10,7 +11,7 @@ async function bootstrap() {
   // Global prefix
   app.setGlobalPrefix('api');
 
-  // Validation pipe
+  // ValidationPipe toàn cục
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -19,13 +20,12 @@ async function bootstrap() {
     }),
   );
 
-  // CORS
-  app.enableCors();
-
-  // ✅ Swagger Configuration
+  // ================== THÊM PHẦN SWAGGER ==================
   const config = new DocumentBuilder()
-    .setTitle('Conference Service API')
-    .setDescription('API for managing conferences, deadlines, and conference-related operations')
+    .setTitle('Conference Service - UTH ConfMS')
+    .setDescription(
+      'Quản lý hội nghị khoa học: tạo hội nghị, mời PC Member, phân công bài báo, gợi ý AI, ra quyết định, báo cáo, proceedings...'
+    )
     .setVersion('1.0')
     .addBearerAuth(
       {
@@ -33,18 +33,20 @@ async function bootstrap() {
         scheme: 'bearer',
         bearerFormat: 'JWT',
         name: 'JWT',
-        description: 'Enter JWT token',
+        description: 'Nhập JWT access token (lấy từ /api/auth/login)',
         in: 'header',
       },
-      'JWT-auth',
+      'JWT-auth', // tên này sẽ dùng ở @ApiBearerAuth nếu bạn thêm sau này
     )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  SwaggerModule.setup('api/docs', app, document); // Truy cập tại: http://localhost:3002/api/docs
+  // ========================================================
 
   await app.listen(process.env.PORT ?? 3002);
-  console.log('🚀 Conference Service running on http://localhost:3002');
-  console.log('📚 Swagger UI: http://localhost:3002/api/docs');
+
+  console.log(`Conference Service is running on http://localhost:3002`);
+  console.log(`Swagger documentation: http://localhost:3002/api/docs`);
 }
 bootstrap();

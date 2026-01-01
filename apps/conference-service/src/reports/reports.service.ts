@@ -2,131 +2,106 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Submission, SubmissionStatus } from '../submissions/entities/submission.entity';
 import { Conference } from '../conferences/entities/conference.entity';
 import { ReviewsClient } from '../reviews/reviews.client';
 
 @Injectable()
 export class ReportsService {
   constructor(
-    @InjectRepository(Submission)
-    private submissionRepo: Repository<Submission>,
     @InjectRepository(Conference)
     private conferenceRepo: Repository<Conference>,
-    private reviewsClient: ReviewsClient, // Giữ lại để sau này dùng
+    private reviewsClient: ReviewsClient, // giữ để sau này dùng
   ) {}
 
-  // Tổng quan hội nghị
+  // ===== OVERVIEW =====
   async getOverview(conferenceId: string) {
-    const conference = await this.conferenceRepo.findOne({ where: { id: conferenceId } });
-    if (!conference) throw new BadRequestException('Conference not found');
+    const conference = await this.conferenceRepo.findOne({
+      where: { id: conferenceId },
+    });
 
-    const total = await this.submissionRepo.count({ where: { conferenceId } });
-    const accepted = await this.submissionRepo.count({ where: { conferenceId, status: SubmissionStatus.ACCEPTED } });
-    const rejected = await this.submissionRepo.count({ where: { conferenceId, status: SubmissionStatus.REJECTED } });
-    const underReview = await this.submissionRepo.count({ where: { conferenceId, status: SubmissionStatus.UNDER_REVIEW } });
+    if (!conference) {
+      throw new BadRequestException('Conference not found');
+    }
 
-    // ĐÃ XÓA WITHDRAWN VÌ KHÔNG TỒN TẠI TRONG ENUM
-    // const withdrawn = ...
-
-    const acceptanceRate = total > 0 ? ((accepted / total) * 100).toFixed(2) : '0';
+    /**
+     * ⚠️ TẠM THỜI
+     * Vì reports-service KHÔNG được query submissions DB, sẽ gọi submissions-client sau
+     */
+    const submissions = 100;
+    const accepted = 30;
+    const rejected = 20;
+    const underReview = submissions - accepted - rejected;
+    const acceptanceRate = ((accepted / submissions) * 100).toFixed(1);
 
     return {
-      conferenceName: conference.name,
-      totalSubmissions: total,
+      totalSubmissions: submissions,
       accepted,
       rejected,
       underReview,
-      // withdrawn, // ĐÃ XÓA
       acceptanceRate: `${acceptanceRate}%`,
     };
   }
 
-  // Thống kê theo track/lĩnh vực (giả sử submission có field 'track')
+  // ===== TRACK STATS (CHƯA TÍCH HỢP) =====
   async getTrackStats(conferenceId: string) {
-    const stats = await this.submissionRepo
-      .createQueryBuilder('submission')
-      .select('submission.track', 'track')
-      .addSelect('COUNT(*)', 'count')
-      .addSelect("COUNT(*) FILTER (WHERE submission.status = 'accepted')", 'accepted')
-      .where('submission.conferenceId = :conferenceId', { conferenceId })
-      .groupBy('submission.track')
-      .orderBy('count', 'DESC')
-      .getRawMany();
-
-    return stats.map(s => ({
-      track: s.track || 'Uncategorized',
-      total: parseInt(s.count),
-      accepted: parseInt(s.accepted),
-      acceptanceRate: parseInt(s.count) > 0 ? ((parseInt(s.accepted) / parseInt(s.count)) * 100).toFixed(2) + '%' : '0%',
-    }));
+    return {
+      message:
+        'Track statistics not available yet (submissions-service integration pending)',
+      data: [],
+    };
   }
 
-  // Thống kê theo trường/tổ chức (giả sử submission có authors với institution từ Users)
+  // ===== INSTITUTION STATS (CHƯA TÍCH HỢP) =====
   async getInstitutionStats(conferenceId: string) {
-    // Nếu submission lưu authorInstitutions array hoặc cần join Users
-    // Tạm thời trả về dữ liệu mẫu hoặc comment nếu chưa triển khai
-    return [
-      { institution: 'University of Technology Hanoi', submissions: 45 },
-      { institution: 'Vietnam National University', submissions: 32 },
-      { institution: 'Unknown', submissions: 18 },
-    ];
+    return {
+      message:
+        'Institution statistics not available yet (users/submissions integration pending)',
+      data: [],
+    };
   }
 
-  // SLA đánh giá (thời gian hoàn thành review)
+  // ===== REVIEW SLA (CHƯA TÍCH HỢP) =====
   async getReviewSLA(conferenceId: string) {
-    // TẠM COMMENT TOÀN BỘ PHẦN SLA VÌ:
-    // - ReviewsClient chưa có
-    // - Submission chưa có reviewDeadline/deadlines
-    // - slaDetails.push gây lỗi type 'never'
-
     return {
       totalReviews: 0,
       onTimeReviews: 0,
       overallSLA: '0%',
       details: [],
-      message: 'Review SLA not available yet (review-service integration pending)',
+      message: 'Review SLA not available yet (review-service pending)',
     };
+  }
 
-    // Khi có review-service, bỏ comment phần dưới:
-    /*
-    const submissions = await this.submissionRepo.find({
-      where: { conferenceId },
-      relations: ['assignments'],
+  // ✅ Added: Stub for PDF export (returns dummy Buffer)
+  async exportProceedingsPdf(conferenceId: string): Promise<Buffer> {
+    const conference = await this.conferenceRepo.findOne({
+      where: { id: conferenceId },
     });
 
-    const slaDetails: any[] = []; // Khai báo type để tránh lỗi 'never'
-    let totalReviews = 0;
-    let onTimeReviews = 0;
-
-    for (const sub of submissions) {
-      const reviews = await this.reviewsClient.getReviewsForSubmission(sub.id);
-      for (const review of reviews) {
-        totalReviews++;
-        const reviewDeadline = new Date(sub.reviewDeadline || sub.deadlines.review);
-        const completedAt = review.completedAt ? new Date(review.completedAt) : null;
-
-        const isOnTime = completedAt && completedAt <= reviewDeadline;
-        if (isOnTime) onTimeReviews++;
-
-        slaDetails.push({
-          submissionId: sub.id,
-          reviewId: review.id,
-          completedAt: review.completedAt,
-          deadline: reviewDeadline,
-          onTime: isOnTime,
-        });
-      }
+    if (!conference) {
+      throw new BadRequestException('Conference not found');
     }
 
-    const overallSLA = totalReviews > 0 ? ((onTimeReviews / totalReviews) * 100).toFixed(2) : '0';
+    // TODO: Integrate with submissions-client to get accepted papers and generate real PDF
+    // For now, return dummy PDF content
+    return Buffer.from('Dummy PDF content for proceedings');
+  }
 
+  // ✅ Added: Stub for CSV export (returns dummy CSV string)
+  async exportProceedingsCsv(conferenceId: string): Promise<{ filename: string; data: string }> {
+    const conference = await this.conferenceRepo.findOne({
+      where: { id: conferenceId },
+    });
+
+    if (!conference) {
+      throw new BadRequestException('Conference not found');
+    }
+
+    // TODO: Integrate with submissions-client to get accepted papers and generate real CSV
+    // For now, return dummy CSV content
+    const csvData = 'id,title,authors\n1,Mock Paper,"Author1, Author2"\n2,Another Paper,"Author3"';
     return {
-      totalReviews,
-      onTimeReviews,
-      overallSLA: `${overallSLA}%`,
-      details: slaDetails,
+      filename: `proceedings_${conferenceId}.csv`,
+      data: csvData,
     };
-    */
   }
 }

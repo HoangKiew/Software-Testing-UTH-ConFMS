@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   postgres:
     image: postgres:15-alpine
@@ -7,7 +9,7 @@ services:
       POSTGRES_PASSWORD: admin123
       POSTGRES_DB: postgres
     ports:
-      - "5435:5432"
+      - '5432:5432' # Sửa lại 5432:5432
     volumes:
       - ./database/init-script:/docker-entrypoint-initdb.d
       - postgres_data:/var/lib/postgresql/data
@@ -21,7 +23,7 @@ services:
       dockerfile: apps/identity-service/Dockerfile
     container_name: uth-identity-service
     ports:
-      - "3001:3001"
+      - '3001:3001'
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -41,7 +43,7 @@ services:
       dockerfile: apps/conference-service/Dockerfile
     container_name: uth-conference-service
     ports:
-      - "3002:3002"
+      - '3002:3002'
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -62,23 +64,42 @@ services:
       dockerfile: ./apps/submission-service/Dockerfile
     container_name: uth-submission-service
     ports:
-      - "3003:3003"
+      - '3003:3003'
     environment:
       - SUPABASE_URL=https://blrxodghcsytpqjtwnoo.supabase.co
       - SUPABASE_ANON_KEY=sb_publishable_tcunR__quMCm0PoaiBxHlw_sqJANldF
       - SUPABASE_BUCKET_NAME=submission
       - SUPABASE_SERVICE_ROLE_KEY=sb_secret_puxOWB6zIThovK-fxUtT9A_WivGpXfK
       - JWT_ACCESS_SECRET=jZE6YIUoP_j7SOTLPWgS8kSfX5g4dlOmPMWJVNLMOyg-SMoqXiMRkR0ocJQEGr9HVUjonNIlZNwHzduFfOCJOQ
+      - CONFERENCE_SERVICE_URL=http://host.docker.internal:3002/api
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USERNAME=admin
       - DB_PASSWORD=admin123
       - DB_DATABASE=db_submission
-      - CONFERENCE_SERVICE_URL=http://host.docker.internal:3002/api
-    networks:
-      - uth-net
     depends_on:
       - postgres
+    networks:
+      - uth-net
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: ./apps/api-gateway/Dockerfile
+    container_name: uth-api-gateway
+    ports:
+      - '3000:3000'
+    environment:
+      - DOCKER_ENV=true
+      - IDENTITY_SERVICE_URL=http://identity-service:3001
+    depends_on:
+      - identity-service
+      - conference-service
+      - submission-service
+    networks:
+      - uth-net
+    restart: unless-stopped
 
 networks:
   uth-net:

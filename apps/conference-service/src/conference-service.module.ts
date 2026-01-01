@@ -5,18 +5,18 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { ScheduleModule } from '@nestjs/schedule';
-// ❌ COMMENTED OUT - Depend on Submission Service
-// import { DecisionsModule } from './decisions/decisions.module';
-// Các module đã có
+
+// ✅ ENABLED - No circular dependencies found!
+import { DecisionsModule } from './decisions/decisions.module';
+import { ReportsModule } from './reports/reports.module';
+import { PcMembersModule } from './pc-members/pc-members.module';
+import { AssignmentsModule } from './assignments/assignments.module';
+
+// Existing modules
 import { EmailsModule } from './emails/emails.module';
-// import { ReportsModule } from './reports/reports.module';
 import { ConferencesModule } from './conferences/conferences.module';
 import { AiModule } from './ai/ai.module';
-
-// Module mới chúng ta vừa làm
-// import { PcMembersModule } from './pc-members/pc-members.module';
-// import { AssignmentsModule } from './assignments/assignments.module';
-import { InternalModule } from './internal/internal.module'; // ✅ KEEP - Needed for deadline check!
+import { InternalModule } from './internal/internal.module';
 
 // Cron & JWT Strategy
 import { ConferencesCron } from './conferences/conferences.cron';
@@ -70,18 +70,15 @@ import { JwtStrategy } from './auth/jwt.strategy';
 
     ScheduleModule.forRoot(),
 
-    // === Các feature module ===
+    // === Feature Modules ===
     ConferencesModule,
     AiModule,
     EmailsModule,
-    // ReportsModule, // ❌ Depends on Submission
-
-    // === Module mới ===
-    // PcMembersModule, // ❌ Depends on Submission
-    // AssignmentsModule, // ❌ Depends on Submission
-    // DecisionsModule, // ❌ Depends on Submission
-    InternalModule, // ✅ KEEP - Internal API endpoints for deadline check (no auth)
-    // Submissions handled by dedicated Submission Service (port 3003)
+    ReportsModule,        // ✅ ENABLED
+    PcMembersModule,      // ✅ ENABLED
+    AssignmentsModule,    // ✅ ENABLED
+    DecisionsModule,      // ✅ ENABLED
+    InternalModule,       // ✅ Internal API for deadline check
   ],
 
   providers: [

@@ -1,91 +1,69 @@
 // apps/conference-service/src/emails/emails.service.ts
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import * as handlebars from 'handlebars';
 
 @Injectable()
 export class EmailsService {
-  private transporter;
+  private transporter: nodemailer.Transporter | null = null;
   private templates: Map<string, handlebars.TemplateDelegate> = new Map();
+  private logger = new Logger(EmailsService.name);
 
   constructor(private configService: ConfigService) {
     const host = this.configService.get<string>('SMTP_HOST');
-    const port = this.configService.get<number>('SMTP_PORT');
+    const port = this.configService.get<number>('SMTP_PORT') || 587;
     const user = this.configService.get<string>('SMTP_USER');
     const pass = this.configService.get<string>('SMTP_PASS');
 
     if (!host || !user || !pass) {
-      console.warn('SMTP config missing – email sending will be skipped in development');
-      // Không throw error để có thể chạy local mà không cần SMTP
+      this.logger.warn('SMTP config missing – email sending will be skipped and logged to console');
     } else {
       this.transporter = nodemailer.createTransport({
         host,
         port,
-        secure: port === 465,
+        secure: port === 465,  // Sử dụng SSL nếu port 465
         auth: { user, pass },
+        debug: this.configService.get('NODE_ENV') !== 'production',  // Debug mode cho dev
+        logger: this.configService.get('NODE_ENV') !== 'production',
       });
     }
 
-    // Đăng ký tất cả template email cần thiết
-    this.registerTemplate('cfp-announcement', `
-      <h1>Call for Papers: {{conferenceName}}</h1>
-      <p>Kính gửi các nhà nghiên cứu,</p>
-      <p>Chúng tôi trân trọng mời quý vị nộp bài cho hội nghị <strong>{{conferenceName}}</strong> ({{acronym}}).</p>
-      <p>Deadline nộp bài: <strong>{{submissionDeadline}}</strong></p>
-      <p>Các chủ đề quan tâm: {{topics}}</p>
-      <p><a href="{{cfpUrl}}" style="background:#007bff;color:white;padding:12px 24px;text-decoration:none;border-radius:6px;">Nộp bài tại đây</a></p>
-      <p>Trân trọng,<br>Ban tổ chức</p>
-    `);
+    // Register các template email (có thể thêm nhiều hơn ở đây)
+    this.registerTemplates();
+  }
 
+  private registerTemplates() {
+    // Template mời PC Member (ví dụ từ code cũ)
     this.registerTemplate('invite-pc-member', `
-      <h1>Lời mời tham gia Program Committee</h1>
-      <p>Kính gửi <strong>{{fullName}}</strong>,</p>
-      <p>Chúng tôi trân trọng mời quý vị tham gia <strong>{{role}}</strong> cho hội nghị khoa học <strong>{{conferenceName}}</strong> ({{acronym}}).</p>
-      <p>Thông tin hội nghị:</p>
-      <ul>
-        <li>Thời gian: {{startDate}} đến {{endDate}}</li>
-        <li>Deadline nộp bài: {{submissionDeadline}}</li>
-        <li>Chủ đề chính: {{topics}}</li>
-      </ul>
-      <p>Vui lòng đăng nhập vào hệ thống UTH-ConfMS để chấp nhận lời mời:</p>
-      <p style="text-align:center;">
-        <a href="http://localhost:3002" style="background:#28a745;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;font-size:16px;">Đăng nhập & Chấp nhận lời mời</a>
-      </p>
-      <p>Nếu quý vị cần thêm thông tin, vui lòng liên hệ ban tổ chức.</p>
-      <p>Trân trọng,<br>Ban tổ chức {{conferenceName}}</p>
+      <h2>Xin chào {{name}},</h2>
+      <p>Bạn đã được mời tham gia Program Committee cho hội nghị "{{conferenceName}}".</p>
+      <p>Vui lòng truy cập hệ thống để chấp nhận hoặc từ chối lời mời.</p>
+      <a href="{{link}}" style="background-color:#007bff;color:white;padding:12px 24px;text-decoration:none;border-radius:6px;">Xem lời mời</a>
     `);
 
+    // Template thông báo submission (ví dụ)
+    this.registerTemplate('submission-received', `
+      <h2>Cảm ơn {{authorName}},</h2>
+      <p>Bài nộp của bạn cho hội nghị "{{conferenceName}}" đã được nhận.</p>
+      <p>ID bài nộp: {{submissionId}}</p>
+      <p>Trạng thái: Đang chờ review.</p>
+    `);
+
+    // Template mới: Thông báo decision (accept/reject)
     this.registerTemplate('decision-notification', `
-      <h2>Thông báo quyết định bài nộp: {{title}}</h2>
-      <p>Kính gửi tác giả,</p>
-      <p>Bài báo của quý vị đã được <strong>{{decision}}</strong>.</p>
+      <h2>Kết quả bài nộp cho hội nghị "{{conferenceName}}"</h2>
+      <p>Kính gửi {{authorName}},</p>
+      <p>Bài nộp ID: {{submissionId}} của quý vị đã được đánh giá.</p>
+      <p><strong>Quyết định: {{decision}}</strong></p>
       {{#if feedback}}
-      <h3>Nhận xét từ reviewer:</h3>
-      <div style="background:#f8f9fa;padding:15px;border-left:4px solid #007bff;">
-        <p>{{feedback}}</p>
-      </div>
+        <p>Phản hồi từ Chair: {{feedback}}</p>
       {{/if}}
-      {{#if isAccepted}}
-      <p>Xin chúc mừng! Vui lòng nộp bản camera-ready trước ngày <strong>{{cameraReadyDeadline}}</strong>.</p>
-      {{/if}}
-      <p>Trân trọng,<br>Ban tổ chức hội nghị</p>
+      <p>Cảm ơn sự tham gia của quý vị!</p>
+      <a href="{{link}}" style="background-color:#28a745;color:white;padding:12px 24px;text-decoration:none;border-radius:6px;">Xem chi tiết</a>
     `);
 
-    // Template thêm: thông báo phân công reviewer (tùy chọn)
-    this.registerTemplate('assignment-notification', `
-      <h2>Phân công đánh giá bài báo</h2>
-      <p>Kính gửi <strong>{{fullName}}</strong>,</p>
-      <p>Quý vị được phân công đánh giá bài báo:</p>
-      <ul>
-        <li><strong>Tiêu đề:</strong> {{title}}</li>
-        <li><strong>Tác giả:</strong> {{authors}}</li>
-        <li><strong>Tóm tắt:</strong> {{abstract}}</li>
-      </ul>
-      <p>Vui lòng hoàn thành đánh giá trước deadline.</p>
-      <p><a href="http://localhost:3002" style="background:#ffc107;color:black;padding:12px 24px;text-decoration:none;border-radius:6px;">Đi đến hệ thống đánh giá</a></p>
-      <p>Cảm ơn sự đóng góp của quý vị!</p>
-    `);
+    // Thêm các template khác nếu cần (e.g., review-reminder, etc.)
   }
 
   private registerTemplate(name: string, source: string) {
@@ -95,24 +73,32 @@ export class EmailsService {
   async send(templateName: string, to: string[], data: any) {
     const template = this.templates.get(templateName);
     if (!template) {
-      throw new BadRequestException(`Template not found: ${templateName}`);
+      throw new BadRequestException(`Template không tồn tại: ${templateName}`);
     }
 
     const html = template(data);
+    const subject = data.subject || 'UTH-ConfMS Notification';
 
-    // Nếu không có SMTP config (dev mode), chỉ log ra console
+    // Dev mode: Log thay vì gửi thật
     if (!this.transporter) {
-      console.log(`[EMAIL DEV MODE] Sending "${data.subject || 'No subject'}" to ${to.join(', ')}`);
-      console.log('HTML content:');
-      console.log(html);
-      return;
+      this.logger.log(`[DEV MODE] Gửi email "${subject}" đến ${to.join(', ')}`);
+      this.logger.log('Nội dung HTML:');
+      this.logger.log(html);
+      return { status: 'logged' };  // Trả về để biết dev mode
     }
 
-    await this.transporter.sendMail({
-      from: this.configService.get('SMTP_FROM') || 'no-reply@uth-confms.vn',
-      to: to.join(', '),
-      subject: data.subject || 'UTH-ConfMS Notification',
-      html,
-    });
+    try {
+      await this.transporter.sendMail({
+        from: this.configService.get<string>('SMTP_FROM') || 'no-reply@uth-confms.vn',
+        to: to.join(', '),
+        subject,
+        html,
+        // Thêm attachment nếu cần: attachments: [{ filename: 'file.pdf', path: '/path/to/file' }]
+      });
+      this.logger.log(`Email "${subject}" gửi thành công đến ${to.join(', ')}`);
+    } catch (error) {
+      this.logger.error(`Lỗi gửi email "${subject}": ${error.message}`);
+      throw new BadRequestException('Lỗi gửi email, vui lòng thử lại sau');
+    }
   }
 }
