@@ -1,0 +1,105 @@
+{
+  "info": {
+    "name": "Review Service API",
+    "_postman_id": "a1b2c3d4-uth-review-service",
+    "description": "Collection for testing review-service endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Review",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"score\": 8,\n  \"publicComment\": \"Good work\",\n  \"privateComment\": \"Notes\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3004/api/reviewer/assignments/:id/review",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3004",
+          "path": ["api","reviewer","assignments",":id","review"]
+        }
+      }
+    },
+    {
+      "name": "Update Review",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"score\": 9,\n  \"publicComment\": \"Updated comment\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3004/api/reviewer/assignments/:id/review",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3004",
+          "path": ["api","reviewer","assignments",":id","review"]
+        }
+      }
+    },
+    {
+      "name": "Submit Final",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "http://localhost:3004/api/reviewer/assignments/:id/submit-final",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3004",
+          "path": ["api","reviewer","assignments",":id","submit-final"]
+        }
+      }
+    },
+    {
+      "name": "Post Discussion",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"content\": \"Please check the statistics section.\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3004/api/reviewer/discussion/:submissionId",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3004",
+          "path": ["api","reviewer","discussion",":submissionId"]
+        }
+      }
+    },
+    {
+      "name": "Get Paper",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "http://localhost:3004/api/reviewer/assignments/:id/paper",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3004",
+          "path": ["api","reviewer","assignments",":id","paper"]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+FROM node:18-alpine
+
+ENV NODE_OPTIONS=--experimental-global-webcrypto
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+
+RUN npm run build review-service
+
+CMD ["node", "dist/apps/review-service/main.js"]

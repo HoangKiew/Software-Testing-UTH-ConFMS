@@ -19,15 +19,15 @@ import { UpdateDeadlinesDto } from './dto/update-deadlines.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import { CreateTrackDto } from './dto/create-track.dto';
 
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RoleName } from '../common/enums/role-name.enum';
+import { RolesGuard } from '../common/guards/roles.guard';
+//import type { JwtPayload } from '../common/guards/roles.guard';  //của bảo
+
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { Public } from '../common/decorators/public.decorator';
-
 import { ConferenceStatus } from './entities/conference.entity';
-import { RoleName } from '../common/role.enum';
-
 import {
   ApiTags,
   ApiBearerAuth,
@@ -65,7 +65,9 @@ export class ConferencesController {
 
   @Get('public/conference/:id/program')
   @Public()
-  @ApiOperation({ summary: 'Lấy chương trình (schedule) của hội nghị công khai' })
+  @ApiOperation({
+    summary: 'Lấy chương trình (schedule) của hội nghị công khai',
+  })
   @ApiParam({ name: 'id', description: 'ID hội nghị' })
   @ApiResponse({ status: 200, description: 'Tên hội nghị và lịch trình' })
   async getPublicProgram(@Param('id') id: string) {
@@ -199,10 +201,7 @@ export class ConferencesController {
   @ApiOperation({ summary: 'Xóa hội nghị (soft delete)' })
   @ApiParam({ name: 'id', description: 'ID hội nghị' })
   @ApiResponse({ status: 200, description: 'Xóa thành công' })
-  delete(
-    @Param('id') id: string,
-    @CurrentUser('userId') userId: number,
-  ) {
+  delete(@Param('id') id: string, @CurrentUser('userId') userId: number) {
     return this.conferencesService.delete(id, userId);
   }
 
