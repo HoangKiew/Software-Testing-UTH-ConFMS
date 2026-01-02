@@ -103,10 +103,10 @@ services:
       dockerfile: ./apps/review-service/Dockerfile
     container_name: uth-review-service
     ports:
-      - '3004:3004'
+      - '3004:3000'
     environment:
       - NODE_ENV=development
-      - PORT=3004
+      - PORT=3000
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USERNAME=admin
