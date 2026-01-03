@@ -13,6 +13,14 @@ import MySubmissionsPage from '../pages/submission/MySubmissionsPage.tsx';
 import SubmissionDetailPage from '../pages/submission/SubmissionDetailPage.tsx';
 import EditSubmissionPage from '../pages/submission/EditSubmissionPage.tsx';
 import CameraReadyUploadPage from '../pages/submission/CameraReadyUploadPage.tsx';
+import CreateConferencePage from '../pages/chair/CreateConferencePage.tsx';
+import ConferenceManagementPage from '../pages/chair/ConferenceManagementPage.tsx';
+import PaperAssignmentPage from '../pages/chair/PaperAssignmentPage.tsx';
+import DecisionMakingPage from '../pages/chair/DecisionMakingPage.tsx';
+import ReviewProgressPage from '../pages/chair/ReviewProgressPage.tsx';
+import ConferenceDetailPageChair from '../pages/chair/ConferenceDetailPageChair.tsx';
+import PCMembersManagementPage from '../pages/chair/PCMembersManagementPage.tsx';
+import EditConferencePage from '../pages/chair/EditConferencePage.tsx';
 
 const appRouter = createBrowserRouter([
   {
@@ -74,6 +82,38 @@ const appRouter = createBrowserRouter([
       {
         path: 'submissions/:id/camera-ready',
         element: <CameraReadyUploadPage />,
+      },
+      {
+        path: 'chair/conferences/create',
+        element: <CreateConferencePage />,
+      },
+      {
+        path: 'chair/conferences',
+        element: <ConferenceManagementPage />,
+      },
+      {
+        path: 'chair/conferences/:id',
+        element: <ConferenceDetailPageChair />,
+      },
+      {
+        path: 'chair/assignments',
+        element: <PaperAssignmentPage />,
+      },
+      {
+        path: 'chair/decisions',
+        element: <DecisionMakingPage />,
+      },
+      {
+        path: 'chair/progress',
+        element: <ReviewProgressPage />,
+      },
+      {
+        path: 'chair/conferences/:id/pc-members',
+        element: <PCMembersManagementPage />,
+      },
+      {
+        path: 'chair/conferences/:id/edit',
+        element: <EditConferencePage />,
       },
     ],
   },
