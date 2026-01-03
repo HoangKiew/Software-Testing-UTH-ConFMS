@@ -1,17 +1,3 @@
-<<<<<<< HEAD
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { ConferencesService } from './conferences.service';
-import { CreateConferenceDto } from './dto/create-conference.dto';
-import { CreateTrackDto } from './dto/create-track.dto';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { Roles } from '../common/decorators/roles.decorator';
-import { RoleName } from '../common/enums/role-name.enum';
-import { RolesGuard } from '../common/guards/roles.guard';
-import type { JwtPayload } from '../common/guards/roles.guard';
-
-@Controller('conferences')
-@UseGuards(RolesGuard)
-=======
 // apps/conference-service/src/conferences/conferences.controller.ts
 import {
   Controller,
@@ -33,15 +19,15 @@ import { UpdateDeadlinesDto } from './dto/update-deadlines.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import { CreateTrackDto } from './dto/create-track.dto';
 
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RoleName } from '../common/enums/role-name.enum';
+import { RolesGuard } from '../common/guards/roles.guard';
+//import type { JwtPayload } from '../common/guards/roles.guard';  //của bảo
+
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { Public } from '../common/decorators/public.decorator';
-
 import { ConferenceStatus } from './entities/conference.entity';
-import { RoleName } from '../common/role.enum';
-
 import {
   ApiTags,
   ApiBearerAuth,
@@ -55,7 +41,6 @@ import {
 @ApiTags('Conferences')
 @ApiBearerAuth('JWT-auth')
 @Controller('conferences')
->>>>>>> origin/develop-new
 export class ConferencesController {
   constructor(private readonly conferencesService: ConferencesService) {}
 
@@ -80,7 +65,9 @@ export class ConferencesController {
 
   @Get('public/conference/:id/program')
   @Public()
-  @ApiOperation({ summary: 'Lấy chương trình (schedule) của hội nghị công khai' })
+  @ApiOperation({
+    summary: 'Lấy chương trình (schedule) của hội nghị công khai',
+  })
   @ApiParam({ name: 'id', description: 'ID hội nghị' })
   @ApiResponse({ status: 200, description: 'Tên hội nghị và lịch trình' })
   async getPublicProgram(@Param('id') id: string) {
@@ -94,31 +81,6 @@ export class ConferencesController {
   // ================= PRIVATE API =================
 
   @Post()
-<<<<<<< HEAD
-  @Roles(RoleName.ADMIN, RoleName.CHAIR)
-  async createConference(
-    @Body() dto: CreateConferenceDto,
-    @CurrentUser() user: JwtPayload,
-  ) {
-    const organizerId = user.sub;
-    return this.conferencesService.createConference(dto, organizerId);
-  }
-
-  @Get()
-  async findAll() {
-    return this.conferencesService.findAll();
-  }
-
-  @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.conferencesService.findOneWithTracks(id);
-  }
-
-  @Post(':id/tracks')
-  @Roles(RoleName.ADMIN, RoleName.CHAIR)
-  async addTrack(@Param('id') id: string, @Body() dto: CreateTrackDto) {
-    return this.conferencesService.addTrack(id, dto);
-=======
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ summary: 'Tạo hội nghị mới' })
@@ -239,10 +201,7 @@ export class ConferencesController {
   @ApiOperation({ summary: 'Xóa hội nghị (soft delete)' })
   @ApiParam({ name: 'id', description: 'ID hội nghị' })
   @ApiResponse({ status: 200, description: 'Xóa thành công' })
-  delete(
-    @Param('id') id: string,
-    @CurrentUser('userId') userId: number,
-  ) {
+  delete(@Param('id') id: string, @CurrentUser('userId') userId: number) {
     return this.conferencesService.delete(id, userId);
   }
 
@@ -261,11 +220,8 @@ export class ConferencesController {
     @CurrentUser('userId') userId: number,
   ) {
     return this.conferencesService.createTrack(conferenceId, dto, userId);
->>>>>>> origin/develop-new
   }
 
-<<<<<<< HEAD
-=======
   @Get(':id/tracks')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Lấy danh sách tracks của hội nghị' })
@@ -275,4 +231,3 @@ export class ConferencesController {
     return this.conferencesService.getTracks(conferenceId);
   }
 }
->>>>>>> origin/develop-new
