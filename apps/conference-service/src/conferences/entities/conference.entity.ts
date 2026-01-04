@@ -7,13 +7,8 @@ import {
   UpdateDateColumn,
   OneToMany,
 } from 'typeorm';
-<<<<<<< HEAD
-import { Track } from './track.entity';
-import { ConferenceMember } from './conference-member.entity';
-=======
 import { ConferenceMember } from './conference-member.entity';
 import { Track } from './track.entity';
->>>>>>> origin/develop-new
 
 export enum ConferenceStatus {
   DRAFT = 'draft',
@@ -39,7 +34,7 @@ export class Conference {
   acronym: string;
 
   @Column({ type: 'text', nullable: true })
-  description: string | null;
+  description: string;
 
   @Column({ type: 'timestamptz' })
   startDate: Date;
@@ -62,7 +57,7 @@ export class Conference {
     submission?: Date | null;
     review?: Date | null;
     cameraReady?: Date | null;
-  } | null;
+  };
 
   @Column({
     type: 'enum',
@@ -90,15 +85,19 @@ export class Conference {
     paperIds: string[];
   }>;
 
+  // === Các field mới (chỉ giữ 1 lần duy nhất) ===
+
+  // Bật/tắt AI tổng thể cho hội nghị
   @Column({ name: 'ai_features_enabled', default: false })
   aiFeaturesEnabled: boolean;
 
+  // Cấu hình chi tiết từng tính năng AI
   @Column({
     type: 'jsonb',
     name: 'ai_config',
     default: {
       emailDraft: true,
-      keywordSuggestion: true,
+      keywordSuggestion: true,  // Dùng tên này để khớp với ai.service.ts
       neutralSummary: true,
     },
   })
@@ -108,22 +107,9 @@ export class Conference {
     neutralSummary?: boolean;
   };
 
+  // Cho phép public proceedings
   @Column({ default: false })
   openAccess: boolean;
-<<<<<<< HEAD
-  
-  @OneToMany(() => Track, (track) => track.conference, {
-    cascade: ['insert', 'update'],
-  })
-  tracks: Track[];
-
-  @OneToMany(() => ConferenceMember, (conferenceMember) => conferenceMember.conference, {
-    cascade: ['insert', 'update'],
-  })
-  members: ConferenceMember[];
-}
-
-=======
 
   @OneToMany(() => ConferenceMember, (member) => member.conference)
   members: ConferenceMember[];
@@ -132,4 +118,3 @@ export class Conference {
   tracks: Track[];
 
 }
->>>>>>> origin/develop-new

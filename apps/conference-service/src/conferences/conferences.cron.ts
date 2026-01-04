@@ -8,7 +8,7 @@ import { ConferenceStatus } from './entities/conference.entity';
 export class ConferencesCron {
   private readonly logger = new Logger(ConferencesCron.name);
 
-  constructor(private readonly conferencesService: ConferencesService) {}
+  constructor(private readonly conferencesService: ConferencesService) { }
 
   // Chạy mỗi ngày lúc 00:05 sáng
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
@@ -26,7 +26,6 @@ export class ConferencesCron {
       // Kiểm tra deadline nộp bài
       if (
         status === ConferenceStatus.OPEN_FOR_SUBMISSION &&
-        deadlines &&
         deadlines.submission &&
         now > new Date(deadlines.submission)
       ) {

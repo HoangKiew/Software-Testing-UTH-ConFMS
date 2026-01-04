@@ -42,7 +42,7 @@ import {
 @ApiBearerAuth('JWT-auth')
 @Controller('conferences')
 export class ConferencesController {
-  constructor(private readonly conferencesService: ConferencesService) {}
+  constructor(private readonly conferencesService: ConferencesService) { }
 
   // ================= PUBLIC API =================
 

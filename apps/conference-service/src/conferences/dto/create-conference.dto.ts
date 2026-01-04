@@ -1,12 +1,3 @@
-<<<<<<< HEAD
-import { IsDateString, IsNotEmpty, IsString } from 'class-validator';
-
-export class CreateConferenceDto {
-  @IsString()
-  @IsNotEmpty()
-  name: string;
-
-=======
 // apps/conference-service/src/conferences/dto/create-conference.dto.ts
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsDateString, IsArray, IsOptional, IsObject } from 'class-validator';
@@ -26,7 +17,6 @@ export class CreateConferenceDto {
   description?: string;
 
   @ApiProperty({ description: 'Ngày bắt đầu (ISO date)', example: '2026-01-01' })
->>>>>>> origin/develop-new
   @IsDateString()
   startDate: string;
 
@@ -34,13 +24,6 @@ export class CreateConferenceDto {
   @IsDateString()
   endDate: string;
 
-<<<<<<< HEAD
-  @IsString()
-  @IsNotEmpty()
-  venue: string;
-}
-
-=======
   @ApiPropertyOptional({ type: [String], description: 'Danh sách chủ đề', example: ['AI', 'ML'] })
   @IsArray()
   @IsOptional()
@@ -59,4 +42,3 @@ export class CreateConferenceDto {
     cameraReady?: string;
   };
 }
->>>>>>> origin/develop-new
