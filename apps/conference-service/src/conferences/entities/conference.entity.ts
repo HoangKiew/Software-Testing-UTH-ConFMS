@@ -12,13 +12,10 @@ import { Track } from './track.entity';
 
 export enum ConferenceStatus {
   DRAFT = 'draft',
-  OPEN_FOR_SUBMISSION = 'open_for_submission',
-  SUBMISSION_CLOSED = 'submission_closed',
-  UNDER_REVIEW = 'under_review',
-  REVIEW_COMPLETED = 'review_completed',
-  DECISION_MADE = 'decision_made',
-  CAMERA_READY = 'camera_ready',
-  FINALIZED = 'finalized',
+  OPEN = 'open',
+  REVIEW = 'review',
+  DECIDED = 'decided',
+  FINAL = 'final',
   ARCHIVED = 'archived',
 }
 

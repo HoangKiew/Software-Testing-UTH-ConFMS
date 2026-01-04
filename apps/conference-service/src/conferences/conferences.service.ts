@@ -108,14 +108,11 @@ export class ConferencesService {
     }
 
     const validNextStatuses: Record<ConferenceStatus, ConferenceStatus[]> = {
-      [ConferenceStatus.DRAFT]: [ConferenceStatus.OPEN_FOR_SUBMISSION],
-      [ConferenceStatus.OPEN_FOR_SUBMISSION]: [ConferenceStatus.SUBMISSION_CLOSED],
-      [ConferenceStatus.SUBMISSION_CLOSED]: [ConferenceStatus.UNDER_REVIEW],
-      [ConferenceStatus.UNDER_REVIEW]: [ConferenceStatus.REVIEW_COMPLETED],
-      [ConferenceStatus.REVIEW_COMPLETED]: [ConferenceStatus.DECISION_MADE],
-      [ConferenceStatus.DECISION_MADE]: [ConferenceStatus.CAMERA_READY],
-      [ConferenceStatus.CAMERA_READY]: [ConferenceStatus.FINALIZED],
-      [ConferenceStatus.FINALIZED]: [ConferenceStatus.ARCHIVED],
+      [ConferenceStatus.DRAFT]: [ConferenceStatus.OPEN],
+      [ConferenceStatus.OPEN]: [ConferenceStatus.REVIEW],
+      [ConferenceStatus.REVIEW]: [ConferenceStatus.DECIDED],
+      [ConferenceStatus.DECIDED]: [ConferenceStatus.FINAL],
+      [ConferenceStatus.FINAL]: [ConferenceStatus.ARCHIVED],
       [ConferenceStatus.ARCHIVED]: [],
     };
 

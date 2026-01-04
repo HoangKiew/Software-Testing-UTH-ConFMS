@@ -42,7 +42,7 @@ export class PcMembersController {
   ) {}
 
   @Post('invite')
-  @Roles(RoleName.CHAIR)
+  @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ summary: 'Mời thành viên PC vào hội nghị (dựa trên userId, email lấy tự động)' })
   @ApiBody({ type: InvitePcMemberDto })
   @ApiResponse({ status: 201, description: 'Lời mời đã được gửi' })
@@ -64,7 +64,7 @@ export class PcMembersController {
   }
 
   @Get('conference/:id')
-  @Roles(RoleName.CHAIR)
+  @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ summary: 'Lấy danh sách tất cả PC Members của hội nghị' })
   @ApiParam({ name: 'id', description: 'ID hội nghị', type: String })
   @ApiResponse({ status: 200, description: 'Danh sách thành viên PC (tên, role, status...)' })
@@ -125,7 +125,7 @@ export class PcMembersController {
   }
 
   @Delete(':id')
-  @Roles(RoleName.CHAIR)
+  @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ summary: 'Xóa thành viên khỏi PC hội nghị' })
   @ApiParam({ name: 'id', description: 'ID PC Member', type: String })
   @ApiResponse({ status: 200, description: 'Thành viên đã bị xóa' })
@@ -139,7 +139,7 @@ export class PcMembersController {
   }
 
   @Get(':id/similarity/:submissionId')
-  @Roles(RoleName.CHAIR)
+  @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ summary: 'Tính độ tương đồng giữa PC Member và bài nộp (dựa trên keywords)' })
   @ApiParam({ name: 'id', description: 'ID PC Member', type: String })
   @ApiParam({ name: 'submissionId', description: 'ID bài nộp', type: String })

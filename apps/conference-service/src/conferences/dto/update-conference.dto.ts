@@ -8,7 +8,7 @@ export class UpdateConferenceDto extends PartialType(CreateConferenceDto) {
   @ApiPropertyOptional({
     enum: ConferenceStatus,
     description: 'Trạng thái hội nghị (nếu cập nhật)',
-    example: ConferenceStatus.OPEN_FOR_SUBMISSION, // ← Sửa thành giá trị hợp lệ từ enum (ví dụ: 'open_for_submission')
+    example: ConferenceStatus.OPEN,
   })
   status?: ConferenceStatus;
 }
