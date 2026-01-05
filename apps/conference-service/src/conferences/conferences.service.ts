@@ -21,7 +21,7 @@ export class ConferencesService {
     private conferenceRepository: Repository<Conference>,
     @InjectRepository(Track)                                     // ← THÊM REPOSITORY
     private trackRepository: Repository<Track>,
-  ) {}
+  ) { }
 
   async create(createDto: CreateConferenceDto, userId: number) {
     const conference = this.conferenceRepository.create({

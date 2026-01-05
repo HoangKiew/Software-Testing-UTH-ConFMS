@@ -16,4 +16,4 @@ import { ConferencesCron } from './conferences.cron';
   providers: [ConferencesService, ConferencesCron],
   exports: [ConferencesService],
 })
-export class ConferencesModule {}
+export class ConferencesModule { }

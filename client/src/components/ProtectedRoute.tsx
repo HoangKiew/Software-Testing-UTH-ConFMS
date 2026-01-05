@@ -6,6 +6,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
+  //Temporarily disabled for UI development
   const location = useLocation();
   const isAuthenticated = tokenUtils.hasToken();
 

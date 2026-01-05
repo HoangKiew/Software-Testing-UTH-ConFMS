@@ -39,13 +39,18 @@ import { PasswordResetToken } from './users/entities/password-reset-token.entity
           username,
           password,
           database,
-          entities: [User, Role, RefreshToken, PasswordResetToken, EmailVerificationToken],
-          synchronize: true, 
+          entities: [
+            User,
+            Role,
+            RefreshToken,
+            PasswordResetToken,
+            EmailVerificationToken,
+          ],
+          synchronize: true,
         };
       },
     }),
-    // ĐÃ XÓA SeedModule
-    UsersModule,   // UsersModule giờ sẽ tự động seed roles khi khởi động
+    UsersModule,
     AuthModule,
   ],
   controllers: [],
