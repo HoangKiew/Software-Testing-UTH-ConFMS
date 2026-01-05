@@ -3,8 +3,8 @@ import { Transform, Type } from 'class-transformer';
 import { AuthorDto } from './author.dto';
 
 export class CreateSubmissionDto {
-  @IsNumber()
-  conferenceId: number;
+  @IsString()
+  conferenceId: string;
 
   @IsString()
   title: string;

@@ -7,6 +7,8 @@ import { ConferenceServiceModule } from './conference-service.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(ConferenceServiceModule);
+
+  // Global prefix
   app.setGlobalPrefix('api');
 
   // ValidationPipe toàn cục

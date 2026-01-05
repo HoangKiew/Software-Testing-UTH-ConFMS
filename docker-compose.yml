@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # =========================
   # Database (PostgreSQL)
@@ -79,8 +77,9 @@ services:
       - SUPABASE_URL=https://your-project.supabase.co
       - SUPABASE_ANON_KEY=your_anon_key_here
       - SUPABASE_BUCKET_NAME=submission
-      - SUPABASE_SERVICE_ROLE_KEY=jZE6YIUoP_j7SOTLPWgS8kSfX5g4dlOmPMWJVNLMOyg-SMoqXiMRkR0ocJQEGr9HVUjonNIlZNwHzduFfOCJOQ
-      - JWT_ACCESS_SECRET=your_very_long_random_jwt_secret_here
+      - SUPABASE_SERVICE_ROLE_KEY=sb_secret_puxOWB6zIThovK-fxUtT9A_WivGpXfK
+      - JWT_ACCESS_SECRET=jZE6YIUoP_j7SOTLPWgS8kSfX5g4dlOmPMWJVNLMOyg-SMoqXiMRkR0ocJQEGr9HVUjonNIlZNwHzduFfOCJOQ
+      - CONFERENCE_SERVICE_URL=http://host.docker.internal:3002/api
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USERNAME=admin

@@ -5,16 +5,18 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { ScheduleModule } from '@nestjs/schedule';
-import { DecisionsModule } from './decisions/decisions.module';
-// Các module đã có
-import { EmailsModule } from './emails/emails.module';
-import { ReportsModule } from './reports/reports.module';
-import { ConferencesModule } from './conferences/conferences.module';
-import { AiModule } from './ai/ai.module';
 
-// Module mới chúng ta vừa làm
+// ✅ ENABLED - No circular dependencies found!
+import { DecisionsModule } from './decisions/decisions.module';
+import { ReportsModule } from './reports/reports.module';
 import { PcMembersModule } from './pc-members/pc-members.module';
 import { AssignmentsModule } from './assignments/assignments.module';
+
+// Existing modules
+import { EmailsModule } from './emails/emails.module';
+import { ConferencesModule } from './conferences/conferences.module';
+import { AiModule } from './ai/ai.module';
+import { InternalModule } from './internal/internal.module';
 
 // Cron & JWT Strategy
 import { ConferencesCron } from './conferences/conferences.cron';
@@ -68,17 +70,15 @@ import { JwtStrategy } from './auth/jwt.strategy';
 
     ScheduleModule.forRoot(),
 
-    // === Các feature module ===
+    // === Feature Modules ===
     ConferencesModule,
     AiModule,
     EmailsModule,
-    ReportsModule,
-
-    // === Module mới ===
-    PcMembersModule,
-    AssignmentsModule, // Đã thêm
-    DecisionsModule,
-    // Submissions handled by dedicated Submission Service (port 3003)
+    ReportsModule,        // ✅ ENABLED
+    PcMembersModule,      // ✅ ENABLED
+    AssignmentsModule,    // ✅ ENABLED
+    DecisionsModule,      // ✅ ENABLED
+    InternalModule,       // ✅ Internal API for deadline check
   ],
 
   providers: [

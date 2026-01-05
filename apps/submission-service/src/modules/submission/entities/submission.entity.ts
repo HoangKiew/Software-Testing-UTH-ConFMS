@@ -11,8 +11,8 @@ export class Submission {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
-  conference_id: number;
+  @Column({ type: 'varchar' })
+  conference_id: string;
 
   @Column()
   title: string;

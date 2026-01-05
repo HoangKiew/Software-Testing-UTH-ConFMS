@@ -94,7 +94,8 @@ export class ConferencesController {
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ summary: 'Lấy danh sách hội nghị (lọc theo status nếu có)' })
   @ApiQuery({ name: 'status', enum: ConferenceStatus, required: false })
   @ApiResponse({ status: 200, description: 'Danh sách hội nghị' })
@@ -103,7 +104,8 @@ export class ConferencesController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ summary: 'Lấy chi tiết hội nghị' })
   @ApiParam({ name: 'id', description: 'ID hội nghị' })
   @ApiResponse({ status: 200, description: 'Thông tin hội nghị' })
@@ -114,7 +116,7 @@ export class ConferencesController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(RoleName.CHAIR)
+  @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ summary: 'Cập nhật thông tin chung hội nghị' })
   @ApiParam({ name: 'id', description: 'ID hội nghị' })
   @ApiBody({ type: UpdateConferenceDto })
@@ -129,7 +131,7 @@ export class ConferencesController {
 
   @Patch(':id/topics')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(RoleName.CHAIR)
+  @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ summary: 'Cập nhật danh sách chủ đề' })
   @ApiParam({ name: 'id', description: 'ID hội nghị' })
   @ApiBody({ type: UpdateTopicsDto })
@@ -144,7 +146,7 @@ export class ConferencesController {
 
   @Patch(':id/deadlines')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(RoleName.CHAIR)
+  @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ summary: 'Cập nhật deadlines' })
   @ApiParam({ name: 'id', description: 'ID hội nghị' })
   @ApiBody({ type: UpdateDeadlinesDto })
@@ -167,7 +169,7 @@ export class ConferencesController {
 
   @Patch(':id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(RoleName.CHAIR)
+  @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ summary: 'Cập nhật trạng thái hội nghị' })
   @ApiParam({ name: 'id', description: 'ID hội nghị' })
   @ApiBody({ type: UpdateStatusDto })
@@ -182,7 +184,7 @@ export class ConferencesController {
 
   @Patch(':id/schedule')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(RoleName.CHAIR)
+  @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ summary: 'Cập nhật schedule' })
   @ApiParam({ name: 'id', description: 'ID hội nghị' })
   @ApiBody({ type: UpdateScheduleDto })
@@ -197,7 +199,7 @@ export class ConferencesController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(RoleName.CHAIR)
+  @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ summary: 'Xóa hội nghị (soft delete)' })
   @ApiParam({ name: 'id', description: 'ID hội nghị' })
   @ApiResponse({ status: 200, description: 'Xóa thành công' })
@@ -209,7 +211,7 @@ export class ConferencesController {
 
   @Post(':id/tracks')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(RoleName.CHAIR)
+  @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ summary: 'Tạo track mới cho hội nghị' })
   @ApiParam({ name: 'id', description: 'ID hội nghị' })
   @ApiBody({ type: CreateTrackDto })
@@ -223,7 +225,8 @@ export class ConferencesController {
   }
 
   @Get(':id/tracks')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ summary: 'Lấy danh sách tracks của hội nghị' })
   @ApiParam({ name: 'id', description: 'ID hội nghị' })
   @ApiResponse({ status: 200, description: 'Danh sách tracks' })

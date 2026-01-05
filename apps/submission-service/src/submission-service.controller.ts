@@ -40,8 +40,8 @@ export class SubmissionServiceController {
   @Get()
   @Roles('CHAIR', 'ADMIN')
   @ApiOperation({
-    summary: 'Get all submissions with pagination and filters',
-    description: 'CHAIR can view all submissions with pagination, filtering, and sorting'
+    summary: 'Lấy danh sách tất cả bài nộp (có phân trang và lọc)',
+    description: 'CHAIR có thể xem tất cả bài nộp với phân trang, lọc và sắp xếp'
   })
   @ApiResponse({ status: 200, description: 'Returns paginated submissions' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -55,7 +55,7 @@ export class SubmissionServiceController {
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor('file'))
   @Roles('AUTHOR', 'CHAIR', 'ADMIN')
-  @ApiOperation({ summary: 'Upload new submission', description: 'Upload paper with metadata (PDF/Word/ZIP, max 10MB)' })
+  @ApiOperation({ summary: 'Nộp bài mới', description: 'Upload bài báo với metadata (PDF/Word/ZIP, tối đa 10MB)' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -93,10 +93,7 @@ export class SubmissionServiceController {
     // Lấy User ID từ Token
     createDto.createdBy = req.user.userId;
 
-    // Xử lý type conversion cho conferenceId (do formData gửi lên là string)
-    if (typeof createDto.conferenceId === 'string') {
-      createDto.conferenceId = parseInt(createDto.conferenceId, 10);
-    }
+
 
     return this.submissionService.handleSubmission(file, createDto);
   }
@@ -104,14 +101,16 @@ export class SubmissionServiceController {
   // --- 2. API LẤY DANH SÁCH BÀI NỘP CỦA USER (GET) ---
   @Get('user/me')
   @Roles('AUTHOR', 'CHAIR')
+  @ApiOperation({ summary: 'Lấy danh sách bài nộp của tôi' })
   async getMySubmissions(@Request() req) {
-    const userId = req.user.id;
+    const userId = req.user.userId; // ✅ FIXED: Changed from req.user.id to req.user.userId
     return this.submissionService.getSubmissionsByUser(userId);
   }
 
   // Giữ lại API cũ admin có thể dùng
   @Get('user/:userId')
   @Roles('CHAIR')
+  @ApiOperation({ summary: 'Lấy danh sách bài nộp theo user ID' })
   async getByUserId(@Param('userId') userId: string) {
     return this.submissionService.getSubmissionsByUser(Number(userId));
   }
@@ -119,6 +118,7 @@ export class SubmissionServiceController {
   // --- 3. API LẤY CHI TIẾT MỘT SUBMISSION (GET) ---
   @Get(':id')
   @Roles('AUTHOR', 'CHAIR')
+  @ApiOperation({ summary: 'Lấy chi tiết bài nộp' })
   async getSubmissionById(@Param('id') id: string, @Request() req) {
     return this.submissionService.getSubmissionById(
       Number(id),
@@ -130,13 +130,15 @@ export class SubmissionServiceController {
   // --- 4. API LẤY DANH SÁCH SUBMISSIONS THEO CONFERENCE (GET) ---
   @Get('conference/:conferenceId')
   @Roles('CHAIR')
+  @ApiOperation({ summary: 'Lấy danh sách bài nộp theo hội nghị' })
   async getByConference(@Param('conferenceId') conferenceId: string) {
-    return this.submissionService.getSubmissionsByConference(Number(conferenceId));
+    return this.submissionService.getSubmissionsByConference(conferenceId);
   }
 
   // --- 5. API CẬP NHẬT METADATA SUBMISSION (AUTHOR ONLY) ---
   @Patch(':id')
   @Roles('AUTHOR')
+  @ApiOperation({ summary: 'Cập nhật thông tin bài nộp' })
   async updateSubmission(
     @Param('id') id: string,
     @Body() updateDto: UpdateSubmissionDto,
@@ -152,6 +154,7 @@ export class SubmissionServiceController {
   // --- 6. API CẬP NHẬT TRẠNG THÁI SUBMISSION (PATCH) ---
   @Patch(':id/status')
   @Roles('CHAIR')
+  @ApiOperation({ summary: 'Cập nhật trạng thái bài nộp (CHAIR only)' })
   async updateStatus(
     @Param('id') id: string,
     @Body() updateStatusDto: UpdateStatusDto,
@@ -168,6 +171,7 @@ export class SubmissionServiceController {
   // --- 7. API WITHDRAW SUBMISSION (DELETE) ---
   @Delete(':id')
   @Roles('AUTHOR')
+  @ApiOperation({ summary: 'Rút bài nộp (withdraw)' })
   async withdrawSubmission(@Param('id') id: string, @Request() req) {
     return this.submissionService.withdrawSubmission(Number(id), req.user.userId);
   }
@@ -178,8 +182,8 @@ export class SubmissionServiceController {
   @UseInterceptors(FileInterceptor('file'))
   @Roles('AUTHOR')
   @ApiOperation({
-    summary: 'Upload camera-ready version',
-    description: 'Upload final PDF version after paper is accepted (max 15MB, PDF only)'
+    summary: 'Upload bản camera-ready (chỉ khi đã ACCEPTED)',
+    description: 'Upload bản PDF cuối cùng sau khi bài báo được chấp nhận (tối đa 15MB, chỉ PDF)'
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({

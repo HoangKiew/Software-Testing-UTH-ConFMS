@@ -277,7 +277,7 @@ export class SubmissionServiceService implements OnModuleInit {
   }
 
   // Helper cho controller gọi nếu cần
-  async checkDeadline(confId: number) {
+  async checkDeadline(confId: string) {
     return this.conferenceClient.checkDeadline(confId);
   }
 
@@ -314,7 +314,7 @@ export class SubmissionServiceService implements OnModuleInit {
   }
 
   // --- API 4: LẤY DANH SÁCH SUBMISSIONS THEO CONFERENCE ---
-  async getSubmissionsByConference(conferenceId: number) {
+  async getSubmissionsByConference(conferenceId: string) {
     try {
       const submissions = await this.subRepo.find({
         where: { conference_id: conferenceId },
