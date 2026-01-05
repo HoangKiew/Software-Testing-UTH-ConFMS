@@ -1,5 +1,5 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { Roles } from './auth/roles.decorator';
@@ -14,6 +14,7 @@ export class ReviewServiceController {
 
   // 1. Route public – kiểm tra service sống
   @Get('health')
+  @ApiOperation({ summary: 'Kiểm tra health của Review Service' })
   health() {
     return { 
       status: 'Review service is up',
@@ -25,6 +26,7 @@ export class ReviewServiceController {
   // 2. Route cần token – kiểm tra verify token thành công
   @UseGuards(JwtAuthGuard)
   @Get('profile')
+  @ApiOperation({ summary: 'Lấy thông tin profile của user đang đăng nhập (token required)' })
   getProfile(@CurrentUser() user: any) {
     return { 
       message: 'Bạn đã đăng nhập thành công vào Review Service!',
@@ -36,6 +38,7 @@ export class ReviewServiceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('REVIEWER')
   @Get('reviewer/dashboard')
+  @ApiOperation({ summary: 'Dashboard cho Reviewer (role REVIEWER)' })
   reviewerDashboard(@CurrentUser('sub') userId: string) {
     return { 
       message: 'Chào mừng Reviewer! Đây là dashboard riêng của bạn.',
@@ -48,6 +51,7 @@ export class ReviewServiceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CHAIR')
   @Get('pc/dashboard')
+  @ApiOperation({ summary: 'Dashboard cho Chair / Program Committee (role CHAIR)' })
   pcDashboard(@CurrentUser('sub') userId: string) {
     return { 
       message: 'Chào mừng Program Committee (Chair)! Đây là dashboard quản lý.',

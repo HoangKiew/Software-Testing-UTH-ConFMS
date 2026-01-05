@@ -23,6 +23,10 @@ export class Review {
   @Column({ type: 'boolean', default: false })
   isFinal: boolean;
 
+  // Chair decision for this review (propagated when chair decides on the submission)
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  chairDecision?: 'accepted' | 'rejected' | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 

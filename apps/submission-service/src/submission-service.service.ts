@@ -590,4 +590,27 @@ export class SubmissionServiceService implements OnModuleInit {
       throw new InternalServerErrorException('Lỗi khi upload camera-ready');
     }
   }
+
+  // --- Internal helper: Lấy public file info (không kiểm tra quyền) ---
+  async getPublicFileInfoBySubmissionId(id: number) {
+    try {
+      const files = await this.fileRepo.find({ where: { submission_id: id }, order: { version: 'DESC' } });
+      if (!files || files.length === 0) {
+        return { status: 'error', message: 'No files found for submission' };
+      }
+
+      const f = files[0];
+      const filename = f.file_path ? f.file_path.split('/').pop() : `submission-${id}`;
+      return {
+        status: 'success',
+        data: {
+          url: f.file_path,
+          filename,
+          version: f.version,
+        }
+      };
+    } catch (error) {
+      throw new Error('Failed to read file info');
+    }
+  }
 }
