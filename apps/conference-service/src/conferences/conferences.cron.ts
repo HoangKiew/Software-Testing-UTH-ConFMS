@@ -23,19 +23,19 @@ export class ConferencesCron {
     for (const conf of conferences) {
       const { deadlines, status } = conf;
 
-      // Kiểm tra deadline nộp bài
+      // Kiểm tra deadline nộp bài — chuyển từ OPEN → REVIEW khi quá hạn nộp
       if (
-        status === ConferenceStatus.OPEN_FOR_SUBMISSION &&
+        status === ConferenceStatus.OPEN &&
         deadlines.submission &&
         now > new Date(deadlines.submission)
       ) {
         await this.conferencesService.updateStatus(
           conf.id,
-          ConferenceStatus.SUBMISSION_CLOSED,
+          ConferenceStatus.REVIEW,
           conf.chairId,
         );
         this.logger.log(
-          `Hội nghị "${conf.name}" tự động chuyển sang SUBMISSION_CLOSED`,
+          `Hội nghị "${conf.name}" tự động chuyển từ OPEN sang REVIEW (hết hạn nộp)`,
         );
       }
 

@@ -1,6 +1,7 @@
-version: '3.8'
-
 services:
+  # =========================
+  # Database (PostgreSQL)
+  # =========================
   postgres:
     image: postgres:15-alpine
     container_name: uth-database
@@ -9,7 +10,7 @@ services:
       POSTGRES_PASSWORD: admin123
       POSTGRES_DB: postgres
     ports:
-      - '5432:5432' # Sửa lại 5432:5432
+      - '5432:5432' # Giữ 5432 để local dev dễ connect
     volumes:
       - ./database/init-script:/docker-entrypoint-initdb.d
       - postgres_data:/var/lib/postgresql/data
@@ -17,6 +18,9 @@ services:
       - uth-net
     restart: unless-stopped
 
+  # =========================
+  # Identity Service
+  # =========================
   identity-service:
     build:
       context: .
@@ -25,18 +29,21 @@ services:
     ports:
       - '3001:3001'
     environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USERNAME: admin
-      DB_PASSWORD: admin123
-      DB_DATABASE: db_identity
-      JWT_ACCESS_SECRET: jZE6YIUoP_j7SOTLPWgS8kSfX5g4dlOmPMWJVNLMOyg-SMoqXiMRkR0ocJQEGr9HVUjonNIlZNwHzduFfOCJOQ
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=admin
+      - DB_PASSWORD=admin123
+      - DB_DATABASE=db_identity
+      - JWT_ACCESS_SECRET=jZE6YIUoP_j7SOTLPWgS8kSfX5g4dlOmPMWJVNLMOyg-SMoqXiMRkR0ocJQEGr9HVUjonNIlZNwHzduFfOCJOQ
     depends_on:
       - postgres
     networks:
       - uth-net
     restart: unless-stopped
 
+  # =========================
+  # Conference Service
+  # =========================
   conference-service:
     build:
       context: .
@@ -45,12 +52,12 @@ services:
     ports:
       - '3002:3002'
     environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USERNAME: admin
-      DB_PASSWORD: admin123
-      DB_DATABASE: db_conference
-      JWT_ACCESS_SECRET: jZE6YIUoP_j7SOTLPWgS8kSfX5g4dlOmPMWJVNLMOyg-SMoqXiMRkR0ocJQEGr9HVUjonNIlZNwHzduFfOCJOQ
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=admin
+      - DB_PASSWORD=admin123
+      - DB_DATABASE=db_conference
+      - JWT_ACCESS_SECRET=jZE6YIUoP_j7SOTLPWgS8kSfX5g4dlOmPMWJVNLMOyg-SMoqXiMRkR0ocJQEGr9HVUjonNIlZNwHzduFfOCJOQ
     depends_on:
       - postgres
       - identity-service
@@ -58,6 +65,9 @@ services:
       - uth-net
     restart: unless-stopped
 
+  # =========================
+  # Submission Service
+  # =========================
   submission-service:
     build:
       context: .
@@ -66,8 +76,8 @@ services:
     ports:
       - '3003:3003'
     environment:
-      - SUPABASE_URL=https://blrxodghcsytpqjtwnoo.supabase.co
-      - SUPABASE_ANON_KEY=sb_publishable_tcunR__quMCm0PoaiBxHlw_sqJANldF
+      - SUPABASE_URL=https://your-project.supabase.co
+      - SUPABASE_ANON_KEY=your_anon_key_here
       - SUPABASE_BUCKET_NAME=submission
       - SUPABASE_SERVICE_ROLE_KEY=sb_secret_puxOWB6zIThovK-fxUtT9A_WivGpXfK
       - JWT_ACCESS_SECRET=jZE6YIUoP_j7SOTLPWgS8kSfX5g4dlOmPMWJVNLMOyg-SMoqXiMRkR0ocJQEGr9HVUjonNIlZNwHzduFfOCJOQ
@@ -83,6 +93,38 @@ services:
       - uth-net
     restart: unless-stopped
 
+  # =========================
+  # Review Service (từ Lebao)
+  # =========================
+  review-service:
+    build:
+      context: .
+      dockerfile: ./apps/review-service/Dockerfile
+    container_name: uth-review-service
+    ports:
+      - '3004:3000'
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=admin
+      - DB_PASSWORD=admin123
+      - DB_DATABASE=db_review
+      - JWT_SECRET=your_jwt_secret_here
+      - IDENTITY_SERVICE_URL=http://identity-service:3001
+      - CONFERENCE_SERVICE_URL=http://conference-service:3002
+      - SUBMISSION_SERVICE_URL=http://submission-service:3003
+    depends_on:
+      - postgres
+      - identity-service
+    networks:
+      - uth-net
+    restart: unless-stopped
+
+  # =========================
+  # API Gateway
+  # =========================
   api-gateway:
     build:
       context: .
@@ -97,6 +139,7 @@ services:
       - identity-service
       - conference-service
       - submission-service
+      - review-service
     networks:
       - uth-net
     restart: unless-stopped

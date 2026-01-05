@@ -29,16 +29,23 @@ export class AssignmentsService {
   ) {}
 
   private async findOne(assignmentId: string): Promise<Assignment> {
-    const assignment = await this.assignmentRepo.findOne({ where: { id: assignmentId } });
+    const assignment = await this.assignmentRepo.findOne({
+      where: { id: assignmentId },
+    });
     if (!assignment) {
       throw new NotFoundException('Assignment not found');
     }
     return assignment;
   }
 
-  // Gợi ý reviewer tự động
+  // Gợi ý reviewer tự động dựa trên similarity keywords và loại trừ COI
   async suggestReviewers(submissionId: string, top: number = 5) {
     const submission = await this.submissionsClient.getSubmission(submissionId);
+
+    // Kiểm tra submission phải thuộc một conference
+    if (!submission.conferenceId) {
+      throw new BadRequestException('Submission does not belong to any conference');
+    }
 
     const keywords = (submission.keywords || '')
       .split(',')
@@ -49,8 +56,9 @@ export class AssignmentsService {
       return { message: 'Submission has no keywords for matching', suggestions: [] };
     }
 
-    const pcMembers =
-      await this.pcMembersService.findAllAcceptedByConference(submission.conferenceId);
+    const pcMembers = await this.pcMembersService.findAllAcceptedByConference(
+      submission.conferenceId, // đã chắc chắn là string ở trên
+    );
 
     if (pcMembers.length === 0) {
       return { message: 'No accepted PC members in this conference', suggestions: [] };
@@ -59,13 +67,24 @@ export class AssignmentsService {
     const suggestions = await Promise.all(
       pcMembers.map(async (member) => {
         const suggestion = await this.pcMembersService.getSimilaritySuggestion(
-          submission.conferenceId,
+          submission.conferenceId!, // Thêm ! để khẳng định không undefined
           keywords,
           member.id,
         );
 
         const authors = submission.authors || [];
-        const hasCoi = authors.some((authorId: number) =>
+
+        // Chuẩn hóa authorIds về number[] để kiểm tra COI
+        const authorIds: number[] = authors
+          .map((author: any) => {
+            if (typeof author === 'object' && author !== null && 'id' in author) {
+              return Number(author.id);
+            }
+            return Number(author);
+          })
+          .filter((id: number) => !isNaN(id) && id > 0);
+
+        const hasCoi = authorIds.some((authorId: number) =>
           member.coiUserIds.includes(authorId),
         );
 
@@ -81,14 +100,22 @@ export class AssignmentsService {
       }),
     );
 
-    return suggestions
+    // Lọc và sắp xếp kết quả
+    const filteredSuggestions = suggestions
       .filter((s) => !s.hasCoi && s.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, top);
+
+    return filteredSuggestions;
   }
 
   async assignReviewers(dto: AssignReviewersDto, chairId: number) {
     const submission = await this.submissionsClient.getSubmission(dto.submissionId);
+
+    if (!submission.conferenceId) {
+      throw new BadRequestException('Submission does not belong to any conference');
+    }
+
     const conference = await this.conferencesService.findOne(submission.conferenceId);
 
     if (conference.chairId !== chairId) {
@@ -100,7 +127,10 @@ export class AssignmentsService {
     for (const reviewerId of dto.reviewerIds) {
       const member = await this.pcMembersService.findOne(reviewerId);
 
-      if (member.conference.id !== conference.id || member.status !== PcMemberStatus.ACCEPTED) {
+      if (
+        member.conference.id !== conference.id ||
+        member.status !== PcMemberStatus.ACCEPTED
+      ) {
         throw new BadRequestException(`Reviewer ${reviewerId} is invalid or not accepted`);
       }
 

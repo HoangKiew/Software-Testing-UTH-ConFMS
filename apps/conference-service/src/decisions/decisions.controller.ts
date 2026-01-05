@@ -35,7 +35,7 @@ export class DecisionsController {
   constructor(private readonly decisionsService: DecisionsService) {}
 
   @Get('conference/:id/summary')
-  @Roles(RoleName.CHAIR)
+  @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ summary: 'Lấy tổng quan quyết định bài báo của hội nghị' })
   @ApiParam({ name: 'id', description: 'ID hội nghị', type: String })
   @ApiResponse({ status: 200, description: 'Thống kê: số accept, reject, pending, accept rate...' })
@@ -49,7 +49,7 @@ export class DecisionsController {
   }
 
   @Post('single')
-  @Roles(RoleName.CHAIR)
+  @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ summary: 'Ra quyết định cho một bài nộp duy nhất' })
   @ApiBody({ type: MakeDecisionDto })
   @ApiResponse({ status: 201, description: 'Quyết định đã được ghi nhận' })
@@ -64,7 +64,7 @@ export class DecisionsController {
   }
 
   @Post('bulk')
-  @Roles(RoleName.CHAIR)
+  @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ summary: 'Ra quyết định hàng loạt cho nhiều bài nộp cùng lúc' })
   @ApiBody({ type: BulkDecisionDto })
   @ApiResponse({ status: 201, description: 'Tất cả quyết định đã được xử lý' })
@@ -78,7 +78,7 @@ export class DecisionsController {
   }
 
   @Post('conference/:id/make-all')
-  @Roles(RoleName.CHAIR)
+  @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ 
     summary: 'Tự động ra quyết định cho tất cả bài nộp chưa có quyết định (theo ngưỡng điểm review)' 
   })

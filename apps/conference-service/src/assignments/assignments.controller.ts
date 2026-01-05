@@ -37,7 +37,7 @@ export class AssignmentsController {
   constructor(private readonly assignmentsService: AssignmentsService) {}
 
   @Get('conference/:id')
-  @Roles(RoleName.CHAIR)
+  @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ summary: 'Lấy toàn bộ phân công reviewer của một hội nghị' })
   @ApiParam({ name: 'id', description: 'ID của hội nghị', type: String })
   @ApiResponse({ status: 200, description: 'Danh sách các assignment (submission → reviewers)' })
@@ -51,7 +51,7 @@ export class AssignmentsController {
   }
 
   @Get('suggest/:submissionId')
-  @Roles(RoleName.CHAIR)
+  @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ 
     summary: 'Gợi ý danh sách PC Member phù hợp nhất để review một bài nộp' 
   })
@@ -79,7 +79,7 @@ export class AssignmentsController {
   }
 
   @Post('assign')
-  @Roles(RoleName.CHAIR)
+  @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ summary: 'Phân công reviewer(s) cho một bài nộp' })
   @ApiBody({ type: AssignReviewersDto })
   @ApiResponse({ status: 201, description: 'Phân công thành công' })
@@ -94,7 +94,7 @@ export class AssignmentsController {
   }
 
   @Delete(':id')
-  @Roles(RoleName.CHAIR)
+  @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ summary: 'Hủy phân công một reviewer khỏi bài nộp' })
   @ApiParam({ name: 'id', description: 'ID của assignment (assignment entity ID)', type: String })
   @ApiResponse({ status: 200, description: 'Hủy phân công thành công' })

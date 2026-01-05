@@ -1,4 +1,4 @@
-// src/decisions/decisions.service.ts
+// apps/conference-service/src/decisions/decisions.service.ts
 import { Injectable, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -15,6 +15,8 @@ enum SubmissionStatus {
   UNDER_REVIEW = 'under_review',
   ACCEPTED = 'accepted',
   REJECTED = 'rejected',
+  REVISION_REQUIRED = 'revision_required',
+  WITHDRAWN = 'withdrawn',
 }
 
 @Injectable()
@@ -50,6 +52,12 @@ export class DecisionsService {
 
   async makeDecision(dto: MakeDecisionDto, chairId: number) {
     const submission = await this.submissionsClient.getSubmission(dto.submissionId);
+
+    // === FIX 5: Kiểm tra conferenceId trước khi gọi findOne ===
+    if (!submission.conferenceId) {
+      throw new BadRequestException('Submission does not belong to any conference');
+    }
+
     const conference = await this.conferencesService.findOne(submission.conferenceId);
 
     if (conference.chairId !== chairId) {
@@ -70,8 +78,28 @@ export class DecisionsService {
 
     await this.decisionRepo.save(decision);
 
-    // TODO: cập nhật status submission qua submission-service
-    // await this.submissionsClient.updateStatus(dto.submissionId, dto.decision);
+    // Map decision -> submission status
+    const mapDecisionToSubmissionStatus = (decisionType: DecisionType): SubmissionStatus => {
+      switch (decisionType) {
+        case DecisionType.ACCEPT:
+          return SubmissionStatus.ACCEPTED;
+        case DecisionType.REJECT:
+          return SubmissionStatus.REJECTED;
+        case DecisionType.REVISE:
+          return SubmissionStatus.REVISION_REQUIRED;
+        case DecisionType.WITHDRAW:
+          return SubmissionStatus.WITHDRAWN;
+        default:
+          return SubmissionStatus.UNDER_REVIEW;
+      }
+    };
+
+    const newStatus = mapDecisionToSubmissionStatus(dto.decision);
+    try {
+      await this.submissionsClient.updateStatus(dto.submissionId, newStatus);
+    } catch (err) {
+      console.warn('Failed to update submission status after decision:', err?.message || err);
+    }
 
     const emails = ['author@example.com'];
 
@@ -87,6 +115,7 @@ export class DecisionsService {
     return { message: 'Decision made and notification sent' };
   }
 
+  // makeBulkDecisions và makeAllDecisions giữ nguyên (không có lỗi TypeScript ở đây)
   async makeBulkDecisions(dto: BulkDecisionDto, chairId: number) {
     const results: any[] = [];
 
