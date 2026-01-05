@@ -63,13 +63,17 @@ export class SubmissionServiceController {
       required: ['file', 'conferenceId', 'title'],
       properties: {
         file: { type: 'string', format: 'binary' },
-        conferenceId: { type: 'number', example: 1 },
+        conferenceId: {
+          type: 'string',
+          example: '214eb9b6-3935-4b2e-a9a0-d14512d8ec6e',
+          description: 'UUID của hội nghị'
+        },
         title: { type: 'string', example: 'Deep Learning for Face Recognition' },
         abstract: { type: 'string', example: 'This paper presents...' },
-        authors: {
+        coAuthors: {
           type: 'string',
-          example: '[{"name":"John Doe","email":"john@example.com","affiliation":"UTH"}]',
-          description: 'JSON string of authors array'
+          example: 'alice@example.com, bob@example.com',
+          description: 'Email đồng tác giả (phân cách bằng dấu phẩy)'
         }
       }
     }
@@ -90,12 +94,18 @@ export class SubmissionServiceController {
     @Body() createDto: CreateSubmissionDto,
     @Request() req,
   ) {
-    // Lấy User ID từ Token
-    createDto.createdBy = req.user.userId;
+    // Lấy thông tin user từ JWT
+    const userId = req.user.userId;
+    const userEmail = req.user.email;
+    const userName = req.user.fullName || req.user.email;
 
-
-
-    return this.submissionService.handleSubmission(file, createDto);
+    return this.submissionService.handleSubmission(
+      file,
+      createDto,
+      userId,
+      userEmail,
+      userName
+    );
   }
 
   // --- 2. API LẤY DANH SÁCH BÀI NỘP CỦA USER (GET) ---
@@ -113,6 +123,36 @@ export class SubmissionServiceController {
   @ApiOperation({ summary: 'Lấy danh sách bài nộp theo user ID' })
   async getByUserId(@Param('userId') userId: string) {
     return this.submissionService.getSubmissionsByUser(Number(userId));
+  }
+
+  // --- API: LẤY REVIEWS CỦA SUBMISSION (ẨN DANH CHO AUTHOR) ---
+  @Get(':id/reviews')
+  @Roles('AUTHOR', 'CHAIR', 'ADMIN')
+  @ApiOperation({
+    summary: 'Lấy reviews của submission (ẩn danh cho author)',
+    description: 'Author xem reviews ẩn danh (Reviewer #1, #2...), CHAIR xem full info'
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách reviews'
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Không có quyền xem reviews'
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Submission không tồn tại'
+  })
+  async getReviews(
+    @Param('id') id: string,
+    @Request() req
+  ) {
+    return this.submissionService.getSubmissionReviews(
+      Number(id),
+      req.user.userId,
+      req.user.roles
+    );
   }
 
   // --- 3. API LẤY CHI TIẾT MỘT SUBMISSION (GET) ---
