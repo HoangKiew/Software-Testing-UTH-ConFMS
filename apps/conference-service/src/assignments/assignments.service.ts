@@ -47,34 +47,50 @@ export class AssignmentsService {
       throw new BadRequestException('Submission does not belong to any conference');
     }
 
-    const keywords = (submission.keywords || '')
-      .split(',')
-      .map((k: string) => k.trim())
-      .filter((k: string) => k.length > 0);
+    // Lấy topic/keywords của submission: ưu tiên `topics` nếu có, fallback về `keywords`
+    let submissionTopics: string[] = [];
+    if (submission.topics && Array.isArray(submission.topics) && submission.topics.length > 0) {
+      submissionTopics = submission.topics.map((t: string) => String(t).trim()).filter(Boolean);
+    } else if (submission.keywords) {
+      submissionTopics = String(submission.keywords)
+        .split(',')
+        .map((k: string) => k.trim())
+        .filter((k: string) => k.length > 0);
+    }
 
-    if (keywords.length === 0) {
-      return { message: 'Submission has no keywords for matching', suggestions: [] };
+    if (submissionTopics.length === 0) {
+      return { message: 'Submission has no topics/keywords for matching', suggestions: [] };
     }
 
     const pcMembers = await this.pcMembersService.findAllAcceptedByConference(
-      submission.conferenceId, // đã chắc chắn là string ở trên
+      submission.conferenceId,
     );
 
     if (pcMembers.length === 0) {
       return { message: 'No accepted PC members in this conference', suggestions: [] };
     }
 
+    // Chọn reviewer có ít nhất 1 topic trùng với submission
+    const matchedMembers = pcMembers.filter((member) => {
+      if (!member.topics || member.topics.length === 0) return false;
+      const memberTopics = member.topics.map((t: string) => String(t).toLowerCase().trim());
+      return submissionTopics.some((st: string) => memberTopics.includes(String(st).toLowerCase().trim()));
+    });
+
+    if (matchedMembers.length === 0) {
+      return { message: 'No PC members match submission topics', suggestions: [] };
+    }
+
     const suggestions = await Promise.all(
-      pcMembers.map(async (member) => {
+      matchedMembers.map(async (member) => {
         const suggestion = await this.pcMembersService.getSimilaritySuggestion(
-          submission.conferenceId!, // Thêm ! để khẳng định không undefined
-          keywords,
+          submission.conferenceId!,
+          submissionTopics,
           member.id,
         );
 
         const authors = submission.authors || [];
 
-        // Chuẩn hóa authorIds về number[] để kiểm tra COI
         const authorIds: number[] = authors
           .map((author: any) => {
             if (typeof author === 'object' && author !== null && 'id' in author) {
@@ -84,9 +100,7 @@ export class AssignmentsService {
           })
           .filter((id: number) => !isNaN(id) && id > 0);
 
-        const hasCoi = authorIds.some((authorId: number) =>
-          member.coiUserIds.includes(authorId),
-        );
+        const hasCoi = authorIds.some((authorId: number) => member.coiUserIds.includes(authorId));
 
         return {
           memberId: member.id,
@@ -100,7 +114,6 @@ export class AssignmentsService {
       }),
     );
 
-    // Lọc và sắp xếp kết quả
     const filteredSuggestions = suggestions
       .filter((s) => !s.hasCoi && s.score > 0)
       .sort((a, b) => b.score - a.score)
