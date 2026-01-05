@@ -21,6 +21,13 @@ import ReviewProgressPage from '../pages/chair/ReviewProgressPage.tsx';
 import ConferenceDetailPageChair from '../pages/chair/ConferenceDetailPageChair.tsx';
 import PCMembersManagementPage from '../pages/chair/PCMembersManagementPage.tsx';
 import EditConferencePage from '../pages/chair/EditConferencePage.tsx';
+import UserManagementPage from '../pages/admin/UserManagementPage.tsx';
+import UserDetailPage from '../pages/admin/UserDetailPage.tsx';
+import CreateUserPage from '../pages/admin/CreateUserPage.tsx';
+import EditUserPage from '../pages/admin/EditUserPage.tsx';
+import AllConferencesPage from '../pages/admin/AllConferencesPage.tsx';
+import PlatformSettingsPage from '../pages/admin/PlatformSettingsPage.tsx';
+import AuditLogsPage from '../pages/admin/AuditLogsPage.tsx';
 
 const appRouter = createBrowserRouter([
   {
@@ -114,6 +121,34 @@ const appRouter = createBrowserRouter([
       {
         path: 'chair/conferences/:id/edit',
         element: <EditConferencePage />,
+      },
+      {
+        path: 'admin/users',
+        element: <UserManagementPage />,
+      },
+      {
+        path: 'admin/users/create',
+        element: <CreateUserPage />,
+      },
+      {
+        path: 'admin/users/:id',
+        element: <UserDetailPage />,
+      },
+      {
+        path: 'admin/users/:id/edit',
+        element: <EditUserPage />,
+      },
+      {
+        path: 'admin/conferences',
+        element: <AllConferencesPage />,
+      },
+      {
+        path: 'admin/settings',
+        element: <PlatformSettingsPage />,
+      },
+      {
+        path: 'admin/audit-logs',
+        element: <AuditLogsPage />,
       },
     ],
   },

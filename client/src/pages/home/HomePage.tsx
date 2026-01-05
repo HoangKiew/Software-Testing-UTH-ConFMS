@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import AuthorDashboard from './AuthorDashboard';
 import ChairDashboard from './ChairDashboard';
+import AdminDashboard from './AdminDashboard';
 
 type UserRole = 'AUTHOR' | 'CHAIR' | 'REVIEWER' | 'ADMIN';
 
@@ -19,8 +20,7 @@ const HomePage = () => {
                 // TODO: Create ReviewerDashboard
                 return <AuthorDashboard />;
             case 'ADMIN':
-                // TODO: Create AdminDashboard
-                return <AuthorDashboard />;
+                return <AdminDashboard />;
             default:
                 return <AuthorDashboard />;
         }
