@@ -1,35 +1,50 @@
-import { IsString, IsNumber, IsOptional, IsArray, ValidateNested } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
-import { AuthorDto } from './author.dto';
+import { IsString, IsOptional, IsUUID } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateSubmissionDto {
-  @IsNumber()
-  conferenceId: number;
+  @ApiProperty({
+    description: 'UUID của hội nghị',
+    example: '214eb9b6-3935-4b2e-a9a0-d14512d8ec6e'
+  })
+  @IsString()
+  @IsUUID()
+  conferenceId: string;
 
+  @ApiProperty({
+    description: 'Tiêu đề bài báo',
+    example: 'Deep Learning cho Nhận Dạng Khuôn Mặt'
+  })
   @IsString()
   title: string;
 
+  @ApiProperty({
+    description: 'Tóm tắt bài báo',
+    example: 'Bài báo này trình bày phương pháp mới...',
+    required: false
+  })
   @IsOptional()
   @IsString()
   abstract?: string;
 
-  @IsOptional()
-  @IsNumber()
-  createdBy: number; // Có thể optional vì sẽ lấy từ Token
-
-  @IsOptional()
-  @IsArray()
-  @Transform(({ value }) => {
-    if (typeof value === 'string') {
-      try {
-        return JSON.parse(value);
-      } catch (e) {
-        return [];
-      }
-    }
-    return value;
+  @ApiProperty({
+    description: 'Email đồng tác giả (phân cách bằng dấu phẩy)',
+    example: 'alice@example.com, bob@example.com',
+    required: false
   })
-  @ValidateNested({ each: true })
-  @Type(() => AuthorDto)
-  authors?: AuthorDto[];
+  @IsOptional()
+  @IsString()
+  coAuthors?: string;
+
+  @ApiProperty({
+    description: 'Đơn vị/trường của tác giả chính',
+    example: 'Đại học Giao thông Vận tải TP.HCM',
+    required: false
+  })
+  @IsOptional()
+  @IsString()
+  affiliation?: string;
+
+  // createdBy sẽ tự động lấy từ JWT token
+  @IsOptional()
+  createdBy?: number;
 }

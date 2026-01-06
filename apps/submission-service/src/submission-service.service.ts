@@ -11,6 +11,7 @@ import { Repository } from 'typeorm';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Submission } from './modules/submission/entities/submission.entity';
 import { SubmissionFile } from './modules/submission/entities/submission-file.entity';
+import { SubmissionAuthor } from './modules/submission/entities/author.entity';
 import { AuditTrail } from './modules/submission/entities/audit-trail.entity';
 import { ConferenceClient } from './modules/integration/conference.client';
 import { ReviewClient } from './modules/integration/review.client';
@@ -23,6 +24,7 @@ export class SubmissionServiceService implements OnModuleInit {
   constructor(
     @InjectRepository(Submission) private subRepo: Repository<Submission>,
     @InjectRepository(SubmissionFile) private fileRepo: Repository<SubmissionFile>,
+    @InjectRepository(SubmissionAuthor) private authorRepo: Repository<SubmissionAuthor>,
     @InjectRepository(AuditTrail) private auditRepo: Repository<AuditTrail>,
     private conferenceClient: ConferenceClient,
     private reviewClient: ReviewClient,
@@ -138,7 +140,13 @@ export class SubmissionServiceService implements OnModuleInit {
   }
 
   // --- API 2: XỬ LÝ NỘP BÀI ---
-  async handleSubmission(file: Express.Multer.File, dto: any) {
+  async handleSubmission(
+    file: Express.Multer.File,
+    dto: any,
+    userId: number,
+    userEmail: string,
+    userName: string
+  ) {
     try {
       // 0. Check Deadline
       await this.conferenceClient.checkDeadline(dto.conferenceId);
@@ -148,47 +156,45 @@ export class SubmissionServiceService implements OnModuleInit {
       // Hay luôn tạo mới? Theo user request: "Check Deadline trước khi cho phép lưu DB".
       // Giả sử logic là tạo mới hoặc update. Ở đây code cũ dùng findOne title + created_by.
 
-      let sub = await this.subRepo.findOne({
-        where: { title: dto.title, created_by: dto.createdBy },
-        relations: ['authors']
+      // 1. Tạo submission mới
+      const sub = this.subRepo.create({
+        title: dto.title,
+        conference_id: dto.conferenceId,
+        created_by: userId,
+        abstract: dto.abstract || '',
+        status: SubmissionStatus.SUBMITTED
       });
+      await this.subRepo.save(sub);
 
-      if (!sub) {
-        // Parse authors từ JSON string
-        let parsedAuthors = [];
-        if (dto.authors) {
-          try {
-            const authorsData = typeof dto.authors === 'string'
-              ? JSON.parse(dto.authors)
-              : dto.authors;
+      // 2. Tạo tác giả chính (tự động từ JWT)
+      const primaryAuthor = this.authorRepo.create({
+        submission_id: sub.id,
+        author_name: userName,
+        email: userEmail,
+        is_corresponding: true
+      });
+      await this.authorRepo.save(primaryAuthor);
 
-            // Map camelCase fields to snake_case for database
-            parsedAuthors = authorsData.map((author: any) => ({
-              author_name: author.name,
-              email: author.email,
-              is_corresponding: author.isCorresponding || false
-            }));
-          } catch (error) {
-            console.error('Error parsing authors:', error);
-            throw new BadRequestException('Invalid authors format. Must be valid JSON array.');
-          }
+      // 3. Parse và tạo đồng tác giả
+      if (dto.coAuthors) {
+        const coAuthorEmails = dto.coAuthors
+          .split(',')
+          .map((email: string) => email.trim())
+          .filter((email: string) => this.isValidEmail(email));
+
+        for (const email of coAuthorEmails) {
+          const coAuthor = this.authorRepo.create({
+            submission_id: sub.id,
+            author_name: email.split('@')[0],
+            email: email,
+            is_corresponding: false
+          });
+          await this.authorRepo.save(coAuthor);
         }
-
-        // Tạo mới
-        sub = this.subRepo.create({
-          title: dto.title,
-          conference_id: dto.conferenceId,
-          created_by: dto.createdBy,
-          abstract: dto.abstract || '',
-          authors: parsedAuthors // Cascade sẽ lưu authors
-        });
-        sub = await this.subRepo.save(sub);
-
-        // Audit
-        await this.logAudit('CREATE', 'SUBMISSION', sub.id, dto.createdBy, 'Created new submission');
-      } else {
-        // Nếu bài cũ, có thể update abstract/author? Tạm thời giữ nguyên logic cũ là chỉ thêm file ver mới.
       }
+
+      // Audit
+      await this.logAudit('CREATE', 'SUBMISSION', sub.id, userId, 'Created new submission');
 
       // 2. Tính Version
       const version = await this.getNextVersion(sub.id);
@@ -223,14 +229,15 @@ export class SubmissionServiceService implements OnModuleInit {
       });
 
       // Audit File
-      await this.logAudit('UPLOAD', 'FILE', savedFile.id, dto.createdBy, `Uploaded version ${version}`);
+      await this.logAudit('UPLOAD', 'FILE', savedFile.id, userId, `Uploaded version ${version}`);
 
       // Notify Review Service
+      const allAuthors = await this.authorRepo.find({ where: { submission_id: sub.id } });
       await this.reviewClient.notifyNewSubmission(
         sub.id,
         sub.title,
         sub.conference_id,
-        sub.authors || []
+        allAuthors
       );
 
       return {
@@ -277,7 +284,7 @@ export class SubmissionServiceService implements OnModuleInit {
   }
 
   // Helper cho controller gọi nếu cần
-  async checkDeadline(confId: number) {
+  async checkDeadline(confId: string) {
     return this.conferenceClient.checkDeadline(confId);
   }
 
@@ -314,7 +321,7 @@ export class SubmissionServiceService implements OnModuleInit {
   }
 
   // --- API 4: LẤY DANH SÁCH SUBMISSIONS THEO CONFERENCE ---
-  async getSubmissionsByConference(conferenceId: number) {
+  async getSubmissionsByConference(conferenceId: string) {
     try {
       const submissions = await this.subRepo.find({
         where: { conference_id: conferenceId },
@@ -590,27 +597,51 @@ export class SubmissionServiceService implements OnModuleInit {
       throw new InternalServerErrorException('Lỗi khi upload camera-ready');
     }
   }
-
-  // --- Internal helper: Lấy public file info (không kiểm tra quyền) ---
-  async getPublicFileInfoBySubmissionId(id: number) {
+  // --- API: LẤY REVIEWS CỦA SUBMISSION (ẨN DANH CHO AUTHOR) ---
+  async getSubmissionReviews(
+    submissionId: number,
+    userId: number,
+    userRoles: string[]
+  ) {
     try {
-      const files = await this.fileRepo.find({ where: { submission_id: id }, order: { version: 'DESC' } });
-      if (!files || files.length === 0) {
-        return { status: 'error', message: 'No files found for submission' };
+      // 1. Kiểm tra submission tồn tại
+      const submission = await this.subRepo.findOne({
+        where: { id: submissionId }
+      });
+
+      if (!submission) {
+        throw new NotFoundException('Submission không tồn tại');
       }
 
-      const f = files[0];
-      const filename = f.file_path ? f.file_path.split('/').pop() : `submission-${id}`;
+      // 2. Kiểm tra quyền xem
+      const isChair = userRoles.includes('CHAIR') || userRoles.includes('ADMIN');
+      const isOwner = submission.created_by === userId;
+
+      if (!isChair && !isOwner) {
+        throw new ForbiddenException('Bạn không có quyền xem reviews của submission này');
+      }
+
+      // 3. Lấy reviews từ Review Service
+      const reviews = await this.reviewClient.getReviewsForSubmission(
+        submissionId,
+        isChair  // CHAIR thấy full info, AUTHOR thấy ẩn danh
+      );
+
       return {
         status: 'success',
-        data: {
-          url: f.file_path,
-          filename,
-          version: f.version,
-        }
+        data: reviews
       };
     } catch (error) {
-      throw new Error('Failed to read file info');
+      if (error instanceof NotFoundException || error instanceof ForbiddenException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Lỗi khi lấy reviews');
     }
+  }
+
+  // Helper method: Validate email format
+  private isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
   }
 }

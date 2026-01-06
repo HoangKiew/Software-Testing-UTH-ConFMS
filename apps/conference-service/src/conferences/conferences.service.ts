@@ -9,19 +9,21 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Conference, ConferenceStatus } from './entities/conference.entity';
-import { Track } from './entities/track.entity';                    // ← THÊM IMPORT
+import { Track } from './entities/track.entity';
+import { SubmissionStatus } from '../shared/enums/submission-status.enum';
 import { CreateConferenceDto } from './dto/create-conference.dto';
 import { UpdateConferenceDto } from './dto/update-conference.dto';
-import { CreateTrackDto } from './dto/create-track.dto';              // ← THÊM IMPORT
+import { CreateTrackDto } from './dto/create-track.dto';
+
 
 @Injectable()
 export class ConferencesService {
   constructor(
     @InjectRepository(Conference)
     private conferenceRepository: Repository<Conference>,
-    @InjectRepository(Track)                                     // ← THÊM REPOSITORY
+    @InjectRepository(Track)
     private trackRepository: Repository<Track>,
-  ) {}
+  ) { }
 
   async create(createDto: CreateConferenceDto, userId: number) {
     const conference = this.conferenceRepository.create({
@@ -108,14 +110,11 @@ export class ConferencesService {
     }
 
     const validNextStatuses: Record<ConferenceStatus, ConferenceStatus[]> = {
-      [ConferenceStatus.DRAFT]: [ConferenceStatus.OPEN_FOR_SUBMISSION],
-      [ConferenceStatus.OPEN_FOR_SUBMISSION]: [ConferenceStatus.SUBMISSION_CLOSED],
-      [ConferenceStatus.SUBMISSION_CLOSED]: [ConferenceStatus.UNDER_REVIEW],
-      [ConferenceStatus.UNDER_REVIEW]: [ConferenceStatus.REVIEW_COMPLETED],
-      [ConferenceStatus.REVIEW_COMPLETED]: [ConferenceStatus.DECISION_MADE],
-      [ConferenceStatus.DECISION_MADE]: [ConferenceStatus.CAMERA_READY],
-      [ConferenceStatus.CAMERA_READY]: [ConferenceStatus.FINALIZED],
-      [ConferenceStatus.FINALIZED]: [ConferenceStatus.ARCHIVED],
+      [ConferenceStatus.DRAFT]: [ConferenceStatus.OPEN],
+      [ConferenceStatus.OPEN]: [ConferenceStatus.REVIEW],
+      [ConferenceStatus.REVIEW]: [ConferenceStatus.DECIDED],
+      [ConferenceStatus.DECIDED]: [ConferenceStatus.FINAL],
+      [ConferenceStatus.FINAL]: [ConferenceStatus.ARCHIVED],
       [ConferenceStatus.ARCHIVED]: [],
     };
 
@@ -129,6 +128,74 @@ export class ConferencesService {
     conference.status = newStatus;
     return this.conferenceRepository.save(conference);
   }
+
+  // TODO: Refactor to use SubmissionsClient HTTP API
+  // async exportProceedings(conferenceId: string) {
+  //   const accepted = await this.submissionRepository.find({
+  //     where: { conferenceId, status: SubmissionStatus.ACCEPTED },
+  //     select: ['title', 'authors', 'abstract', 'keywords'],
+  //   });
+
+  //   const csvLines = [
+  //     ['Title', 'Authors', 'Abstract', 'Keywords'],
+  //     ...accepted.map((s) => [
+  //       s.title,
+  //       Array.isArray(s.authors) ? s.authors.join('; ') : '',
+  //       `"${(s.abstract || '').replace(/"/g, '""')}"`,
+  //       s.keywords || '',
+  //     ]),
+  //   ];
+
+  //   const csv = csvLines.map((row) => row.join(',')).join('\n');
+
+  //   return {
+  //     data: csv,
+  //     filename: `proceedings_${conferenceId}.csv`,
+  //     contentType: 'text/csv',
+  //   };
+  // }
+
+  // TODO: Refactor to use SubmissionsClient HTTP API
+  // async exportProceedingsPdf(conferenceId: string): Promise<Buffer> {
+  //   const doc = new PDFDocument({ margin: 50 });
+  //   const buffers: Buffer[] = [];
+
+  //   doc.on('data', (chunk) => buffers.push(chunk));
+  //   doc.on('end', () => { }); // Đảm bảo event end được lắng nghe
+
+  //   const accepted = await this.submissionRepository.find({
+  //     where: { conferenceId, status: SubmissionStatus.ACCEPTED },
+  //     order: { title: 'ASC' },
+  //   });
+
+  //   doc.fontSize(24).text('Conference Proceedings', { align: 'center' });
+  //   doc.moveDown(2);
+
+  //   if (accepted.length === 0) {
+  //     doc.fontSize(16).text('No accepted submissions.', { align: 'center' });
+  //   } else {
+  //     accepted.forEach((s, i) => {
+  //       doc.fontSize(18).text(`${i + 1}. ${s.title || 'Untitled'}`);
+  //       doc.fontSize(12).text(`Authors: ${Array.isArray(s.authors) ? s.authors.join(', ') : 'Unknown'}`);
+  //       doc.fontSize(11).text('Abstract:', { continued: false });
+  //       doc.text(s.abstract || 'No abstract available.', { indent: 20 });
+  //       doc.moveDown(2);
+  //     });
+  //   }
+
+  //   doc.end();
+
+  //   return new Promise<Buffer>((resolve, reject) => {
+  //     doc.on('end', () => {
+  //       try {
+  //         resolve(Buffer.concat(buffers));
+  //       } catch (err) {
+  //         reject(err);
+  //       }
+  //     });
+  //     doc.on('error', reject);
+  //   });
+  // }
 
   async updateSchedule(id: string, schedule: any, userId: number) {
     const conf = await this.findOne(id);

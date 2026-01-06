@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Conference } from '../conferences/entities/conference.entity';
 import { ReviewsClient } from '../reviews/reviews.client';
+import { SubmissionsClient } from '../integrations/submissions.client';
 
 @Injectable()
 export class ReportsService {
@@ -11,6 +12,7 @@ export class ReportsService {
     @InjectRepository(Conference)
     private conferenceRepo: Repository<Conference>,
     private reviewsClient: ReviewsClient, // giữ để sau này dùng
+    private submissionsClient: SubmissionsClient,
   ) {}
 
   // ===== OVERVIEW =====
@@ -23,22 +25,34 @@ export class ReportsService {
       throw new BadRequestException('Conference not found');
     }
 
-    /**
-     * ⚠️ TẠM THỜI
-     * Vì reports-service KHÔNG được query submissions DB, sẽ gọi submissions-client sau
-     */
-    const submissions = 100;
-    const accepted = 30;
-    const rejected = 20;
-    const underReview = submissions - accepted - rejected;
-    const acceptanceRate = ((accepted / submissions) * 100).toFixed(1);
+    // Fetch real numbers from submission-service
+    const totalSubmissions = await this.submissionsClient.countByConference(conferenceId);
+    const accepted = await this.submissionsClient.countByConferenceAndStatus(conferenceId, 'accepted');
+    const rejected = await this.submissionsClient.countByConferenceAndStatus(conferenceId, 'rejected');
+    const underReview = await this.submissionsClient.countByConferenceAndStatus(conferenceId, 'under_review');
+    const acceptanceRate = totalSubmissions > 0 ? ((accepted / totalSubmissions) * 100).toFixed(1) : '0.0';
+
+    // Aggregate simple review metrics
+    let totalReviews = 0;
+    let reviewerCount = 0;
+    try {
+      const submissions = await this.submissionsClient.getSubmissionsByConference(conferenceId);
+      for (const s of submissions) {
+        const agg = await this.reviewsClient.getAggregatedScores(s.id);
+        totalReviews += agg.reviewerCount || 0;
+        reviewerCount += agg.reviewerCount || 0;
+      }
+    } catch (err) {
+      // If review-service not available, keep counts as zero
+    }
 
     return {
-      totalSubmissions: submissions,
+      totalSubmissions,
       accepted,
       rejected,
       underReview,
       acceptanceRate: `${acceptanceRate}%`,
+      totalReviews,
     };
   }
 

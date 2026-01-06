@@ -6,6 +6,7 @@ import { Conference } from '../conferences/entities/conference.entity';
 import { ReportsService } from './reports.service';
 import { ReportsController } from './reports.controller';
 import { ReviewsClient } from '../reviews/reviews.client';
+import { SubmissionsClient } from '../integrations/submissions.client';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { ReviewsClient } from '../reviews/reviews.client';
   providers: [
     ReportsService,
     ReviewsClient,
+    SubmissionsClient,
   ],
   controllers: [ReportsController],
   exports: [ReportsService],

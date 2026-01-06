@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import axios from 'axios';
 
 @Injectable()
@@ -10,17 +10,24 @@ export class ConferenceClient {
         return new Date(response.data.deadline);
     }
 
-    async checkDeadline(conferenceId: number): Promise<boolean> {
+    async checkDeadline(conferenceId: number | string): Promise<boolean> {
         try {
-            const response = await axios.get(`${this.baseUrl}/conferences/${conferenceId}`);
-            const conference = response.data;
+            // ✅ FIX: Convert to string to ensure correct type
+            const confIdStr = conferenceId.toString();
 
-            const now = new Date();
-            const deadline = new Date(conference.submission_deadline);
+            // Call internal endpoint - NO AUTH REQUIRED
+            console.log(`[ConferenceClient] Requesting: ${this.baseUrl}/internal/conferences/${confIdStr}/deadline-check`);
+            const response = await axios.get(
+                `${this.baseUrl}/internal/conferences/${confIdStr}/deadline-check`
+            );
 
-            if (now > deadline) {
-                throw new BadRequestException(`Đã quá hạn nộp bài cho hội nghị này (Deadline: ${deadline.toLocaleString()})`);
+            const { canSubmit, message } = response.data;
+
+            if (!canSubmit) {
+                throw new BadRequestException(message);
             }
+
+            console.log(`✅ Deadline check passed: ${message}`);
             return true;
         } catch (error) {
             if (axios.isAxiosError(error) && error.response?.status === 404) {
@@ -28,9 +35,17 @@ export class ConferenceClient {
             }
             if (error instanceof BadRequestException) throw error;
 
-            // If Conference Service is not available, allow submission (development mode)
-            console.warn('⚠️  Conference Service not available - skipping deadline check');
-            return true;
+            // ✅ FIX: Only fallback in development mode
+            if (process.env.NODE_ENV === 'development') {
+                console.warn('⚠️ [DEV MODE] Conference Service not available - allowing submission');
+                return true;
+            }
+
+            // Production: throw error instead of allowing
+            console.error('❌ Conference Service unavailable in production');
+            throw new InternalServerErrorException(
+                'Không thể kiểm tra deadline lúc này. Vui lòng thử lại sau.'
+            );
         }
     }
 }
