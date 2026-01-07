@@ -254,6 +254,40 @@ export class ReviewerService {
   }
 
   /**
+   * Create or update an assignment received from conference-service (internal)
+   */
+  async createAssignmentFromExternal(dto: any) {
+    if (!dto || !dto.submissionId || !dto.reviewerId) {
+      throw new BadRequestException('Missing submissionId or reviewerId');
+    }
+
+    let assignment = await this.assignmentRepo.findOne({
+      where: { submissionId: dto.submissionId, reviewerId: dto.reviewerId },
+    });
+
+    const payload: Partial<Assignment> = {
+      submissionId: dto.submissionId,
+      reviewerId: Number(dto.reviewerId),
+      conferenceId: dto.conferenceId,
+      assignedBy: dto.assignedBy,
+      status: 'pending',
+      assignedAt: new Date(),
+    };
+
+    if (dto.deadline) payload.deadline = new Date(dto.deadline);
+    if (dto.acceptDeadline) payload.acceptDeadline = new Date(dto.acceptDeadline);
+    if (dto.reviewDeadline) payload.reviewDeadline = new Date(dto.reviewDeadline);
+
+    if (!assignment) {
+      assignment = this.assignmentRepo.create(payload as Assignment);
+    } else {
+      Object.assign(assignment, payload);
+    }
+
+    return this.assignmentRepo.save(assignment);
+  }
+
+  /**
    * Lấy thông tin bài báo từ submission-service
    * Tạm thời trả về 404 nếu submission-service chưa có endpoint
    */

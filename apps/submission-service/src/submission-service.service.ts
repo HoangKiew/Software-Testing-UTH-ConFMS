@@ -644,4 +644,32 @@ export class SubmissionServiceService implements OnModuleInit {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   }
+
+  // --- API (Internal): LẤY URL file public mới nhất theo submission id ---
+  async getPublicFileInfoBySubmissionId(submissionId: number) {
+    try {
+      const file = await this.fileRepo.findOne({
+        where: { submission_id: submissionId },
+        order: { version: 'DESC' }
+      });
+
+      if (!file) {
+        throw new NotFoundException(`Không tìm thấy file cho submission id ${submissionId}`);
+      }
+
+      return {
+        status: 'success',
+        data: {
+          fileId: file.id,
+          url: file.file_path,
+          version: file.version
+        }
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Lỗi khi lấy thông tin file public');
+    }
+  }
 }

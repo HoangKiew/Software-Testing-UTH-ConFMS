@@ -8,6 +8,7 @@ import { ReviewEditHistory } from './entities/review-edit-history.entity';
 import { DiscussionMessage } from './entities/discussion.entity';
 import { ReviewerService } from './reviewer.service';
 import { ReviewerController } from './reviewer.controller';
+import { ReviewerInternalController } from './internal.controller';
 
 @Module({
   imports: [
@@ -16,6 +17,6 @@ import { ReviewerController } from './reviewer.controller';
     TypeOrmModule.forFeature([Assignment, Review, ReviewEditHistory, DiscussionMessage]),
   ],
   providers: [ReviewerService],
-  controllers: [ReviewerController],
+  controllers: [ReviewerController, ReviewerInternalController],
 })
 export class ReviewerModule {}
