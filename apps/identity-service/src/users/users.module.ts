@@ -1,4 +1,4 @@
-import { Module, OnModuleInit } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { UsersService } from './users.service';
@@ -16,10 +16,4 @@ import { SeedService } from './seed.service'; // Đường dẫn đúng
   providers: [UsersService, RolesGuard, SeedService, EmailService],
   exports: [UsersService],
 })
-export class UsersModule implements OnModuleInit {
-  constructor(private readonly seedService: SeedService) {}
-
-  async onModuleInit() {
-    await this.seedService.onModuleInit();
-  }
-}
+export class UsersModule { }

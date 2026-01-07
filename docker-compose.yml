@@ -16,7 +16,6 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - uth-net
-    restart: unless-stopped
 
   # =========================
   # Identity Service
@@ -24,8 +23,7 @@ services:
   identity-service:
     build:
       context: .
-      dockerfile: apps/identity-service/Dockerfile
-    container_name: uth-identity-service
+      dockerfile: ./apps/identity-service/Dockerfile
     ports:
       - '3001:3001'
     environment:
