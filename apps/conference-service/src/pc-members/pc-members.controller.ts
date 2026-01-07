@@ -13,7 +13,7 @@ import {
 import { PcMembersService } from './pc-members.service';
 import { InvitePcMemberDto } from './dto/invite-pc-member.dto';
 import { DeclareCoiDto } from './dto/declare-coi.dto';
-import { UpdateTopicsDto } from './dto/update-topics.dto';
+import { UpdatePcMemberTopicsDto } from './dto/update-pc-member-topics.dto';  // ✅ ĐÃ SỬA
 import { SubmissionsClient } from '../integrations/submissions.client';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -39,7 +39,7 @@ export class PcMembersController {
   constructor(
     private readonly pcMembersService: PcMembersService,
     private readonly submissionsClient: SubmissionsClient,
-  ) {}
+  ) { }
 
   @Post('invite')
   @Roles(RoleName.CHAIR, RoleName.ADMIN)
@@ -168,14 +168,14 @@ export class PcMembersController {
   @Patch(':id/topics')
   @ApiOperation({ summary: 'Cập nhật danh sách chuyên môn (topics) của PC Member' })
   @ApiParam({ name: 'id', description: 'ID PC Member', type: String })
-  @ApiBody({ type: UpdateTopicsDto })
+  @ApiBody({ type: UpdatePcMemberTopicsDto })  // ✅ ĐÃ SỬA
   @ApiResponse({ status: 200, description: 'Topics đã được cập nhật' })
   @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
   @ApiResponse({ status: 403, description: 'Chỉ bản thân PC Member mới được cập nhật' })
   @ApiResponse({ status: 404, description: 'Không tìm thấy PC Member' })
   async updateTopics(
     @Param('id') id: string,
-    @Body() dto: UpdateTopicsDto,
+    @Body() dto: UpdatePcMemberTopicsDto,  // ✅ ĐÃ SỬA
     @CurrentUser('userId') userId: number,
   ) {
     return this.pcMembersService.updateTopics(id, dto.topics, userId);
