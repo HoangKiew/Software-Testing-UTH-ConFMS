@@ -1,23 +1,30 @@
 // apps/conference-service/src/assignments/dto/assign-reviewers.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsArray, IsNotEmpty } from 'class-validator';
+import { IsString, IsNotEmpty, IsArray, IsInt } from 'class-validator';
 
 export class AssignReviewersDto {
   @ApiProperty({
-    description: 'ID của bài nộp (submission)',
-    example: 'sub-123456',
+    description: 'ID của hội nghị',
+    example: 'conf-123',
   })
   @IsString()
   @IsNotEmpty()
-  submissionId: string;
+  conferenceId: string;
 
   @ApiProperty({
-    description: 'Danh sách ID của PC Member được phân công review',
-    type: [String],
-    example: ['pcm-001', 'pcm-002', 'pcm-003'],
+    description: 'Topic cần phân công reviewer',
+    example: 'Machine Learning',
+  })
+  @IsString()
+  @IsNotEmpty()
+  topic: string;
+
+  @ApiProperty({
+    description: 'Danh sách user ID của REVIEWER được phân công',
+    type: [Number],
+    example: [101, 102, 103],
   })
   @IsArray()
-  @IsString({ each: true })
-  @IsNotEmpty({ each: true })
-  reviewerIds: string[];
+  @IsInt({ each: true })
+  reviewerIds: number[];
 }
