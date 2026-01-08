@@ -48,4 +48,19 @@ export class ConferenceClient {
             );
         }
     }
+
+    async getConference(conferenceId: string) {
+        try {
+            // Call internal endpoint - NO AUTH REQUIRED
+            const response = await axios.get(
+                `${this.baseUrl}/internal/conferences/${conferenceId}/topics`
+            );
+            return response.data;
+        } catch (error) {
+            if (axios.isAxiosError(error) && error.response?.status === 404) {
+                throw new BadRequestException('Không tìm thấy hội nghị');
+            }
+            throw new InternalServerErrorException('Không thể lấy thông tin hội nghị');
+        }
+    }
 }

@@ -18,6 +18,15 @@ export class CreateSubmissionDto {
   title: string;
 
   @ApiProperty({
+    description: 'Chủ đề của bài báo (bắt buộc nếu conference có danh sách topics)',
+    example: 'Machine Learning',
+    required: false
+  })
+  @IsOptional()
+  @IsString()
+  topic?: string;
+
+  @ApiProperty({
     description: 'Tóm tắt bài báo',
     example: 'Bài báo này trình bày phương pháp mới...',
     required: false
