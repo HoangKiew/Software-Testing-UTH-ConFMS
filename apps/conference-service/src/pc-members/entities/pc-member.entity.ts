@@ -11,7 +11,7 @@ export enum PcMemberStatus {
 // ✅ CHỈ GIỮ LẠI PC_MEMBER THÔI
 // Nếu sau này cần Track Chair hay Senior PC thì thêm lại sau, lúc đó sẽ nâng cấp hệ thống
 export enum PcMemberRole {
-  PC_MEMBER = 'PC_MEMBER',
+  REVIEWER = 'REVIEWER',
 }
 
 @Entity({ name: 'pc_members' })
@@ -26,7 +26,7 @@ export class PcMember {
   @Column({
     type: 'enum',
     enum: PcMemberRole,
-    default: PcMemberRole.PC_MEMBER,
+    default: PcMemberRole.REVIEWER,
   })
   role: PcMemberRole;
 

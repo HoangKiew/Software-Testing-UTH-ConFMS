@@ -31,9 +31,9 @@ import {
   ApiResponse,
 } from '@nestjs/swagger';
 
-@ApiTags('PC Members')
+@ApiTags('Chairs')
 @ApiBearerAuth('JWT-auth')
-@Controller('pc-members')
+@Controller('reviewers')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class PcMembersController {
   constructor(
@@ -77,52 +77,8 @@ export class PcMembersController {
     return this.pcMembersService.findAllByConference(conferenceId, chairId);
   }
 
-  @Patch(':id/accept')
-  @ApiOperation({ summary: 'Chấp nhận lời mời tham gia PC' })
-  @ApiParam({ name: 'id', description: 'ID lời mời (conference member ID)', type: String })
-  @ApiResponse({ status: 200, description: 'Đã chấp nhận lời mời' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy lời mời' })
-  @ApiResponse({ status: 403, description: 'Không phải người nhận lời mời' })
-  async acceptInvite(
-    @Param('id') id: string,
-    @CurrentUser('userId') userId: number,
-  ) {
-    return this.pcMembersService.acceptInvite(id, userId);
-  }
-
-  @Patch(':id/decline')
-  @ApiOperation({ summary: 'Từ chối lời mời tham gia PC' })
-  @ApiParam({ name: 'id', description: 'ID lời mời (conference member ID)', type: String })
-  @ApiResponse({ status: 200, description: 'Đã từ chối lời mời' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy lời mời' })
-  @ApiResponse({ status: 403, description: 'Không phải người nhận lời mời' })
-  async declineInvite(
-    @Param('id') id: string,
-    @CurrentUser('userId') userId: number,
-  ) {
-    return this.pcMembersService.declineInvite(id, userId);
-  }
-
-  @Patch(':id/coi')
-  @ApiOperation({ summary: 'Khai báo xung đột lợi ích (COI) cho PC Member' })
-  @ApiParam({ name: 'id', description: 'ID PC Member', type: String })
-  @ApiBody({ type: DeclareCoiDto })
-  @ApiResponse({ status: 200, description: 'COI đã được cập nhật' })
-  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
-  @ApiResponse({ status: 403, description: 'Chỉ bản thân PC Member mới được khai báo' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy PC Member' })
-  async declareCoi(
-    @Param('id') id: string,
-    @Body() dto: DeclareCoiDto,
-    @CurrentUser('userId') userId: number,
-  ) {
-    return this.pcMembersService.declareCoi(
-      id,
-      dto.coiUserIds,
-      dto.coiInstitutions,
-      userId,
-    );
-  }
+  // NOTE: invite/findAll/remove/similarity/topics remain in conference-service
+  // accept/decline/coi endpoints have been moved to review-service.
 
   @Delete(':id')
   @Roles(RoleName.CHAIR, RoleName.ADMIN)

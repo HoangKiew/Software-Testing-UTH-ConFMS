@@ -5,6 +5,7 @@ import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm'; // Thêm dòng này
 import { HttpModule } from '@nestjs/axios'; // Thêm dòng này (để gọi submission-service)
 import { ReviewServiceController } from './review-service.controller';
+import { PcMembersProxyController } from './pc-members/pc-members.proxy.controller';
 // AuthController (login proxy) is intentionally not imported; review-service
 // should accept access tokens issued by identity-service and not provide login.
 import { ReviewServiceService } from './review-service.service';
@@ -59,7 +60,7 @@ import { ChairModule } from './chair/chair.module';
     // ChairModule provides chair-specific endpoints and entities
     ChairModule,
   ],
-  controllers: [ReviewServiceController],
+  controllers: [ReviewServiceController, PcMembersProxyController],
   providers: [
     ReviewServiceService,
     // JwtStrategy, JwtAuthGuard and RolesGuard are provided by AuthModule

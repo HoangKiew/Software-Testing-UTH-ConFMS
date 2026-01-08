@@ -20,8 +20,8 @@ export class InvitePcMemberDto {
 
   @ApiPropertyOptional({
     enum: PcMemberRole,
-    description: 'Role của thành viên (mặc định: PC_MEMBER)',
-    example: PcMemberRole.PC_MEMBER,
+    description: 'Role của thành viên (mặc định: REVIEWER)',
+    example: PcMemberRole.REVIEWER,
   })
   @IsOptional()
   @IsEnum(PcMemberRole)

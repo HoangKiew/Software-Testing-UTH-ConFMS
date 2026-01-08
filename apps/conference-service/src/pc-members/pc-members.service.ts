@@ -100,13 +100,13 @@ export class PcMembersService {
 
       if (existing) {
         existing.invitedAt = new Date();
-        existing.role = role || PcMemberRole.PC_MEMBER;
+        existing.role = role || PcMemberRole.REVIEWER;
         member = await this.pcRepo.save(existing);
       } else {
         member = this.pcRepo.create({
           userId,
           conference,
-          role: role || PcMemberRole.PC_MEMBER,
+          role: role || PcMemberRole.REVIEWER,
           status: PcMemberStatus.PENDING,
           invitedAt: new Date(),
         });
