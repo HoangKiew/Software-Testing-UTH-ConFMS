@@ -24,7 +24,6 @@ export class AiService {
     const apiKey = this.configService.get<string>('OPENAI_API_KEY');
     if (!apiKey) {
       console.warn('⚠️  OPENAI_API_KEY is not defined - AI features will be disabled');
-      // Don't throw error, just log warning
     } else {
       this.openai = new OpenAI({ apiKey });
     }
@@ -45,7 +44,6 @@ export class AiService {
       const entityData: Partial<AiAuditLog> = {
         model: 'gpt-4o-mini',
         feature,
-        // Chuyển null → undefined để khớp với kiểu ? trong entity
         conferenceId: conferenceId ?? undefined,
         submissionId: submissionId ?? undefined,
         userId: userId ?? undefined,
@@ -224,5 +222,51 @@ export class AiService {
 
       return { score: 0, reason: 'AI service temporarily unavailable' };
     }
+  }
+
+  // THÊM METHOD MỚI ĐỂ ASSIGNMENTS SERVICE GỌI
+  async suggestReviewers(
+    submissionTopics: string,
+    reviewers: { id: number; topics: string[] }[],
+    top: number = 5,
+    conferenceId: string | null = null,
+    userId: number | null = null,
+  ): Promise<{ reviewerId: number; similarityScore: number; reason: string }[]> {
+    if (!this.openai) {
+      // Fallback khi AI disabled: trả top reviewer ngẫu nhiên với score 0
+      return reviewers.slice(0, top).map(r => ({
+        reviewerId: r.id,
+        similarityScore: 0,
+        reason: 'AI features disabled - random suggestion',
+      }));
+    }
+
+    const results: { reviewerId: number; similarityScore: number; reason: string }[] = [];
+
+    for (const reviewer of reviewers) {
+      const reviewerTopicsStr = reviewer.topics.join(', ');
+      const prompt = `
+        Đánh giá độ phù hợp giữa các topic của bài nộp: "${submissionTopics}"
+        và chuyên môn của reviewer: "${reviewerTopicsStr}"
+        
+        Trả về JSON chính xác:
+        {
+          "score": <số từ 0 đến 10, 10 là match hoàn hảo>,
+          "reason": "<giải thích ngắn gọn bằng tiếng Việt>"
+        }
+      `;
+
+      const suggestion = await this.generateKeywordSuggestion(prompt, conferenceId, userId);
+      results.push({
+        reviewerId: reviewer.id,
+        similarityScore: suggestion.score / 10, // normalize về 0-1
+        reason: suggestion.reason,
+      });
+    }
+
+    // Sort giảm dần và lấy top
+    return results
+      .sort((a, b) => b.similarityScore - a.similarityScore)
+      .slice(0, top);
   }
 }
