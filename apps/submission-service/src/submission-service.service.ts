@@ -151,6 +151,9 @@ export class SubmissionServiceService implements OnModuleInit {
       // 0. Check Deadline
       await this.conferenceClient.checkDeadline(dto.conferenceId);
 
+      // 0.5. Validate Topic
+      await this.validateTopic(dto.conferenceId, dto.topic);
+
       // 1. Kiểm tra/Tạo Submission
       // Logic: Nếu cùng user, cùng title -> tính là version mới của submission cũ?
       // Hay luôn tạo mới? Theo user request: "Check Deadline trước khi cho phép lưu DB".
@@ -162,6 +165,7 @@ export class SubmissionServiceService implements OnModuleInit {
         conference_id: dto.conferenceId,
         created_by: userId,
         abstract: dto.abstract || '',
+        topic: dto.topic,
         status: SubmissionStatus.SUBMITTED
       });
       await this.subRepo.save(sub);
@@ -637,6 +641,31 @@ export class SubmissionServiceService implements OnModuleInit {
         throw error;
       }
       throw new InternalServerErrorException('Lỗi khi lấy reviews');
+    }
+  }
+
+  // Helper method: Validate topic
+  private async validateTopic(conferenceId: string, topic: string) {
+    // Get conference topics
+    const conference = await this.conferenceClient.getConference(conferenceId);
+
+    // If conference has NO topics → Topic is optional, skip validation
+    if (!conference.topics || conference.topics.length === 0) {
+      console.log('⚠️ Conference has no topics defined - skipping topic validation');
+      return;
+    }
+
+    // If conference HAS topics → Topic is REQUIRED and must be valid
+    if (!topic) {
+      throw new BadRequestException(
+        `Chủ đề bài báo là bắt buộc. Chọn một trong: ${conference.topics.join(', ')}`
+      );
+    }
+
+    if (!conference.topics.includes(topic)) {
+      throw new BadRequestException(
+        `Chủ đề không hợp lệ. Chọn một trong: ${conference.topics.join(', ')}`
+      );
     }
   }
 

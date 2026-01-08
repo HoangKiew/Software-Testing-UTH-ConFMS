@@ -20,6 +20,9 @@ export class Submission {
   @Column({ type: 'text', nullable: true })
   abstract: string;
 
+  @Column({ type: 'varchar', nullable: true })
+  topic: string;
+
   @Column({ type: 'varchar', default: SubmissionStatus.SUBMITTED })
   status: SubmissionStatus;
 

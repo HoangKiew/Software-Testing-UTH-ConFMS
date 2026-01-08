@@ -69,6 +69,11 @@ export class SubmissionServiceController {
           description: 'UUID của hội nghị'
         },
         title: { type: 'string', example: 'Deep Learning for Face Recognition' },
+        topic: {
+          type: 'string',
+          example: 'Machine Learning',
+          description: 'Chủ đề của bài báo (bắt buộc nếu conference có danh sách topics)'
+        },
         abstract: { type: 'string', example: 'This paper presents...' },
         coAuthors: {
           type: 'string',
