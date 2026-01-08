@@ -1,8 +1,8 @@
-// apps/conference-service/src/pc-members/dto/update-topics.dto.ts
+// apps/conference-service/src/pc-members/dto/update-pc-member-topics.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
 import { IsArray, IsString, ArrayMinSize, ArrayMaxSize } from 'class-validator';
 
-export class UpdateTopicsDto {
+export class UpdatePcMemberTopicsDto {  // ← ĐỔI TÊN CLASS TẠI ĐÂY
   @ApiProperty({
     type: [String],
     description: 'Danh sách chuyên môn mới (tối thiểu 1, tối đa 20)',
