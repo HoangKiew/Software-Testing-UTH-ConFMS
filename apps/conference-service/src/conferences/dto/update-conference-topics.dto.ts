@@ -1,11 +1,11 @@
-// apps/conference-service/src/conferences/dto/update-topics.dto.ts
+// apps/conference-service/src/conferences/dto/update-conference-topics.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
 import { IsArray, IsString } from 'class-validator';
 
-export class UpdateTopicsDto {
+export class UpdateConferenceTopicsDto {  // ← ĐỔI TÊN CLASS TẠI ĐÂY
   @ApiProperty({
     type: [String],
-    description: 'Danh sách chủ đề mới',
+    description: 'Danh sách chủ đề mới của hội nghị',
     example: ['AI', 'Machine Learning', 'NLP']
   })
   @IsArray()

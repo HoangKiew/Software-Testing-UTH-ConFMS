@@ -14,7 +14,7 @@ import { ConferencesService } from './conferences.service';
 import { CreateConferenceDto } from './dto/create-conference.dto';
 import { UpdateConferenceDto } from './dto/update-conference.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
-import { UpdateTopicsDto } from './dto/update-topics.dto';
+import { UpdateConferenceTopicsDto } from './dto/update-conference-topics.dto';  // ✅ ĐÃ SỬA
 import { UpdateDeadlinesDto } from './dto/update-deadlines.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import { CreateTrackDto } from './dto/create-track.dto';
@@ -23,7 +23,6 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RoleName } from '../common/enums/role-name.enum';
 import { RolesGuard } from '../common/guards/roles.guard';
-//import type { JwtPayload } from '../common/guards/roles.guard';  //của bảo
 
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { Public } from '../common/decorators/public.decorator';
@@ -134,11 +133,11 @@ export class ConferencesController {
   @Roles(RoleName.CHAIR, RoleName.ADMIN)
   @ApiOperation({ summary: 'Cập nhật danh sách chủ đề' })
   @ApiParam({ name: 'id', description: 'ID hội nghị' })
-  @ApiBody({ type: UpdateTopicsDto })
+  @ApiBody({ type: UpdateConferenceTopicsDto })  // ✅ ĐÃ SỬA
   @ApiResponse({ status: 200, description: 'Cập nhật thành công' })
   updateTopics(
     @Param('id') id: string,
-    @Body() dto: UpdateTopicsDto,
+    @Body() dto: UpdateConferenceTopicsDto,       // ✅ ĐÃ SỬA
     @CurrentUser('userId') userId: number,
   ) {
     return this.conferencesService.updateTopics(id, dto.topics, userId);

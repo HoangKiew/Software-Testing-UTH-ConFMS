@@ -73,18 +73,8 @@ services:
     container_name: uth-submission-service
     ports:
       - '3003:3003'
-    environment:
-      - SUPABASE_URL=https://your-project.supabase.co
-      - SUPABASE_ANON_KEY=your_anon_key_here
-      - SUPABASE_BUCKET_NAME=submission
-      - SUPABASE_SERVICE_ROLE_KEY=sb_secret_puxOWB6zIThovK-fxUtT9A_WivGpXfK
-      - JWT_ACCESS_SECRET=jZE6YIUoP_j7SOTLPWgS8kSfX5g4dlOmPMWJVNLMOyg-SMoqXiMRkR0ocJQEGr9HVUjonNIlZNwHzduFfOCJOQ
-      - CONFERENCE_SERVICE_URL=http://host.docker.internal:3002/api
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USERNAME=admin
-      - DB_PASSWORD=admin123
-      - DB_DATABASE=db_submission
+    env_file:
+      - ./apps/submission-service/.env
     depends_on:
       - postgres
     networks:

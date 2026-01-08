@@ -38,7 +38,7 @@ export class SubmissionsClient {
       console.warn('Submissions service not available, returning stub for getSubmission');
       return {
         id: submissionId,
-        conferenceId: 'mock-conference-id',
+        conferenceId: undefined,
         title: 'Mock Submission',
         keywords: 'AI,ML',
         authors: [],

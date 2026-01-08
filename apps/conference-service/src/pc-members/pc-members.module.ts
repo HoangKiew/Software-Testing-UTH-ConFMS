@@ -29,7 +29,7 @@ import { HttpModule } from '@nestjs/axios';
   providers: [
     PcMembersService,
     SubmissionsClient,
-    UsersClient,           // Đã có
+    UsersClient,
   ],
   controllers: [PcMembersController],
   exports: [PcMembersService],
