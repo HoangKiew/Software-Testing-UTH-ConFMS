@@ -12,7 +12,8 @@ import { EmailsService } from '../emails/emails.service';
 import { ConferencesService } from '../conferences/conferences.service';
 import { AiService } from '../ai/ai.service';
 import { AuditService } from '../audit/audit.service';
-import { UsersClient } from '../users/users.client'; // ✅ THÊM IMPORT MỚI
+import { UsersClient } from '../users/users.client';
+import { SubmissionsClient } from '../integrations/submissions.client';
 import * as crypto from 'crypto';
 
 export interface SimilaritySuggestion {
@@ -29,10 +30,10 @@ export class PcMembersService {
     private conferencesService: ConferencesService,
     private aiService: AiService,
     private auditService: AuditService,
-    private usersClient: UsersClient, // ✅ THÊM UsersClient VÀO CONSTRUCTOR
-  ) {}
+    private usersClient: UsersClient,
+    private submissionsClient: SubmissionsClient,
+  ) { }
 
-  // === Các hàm khác giữ nguyên ===
   async findOne(id: string): Promise<PcMember> {
     const member = await this.pcRepo.findOne({
       where: { id },
@@ -63,11 +64,14 @@ export class PcMembersService {
     });
   }
 
-  async invite(dto: {
-    conferenceId: string;
-    userId: number;
-    role?: PcMemberRole;
-  }, chairId: number) {
+  async invite(
+    dto: {
+      conferenceId: string;
+      userId: number;
+      role?: PcMemberRole;
+    },
+    chairId: number,
+  ) {
     try {
       const { conferenceId, userId, role } = dto;
 
@@ -76,7 +80,6 @@ export class PcMembersService {
         throw new ForbiddenException('Only chair can invite PC members');
       }
 
-      // Kiểm tra đã mời chưa
       const existing = await this.pcRepo.findOne({
         where: { userId, conference: { id: conferenceId } },
       });
@@ -85,7 +88,6 @@ export class PcMembersService {
         throw new BadRequestException('User has already processed this invitation');
       }
 
-      // LẤY EMAIL – DÙNG FALLBACK, KHÔNG THROW LỖI
       let email = `user-${userId}@uth.vn`;
       try {
         const fetchedEmail = await this.usersClient.getUserEmail(userId);
@@ -93,7 +95,7 @@ export class PcMembersService {
           email = fetchedEmail;
         }
       } catch (err) {
-        // Im lặng, không log gì cả nếu bạn muốn sạch console
+        // Silent fallback
       }
 
       let member: PcMember;
@@ -113,30 +115,32 @@ export class PcMembersService {
         member = await this.pcRepo.save(member);
       }
 
-      // BỎ HOÀN TOÀN PHẦN GỬI EMAIL
-      // Không gọi emailsService.send nữa → không gửi mail, không log dev mode
+      console.log(
+        `[INVITE SUCCESS] User ID ${userId} đã được mời làm PC Member cho hội nghị ${conference.name} (memberId: ${member.id})`,
+      );
 
-      console.log(`[INVITE SUCCESS] User ID ${userId} đã được mời làm PC Member cho hội nghị ${conference.name} (memberId: ${member.id})`);
-
-      // Audit log vẫn giữ để trace
       await this.auditService.log('INVITE_PC_MEMBER', chairId, 'PcMember', member.id, {
         userId,
         role: member.role,
       });
 
-      return { 
-        message: 'Invitation created successfully (email disabled)', 
-        memberId: member.id 
+      return {
+        message: 'Invitation created successfully (email disabled)',
+        memberId: member.id,
       };
     } catch (error) {
       console.error('Error in invite PC Member:', error);
-      if (error instanceof ForbiddenException || error instanceof BadRequestException || error instanceof NotFoundException) {
+      if (
+        error instanceof ForbiddenException ||
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
         throw error;
       }
       throw new BadRequestException('Failed to invite PC member');
     }
   }
-  // === Các hàm còn lại giữ nguyên ===
+
   async acceptInvite(id: string, userId: number) {
     const member = await this.findOne(id);
     if (member.userId !== userId) throw new ForbiddenException('Unauthorized action');
@@ -235,10 +239,12 @@ export class PcMembersService {
 
       const member = await this.findOne(memberId);
       if (!member.topics || member.topics.length === 0) {
-        return { score: 0, reason: 'PC member has no declared topics' };
+        return { score: 0, reason: 'Reviewer chưa khai báo chuyên môn (topics)' };
       }
 
-      const prompt = `Đánh giá độ tương đồng (thang 0-10) giữa keywords bài báo: "${submissionKeywords.join(', ')}" và chuyên môn reviewer: "${member.topics.join(', ')}". Trả về đúng định dạng JSON: {"score": number, "reason": "string mô tả lý do"}`;
+      const prompt = `Đánh giá độ tương đồng (thang 0-10) giữa keywords bài báo: "${submissionKeywords.join(
+        ', ',
+      )}" và chuyên môn reviewer: "${member.topics.join(', ')}". Trả về đúng định dạng JSON: {"score": number, "reason": "string mô tả lý do"}`;
 
       const rawResponse = await this.aiService.generateKeywordSuggestion(prompt);
 
@@ -271,11 +277,7 @@ export class PcMembersService {
     }
   }
 
-  async updateTopics(
-    memberId: string,
-    topics: string[],
-    userId: number,
-  ) {
+  async updateTopics(memberId: string, topics: string[], userId: number) {
     const member = await this.findOne(memberId);
 
     if (member.userId !== userId) {
@@ -292,5 +294,119 @@ export class PcMembersService {
     await this.auditService.log('UPDATE_PC_TOPICS', userId, 'PcMember', memberId, { topics });
 
     return { message: 'Topics updated successfully', topics: member.topics };
+  }
+
+  async removeMemberByUserIdAndConference(
+    userId: number,
+    conferenceId: string,
+    chairId: number,
+  ) {
+    const member = await this.pcRepo.findOne({
+      where: {
+        userId: userId,
+        conference: { id: conferenceId },
+      },
+      relations: ['conference'],
+    });
+
+    if (!member) {
+      throw new NotFoundException(`Reviewer với userId ${userId} không tồn tại trong hội nghị này`);
+    }
+
+    if (member.conference.chairId !== chairId) {
+      throw new ForbiddenException('Chỉ Chair của hội nghị mới được xóa reviewer');
+    }
+
+    await this.pcRepo.remove(member);
+
+    try {
+      await this.auditService.log('REMOVE_REVIEWER', chairId, 'PcMember', member.id, {
+        userId,
+        conferenceId,
+      });
+    } catch (error) {
+      console.error('Failed to log remove reviewer:', error);
+    }
+
+    return {
+      message: 'Reviewer đã được xóa khỏi hội nghị thành công',
+      userId,
+      conferenceId,
+    };
+  }
+
+  // Tính similarity bằng userId – dùng bởi Chair
+  async getSimilarityByUserId(
+    userId: number,
+    submissionId: string,
+    chairId: number,
+  ): Promise<SimilaritySuggestion> {
+    const submission = await this.submissionsClient.getSubmission(submissionId);
+    const conferenceId = submission.conferenceId || submission.conference_id;
+
+    if (!conferenceId) {
+      throw new BadRequestException('Không thể xác định hội nghị từ bài nộp');
+    }
+
+    const member = await this.pcRepo.findOne({
+      where: {
+        userId,
+        conference: { id: conferenceId },
+        status: PcMemberStatus.ACCEPTED,
+      },
+      relations: ['conference'],
+    });
+
+    if (!member) {
+      throw new NotFoundException(
+        `Reviewer userId ${userId} chưa accepted hoặc không tồn tại trong hội nghị này`,
+      );
+    }
+
+    if (member.conference.chairId !== chairId) {
+      throw new ForbiddenException('Bạn không có quyền xem similarity trong hội nghị này');
+    }
+
+    const keywords = (submission.keywords || '')
+      .split(',')
+      .map((k: string) => k.trim())
+      .filter(Boolean);
+
+    if (keywords.length === 0) {
+      return { score: 0, reason: 'Bài nộp không có keywords' };
+    }
+
+    return this.getSimilaritySuggestion(conferenceId, keywords, member.id);
+  }
+
+  // ✅ MỚI: Cập nhật topics bằng userId (dùng cho endpoint reviewer tự cập nhật)
+  async updateTopicsByUserId(userId: number, topics: string[], currentUserId: number) {
+    // Một user có thể là PC member ở nhiều hội nghị → cập nhật tất cả các record ACCEPTED của user đó
+    // (hoặc nếu muốn giới hạn theo hội nghị thì thêm conferenceId vào API)
+    const members = await this.pcRepo.find({
+      where: {
+        userId,
+        status: PcMemberStatus.ACCEPTED,
+      },
+    });
+
+    if (members.length === 0) {
+      throw new NotFoundException('Không tìm thấy PC member nào đã accepted với userId này');
+    }
+
+    if (userId !== currentUserId) {
+      throw new ForbiddenException('Bạn chỉ có thể cập nhật topics của chính mình');
+    }
+
+    for (const member of members) {
+      member.topics = topics;
+      await this.pcRepo.save(member);
+
+      await this.auditService.log('UPDATE_PC_TOPICS', currentUserId, 'PcMember', member.id, {
+        topics,
+      });
+    }
+
+    return { message: 'Topics updated successfully across all your accepted conferences', topics };
   }
 }
