@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PcMember } from './entities/pc-member.entity';
 import { PcMembersService } from './pc-members.service';
 import { PcMembersController } from './pc-members.controller';
+import { PcMembersInternalController } from './pc-members.internal.controller';
 import { EmailsModule } from '../emails/emails.module';
 import { ConferencesModule } from '../conferences/conferences.module';
 import { AiModule } from '../ai/ai.module';
@@ -31,7 +32,7 @@ import { HttpModule } from '@nestjs/axios';
     SubmissionsClient,
     UsersClient,
   ],
-  controllers: [PcMembersController],
+  controllers: [PcMembersController, PcMembersInternalController],
   exports: [PcMembersService],
 })
 export class PcMembersModule {}
