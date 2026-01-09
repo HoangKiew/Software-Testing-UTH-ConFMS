@@ -77,8 +77,7 @@ export class PcMembersController {
     return this.pcMembersService.findAllByConference(conferenceId, chairId);
   }
 
-  // NOTE: invite/findAll/remove/similarity/topics remain in conference-service
-  // accept/decline/coi endpoints have been moved to review-service.
+  // accept/decline/coi moved to internal controller `internal/reviewers`.
 
   @Delete(':id')
   @Roles(RoleName.CHAIR, RoleName.ADMIN)
