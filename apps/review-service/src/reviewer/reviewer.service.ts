@@ -124,12 +124,21 @@ export class ReviewerService {
     
     const review = await this.reviewRepo.findOne({ where: { assignmentId, reviewerId } });
     if (!review) throw new NotFoundException('Review not found');
+
+    // If review was already submitted as final, disallow direct edits. Reviewer must withdraw final first.
+    if (review.isFinal) {
+      throw new BadRequestException('Cannot edit final review; withdraw final-review first');
+    }
     
-    // Lưu lịch sử chỉnh sửa
-    await this.historyRepo.save({ 
-      reviewId: review.id, 
-      reviewerId, 
-      oldData: { ...review } 
+    // Lưu lịch sử chỉnh sửa (lưu các cột cũ riêng biệt để dễ hiển thị)
+    await this.historyRepo.save({
+      reviewId: review.id,
+      reviewerId,
+      oldScore: review.score ?? null,
+      oldPublicComment: review.publicComment ?? null,
+      oldPrivateComment: review.privateComment ?? null,
+      oldIsFinal: review.isFinal ?? null,
+      oldAssignmentId: review.assignmentId ?? null,
     });
     
     Object.assign(review, payload);
@@ -179,6 +188,33 @@ export class ReviewerService {
     return { success: true, review, assignment };
   }
 
+  /**
+   * Withdraw a previously submitted final review so reviewer can edit again.
+   * Sets review.isFinal = false and resets assignment.status back to 'accepted' if it was 'completed'.
+   */
+  async withdrawFinal(assignmentId: number, reviewerId: number) {
+    const assignment = await this.assignmentRepo.findOne({ where: { id: assignmentId } });
+    if (!assignment) throw new NotFoundException('Assignment not found');
+    if (assignment.reviewerId !== reviewerId) throw new ForbiddenException();
+
+    const review = await this.reviewRepo.findOne({ where: { assignmentId, reviewerId } });
+    if (!review) throw new NotFoundException('Review not found');
+    if (!review.isFinal) {
+      throw new BadRequestException('Review is not final');
+    }
+
+    // Allow withdrawal (no deadline check here). Set isFinal false and reset assignment status.
+    review.isFinal = false;
+    await this.reviewRepo.save(review);
+
+    if (assignment.status === 'completed') {
+      assignment.status = 'accepted';
+      await this.assignmentRepo.save(assignment);
+    }
+
+    return { success: true, review, assignment };
+  }
+
   async getReviewHistory(reviewId: string, reviewerId: number) {
     const review = await this.reviewRepo.findOne({ where: { id: reviewId } });
     if (!review) throw new NotFoundException('Review not found');
@@ -218,6 +254,40 @@ export class ReviewerService {
   }
 
   /**
+   * Create or update an assignment received from conference-service (internal)
+   */
+  async createAssignmentFromExternal(dto: any) {
+    if (!dto || !dto.submissionId || !dto.reviewerId) {
+      throw new BadRequestException('Missing submissionId or reviewerId');
+    }
+
+    let assignment = await this.assignmentRepo.findOne({
+      where: { submissionId: dto.submissionId, reviewerId: dto.reviewerId },
+    });
+
+    const payload: Partial<Assignment> = {
+      submissionId: dto.submissionId,
+      reviewerId: Number(dto.reviewerId),
+      conferenceId: dto.conferenceId,
+      assignedBy: dto.assignedBy,
+      status: 'pending',
+      assignedAt: new Date(),
+    };
+
+    if (dto.deadline) payload.deadline = new Date(dto.deadline);
+    if (dto.acceptDeadline) payload.acceptDeadline = new Date(dto.acceptDeadline);
+    if (dto.reviewDeadline) payload.reviewDeadline = new Date(dto.reviewDeadline);
+
+    if (!assignment) {
+      assignment = this.assignmentRepo.create(payload as Assignment);
+    } else {
+      Object.assign(assignment, payload);
+    }
+
+    return this.assignmentRepo.save(assignment);
+  }
+
+  /**
    * Lấy thông tin bài báo từ submission-service
    * Tạm thời trả về 404 nếu submission-service chưa có endpoint
    */
@@ -231,15 +301,29 @@ export class ReviewerService {
       throw new ForbiddenException('Chỉ có thể xem bài báo sau khi đã chấp nhận đánh giá');
     }
     
-    // Gọi submission-service để lấy file (proxy). Nếu submission-service không có endpoint,
-    // trả về NotFound.
-    const submissionBase = this.config.get<string>('SUBMISSION_SERVICE_URL') || this.config.get<string>('SUBMISSION_SERVICE') || 'http://submission-service:3003';
-    const url = `${submissionBase}/api/submissions/${assignment.submissionId}/file`;
+    // Call submission-service internal endpoint to get the public file URL, then proxy
+    const submissionBase =
+      this.config.get<string>('SUBMISSION_SERVICE_URL') ||
+      this.config.get<string>('SUBMISSION_SERVICE') ||
+      'http://submission-service:3003';
+
+    // assignment.submissionId may be like 'sub-02' -> extract numeric id
+    const m = String(assignment.submissionId).match(/(\d+)$/);
+    if (!m) throw new NotFoundException('Không thể xác định id của submission');
+    const subId = parseInt(m[1], 10);
+
+    const infoUrl = `${submissionBase}/api/internal/submissions/${subId}/file`;
     try {
-      const resp = await this.httpService.axiosRef.get(url, { responseType: 'arraybuffer' });
+      const infoResp = await this.httpService.axiosRef.get(infoUrl);
+      const fileUrl = infoResp?.data?.data?.url;
+      const filename = infoResp?.data?.data?.filename || `${assignment.submissionId}.pdf`;
+      if (!fileUrl) throw new Error('No file url');
+
+      // Fetch the public URL and proxy bytes
+      const resp = await this.httpService.axiosRef.get(fileUrl, { responseType: 'arraybuffer' });
       const contentType = resp.headers['content-type'] || 'application/octet-stream';
       return {
-        filename: `${assignment.submissionId}.pdf`,
+        filename,
         contentType,
         data: Buffer.from(resp.data).toString('base64'),
       };

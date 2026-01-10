@@ -151,6 +151,9 @@ export class SubmissionServiceService implements OnModuleInit {
       // 0. Check Deadline
       await this.conferenceClient.checkDeadline(dto.conferenceId);
 
+      // 0.5. Validate Topic
+      await this.validateTopic(dto.conferenceId, dto.topic);
+
       // 1. Kiểm tra/Tạo Submission
       // Logic: Nếu cùng user, cùng title -> tính là version mới của submission cũ?
       // Hay luôn tạo mới? Theo user request: "Check Deadline trước khi cho phép lưu DB".
@@ -162,6 +165,7 @@ export class SubmissionServiceService implements OnModuleInit {
         conference_id: dto.conferenceId,
         created_by: userId,
         abstract: dto.abstract || '',
+        topic: dto.topic,
         status: SubmissionStatus.SUBMITTED
       });
       await this.subRepo.save(sub);
@@ -597,7 +601,6 @@ export class SubmissionServiceService implements OnModuleInit {
       throw new InternalServerErrorException('Lỗi khi upload camera-ready');
     }
   }
-
   // --- API: LẤY REVIEWS CỦA SUBMISSION (ẨN DANH CHO AUTHOR) ---
   async getSubmissionReviews(
     submissionId: number,
@@ -640,9 +643,62 @@ export class SubmissionServiceService implements OnModuleInit {
     }
   }
 
+  // Helper method: Validate topic
+  private async validateTopic(conferenceId: string, topic: string) {
+    // Get conference topics
+    const conference = await this.conferenceClient.getConference(conferenceId);
+
+    // If conference has NO topics → Topic is optional, skip validation
+    if (!conference.topics || conference.topics.length === 0) {
+      console.log('⚠️ Conference has no topics defined - skipping topic validation');
+      return;
+    }
+
+    // If conference HAS topics → Topic is REQUIRED and must be valid
+    if (!topic) {
+      throw new BadRequestException(
+        `Chủ đề bài báo là bắt buộc. Chọn một trong: ${conference.topics.join(', ')}`
+      );
+    }
+
+    if (!conference.topics.includes(topic)) {
+      throw new BadRequestException(
+        `Chủ đề không hợp lệ. Chọn một trong: ${conference.topics.join(', ')}`
+      );
+    }
+  }
+
   // Helper method: Validate email format
   private isValidEmail(email: string): boolean {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
+  }
+
+  // --- API (Internal): LẤY URL file public mới nhất theo submission id ---
+  async getPublicFileInfoBySubmissionId(submissionId: number) {
+    try {
+      const file = await this.fileRepo.findOne({
+        where: { submission_id: submissionId },
+        order: { version: 'DESC' }
+      });
+
+      if (!file) {
+        throw new NotFoundException(`Không tìm thấy file cho submission id ${submissionId}`);
+      }
+
+      return {
+        status: 'success',
+        data: {
+          fileId: file.id,
+          url: file.file_path,
+          version: file.version
+        }
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Lỗi khi lấy thông tin file public');
+    }
   }
 }

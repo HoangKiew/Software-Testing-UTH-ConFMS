@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { SubmissionServiceController } from './submission-service.controller';
+import { InternalController } from './internal/internal.controller';
 import { SubmissionServiceService } from './submission-service.service';
 import { Submission } from './modules/submission/entities/submission.entity';
 import { SubmissionFile } from './modules/submission/entities/submission-file.entity';
@@ -41,7 +42,7 @@ import { SupabaseModule } from './modules/supabase/supabase.module';
     IntegrationModule,
     SupabaseModule
   ],
-  controllers: [SubmissionServiceController],
+  controllers: [SubmissionServiceController, InternalController],
   providers: [SubmissionServiceService],
   exports: [SubmissionServiceService],
 })

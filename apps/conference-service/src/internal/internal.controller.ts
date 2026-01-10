@@ -115,4 +115,39 @@ export class InternalController {
             };
         }
     }
+
+    @Get('conferences/:id/topics')
+    @ApiOperation({
+        summary: 'Get conference topics (Internal API)',
+        description: 'Internal endpoint for service-to-service calls. No authentication required.'
+    })
+    @ApiResponse({ status: 200, description: 'Conference topics' })
+    @ApiResponse({ status: 404, description: 'Conference not found' })
+    async getTopics(@Param('id') id: string) {
+        try {
+            const conference = await this.conferencesService.findOne(id.toString());
+
+            if (!conference) {
+                return {
+                    success: false,
+                    message: 'Hội nghị không tồn tại',
+                    topics: []
+                };
+            }
+
+            return {
+                success: true,
+                conferenceId: id,
+                conferenceName: conference.name,
+                topics: conference.topics || []
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: 'Lỗi khi lấy danh sách topics',
+                topics: [],
+                error: error.message
+            };
+        }
+    }
 }

@@ -10,6 +10,10 @@ export class ChairDecision {
   @Column({ type: 'varchar', length: 100 })
   submissionId: string;
 
+  // reviewer id associated with this chair decision row (nullable for submission-level decisions)
+  @Column({ type: 'int', nullable: true })
+  reviewerId?: number | null;
+
   @Column()
   chairId: number;
 

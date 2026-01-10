@@ -1,30 +1,29 @@
-// src/conference-service.module.ts (hoặc apps/conference-service/src/conference-service.module.ts)
-import { Module, forwardRef } from '@nestjs/common';
+// apps/conference-service/src/conference-service.module.ts
+
+import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { ScheduleModule } from '@nestjs/schedule';
 
-// ✅ ENABLED - No circular dependencies found!
+// Feature modules
 import { DecisionsModule } from './decisions/decisions.module';
 import { ReportsModule } from './reports/reports.module';
-import { PcMembersModule } from './pc-members/pc-members.module';
+// ← SỬA DÒNG NÀY: Đổi từ pc-members → invitations
+import { InvitationsModule } from './invitations/invitations.module';  // ← ĐÚNG RỒI!
 import { AssignmentsModule } from './assignments/assignments.module';
 
-// Existing modules
 import { EmailsModule } from './emails/emails.module';
 import { ConferencesModule } from './conferences/conferences.module';
 import { AiModule } from './ai/ai.module';
 import { InternalModule } from './internal/internal.module';
 
-// Cron & JWT Strategy
 import { ConferencesCron } from './conferences/conferences.cron';
 import { JwtStrategy } from './auth/jwt.strategy';
 
 @Module({
   imports: [
-    // Config toàn cục
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: [
@@ -34,7 +33,6 @@ import { JwtStrategy } from './auth/jwt.strategy';
       ],
     }),
 
-    // TypeORM async config
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -46,7 +44,7 @@ import { JwtStrategy } from './auth/jwt.strategy';
         password: config.get<string>('DB_PASSWORD') || 'admin123',
         database: config.get<string>('DB_DATABASE') || 'db_conference',
         autoLoadEntities: true,
-        synchronize: true, // Dev only – production dùng migration
+        synchronize: true, // Dev only
         logging: process.env.NODE_ENV === 'development',
       }),
     }),
@@ -74,11 +72,11 @@ import { JwtStrategy } from './auth/jwt.strategy';
     ConferencesModule,
     AiModule,
     EmailsModule,
-    ReportsModule,        // ✅ ENABLED
-    PcMembersModule,      // ✅ ENABLED
-    AssignmentsModule,    // ✅ ENABLED
-    DecisionsModule,      // ✅ ENABLED
-    InternalModule,       // ✅ Internal API for deadline check
+    ReportsModule,
+    InvitationsModule,     // ← ĐÃ ĐÚNG TÊN MỚI
+    AssignmentsModule,
+    DecisionsModule,
+    InternalModule,
   ],
 
   providers: [

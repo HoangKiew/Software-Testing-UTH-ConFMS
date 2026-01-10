@@ -11,8 +11,21 @@ export class ReviewEditHistory {
   @Column()
   reviewerId: number;
 
-  @Column({ type: 'jsonb' })
-  oldData: any;
+  // Store previous values in explicit columns for easier querying and display
+  @Column({ type: 'int', nullable: true })
+  oldScore: number | null;
+
+  @Column({ type: 'text', nullable: true })
+  oldPublicComment: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  oldPrivateComment: string | null;
+
+  @Column({ type: 'boolean', nullable: true })
+  oldIsFinal: boolean | null;
+
+  @Column({ type: 'int', nullable: true })
+  oldAssignmentId: number | null;
 
   @CreateDateColumn({ type: 'timestamptz' })
   editedAt: Date;

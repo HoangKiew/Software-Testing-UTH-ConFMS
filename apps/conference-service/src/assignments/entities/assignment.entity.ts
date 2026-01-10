@@ -3,10 +3,8 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  ManyToOne,
   CreateDateColumn,
 } from 'typeorm';
-import { PcMember } from '../../pc-members/entities/pc-member.entity';
 
 export enum AssignmentStatus {
   SUGGESTED = 'suggested',
@@ -21,20 +19,16 @@ export class Assignment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'conference_id' })
+  @Column()
+  topic: string; // THÊM: Lưu topic thay submissionId
+
+  @Column()
   conferenceId: string;
 
-  @Column({ name: 'submission_id' })
-  submissionId: string;
+  @Column()
+  reviewerId: number;
 
-  @Column({ name: 'reviewer_id' })
-  reviewerId: string;
-
-  @Column({
-    type: 'enum',
-    enum: AssignmentStatus,
-    default: AssignmentStatus.SUGGESTED,
-  })
+  @Column({ type: 'enum', enum: AssignmentStatus, default: AssignmentStatus.SUGGESTED })
   status: AssignmentStatus;
 
   @Column({ type: 'float', default: 0 })
@@ -51,8 +45,4 @@ export class Assignment {
 
   @Column({ nullable: true })
   assignedAt: Date;
-
-  // ✅ Quan hệ nội bộ (OK)
-  @ManyToOne(() => PcMember, (pcMember) => pcMember.id, { onDelete: 'CASCADE' })
-  reviewer: PcMember;
 }
