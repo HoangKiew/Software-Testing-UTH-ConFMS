@@ -1,13 +1,19 @@
 // apps/conference-service/src/emails/emails.service.ts
+
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import * as handlebars from 'handlebars';
 
+interface EmailTemplateData {
+  [key: string]: any;
+  subject?: string;
+}
+
 @Injectable()
 export class EmailsService {
   private transporter: nodemailer.Transporter | null = null;
-  private templates: Map<string, handlebars.TemplateDelegate> = new Map();
+  private templates: Record<string, handlebars.TemplateDelegate> = {};
   private logger = new Logger(EmailsService.name);
 
   constructor(private configService: ConfigService) {
@@ -18,26 +24,29 @@ export class EmailsService {
 
     if (!host || !user || !pass) {
       this.logger.warn(
-        'SMTP config missing (SMTP_HOST, SMTP_USER, SMTP_PASS) – email sending will be skipped and logged to console',
+        'SMTP config missing (SMTP_HOST, SMTP_USER, SMTP_PASS) – email sending will be logged only (dev mode)',
       );
     } else {
       this.transporter = nodemailer.createTransport({
         host,
         port,
-        secure: port === 465, // Sử dụng SSL nếu port 465
+        secure: port === 465,
         auth: { user, pass },
         debug: this.configService.get('NODE_ENV') !== 'production',
         logger: this.configService.get('NODE_ENV') !== 'production',
       });
+
+      this.logger.log(`SMTP transporter initialized successfully (host: ${host}, port: ${port})`);
     }
 
-    // Đăng ký các template
     this.registerTemplates();
   }
 
   private registerTemplates() {
-    // Template mời reviewer (mới - đẹp, responsive)
-    this.registerTemplate('reviewer-invitation', `
+    // ──────────────────────────────────────────────────────────────────────────────
+    // Template 1: Mời reviewer (giữ nguyên)
+    // ──────────────────────────────────────────────────────────────────────────────
+    this.templates['reviewer-invitation'] = handlebars.compile(`
       <div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #f9f9f9;">
         <h2 style="color: #1a73e8; text-align: center;">Lời mời tham gia phản biện</h2>
         
@@ -72,29 +81,66 @@ export class EmailsService {
       </div>
     `);
 
-    // Các template cũ giữ nguyên (invite-pc-member, submission-received, decision-notification)
-    this.registerTemplate('invite-pc-member', `...`); // Giữ nguyên nếu còn dùng
-    this.registerTemplate('submission-received', `...`);
-    this.registerTemplate('decision-notification', `...`);
-  }
-
-  private registerTemplate(name: string, source: string) {
-    this.templates.set(name, handlebars.compile(source));
+    // ──────────────────────────────────────────────────────────────────────────────
+    // Template 2: Thông báo quyết định bài nộp (mới thêm)
+    // ──────────────────────────────────────────────────────────────────────────────
+    this.templates['decision_notification'] = handlebars.compile(`
+      <div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #f9f9f9;">
+        <h2 style="color: #1a73e8; text-align: center;">Thông báo kết quả đánh giá bài nộp</h2>
+        
+        <p>Xin chào quý tác giả,</p>
+        
+        <p>Bài báo của bạn với tiêu đề:</p>
+        <h3 style="color: #0f9d58; text-align: center; margin: 10px 0;">{{submissionTitle}}</h3>
+        
+        <p>Đã được Hội đồng Chương trình đưa ra quyết định cuối cùng:</p>
+        <h3 style="text-align: center; font-size: 24px; margin: 20px 0; color: {{decisionColor}};">
+          {{decision}}
+        </h3>
+        
+        <p>Phản hồi từ Chair:</p>
+        <blockquote style="border-left: 4px solid #ccc; padding-left: 15px; margin: 15px 0; font-style: italic; color: #444;">
+          {{feedback}}
+        </blockquote>
+        
+        {{#if isAccepted}}
+        <p style="background-color: #e8f5e9; padding: 15px; border-radius: 6px;">
+          <strong>Chúc mừng!</strong> Vui lòng chuẩn bị và upload bản camera-ready theo hướng dẫn trên hệ thống trong thời gian quy định.
+        </p>
+        {{/if}}
+        
+        {{#if isRevision}}
+        <p style="background-color: #fff3cd; padding: 15px; border-radius: 6px;">
+          Vui lòng chỉnh sửa bài báo theo phản hồi và nộp lại phiên bản mới.
+        </p>
+        {{/if}}
+        
+        <p>Cảm ơn bạn đã đóng góp bài báo cho hội nghị!</p>
+        
+        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+        
+        <p style="font-size: 12px; color: #666; text-align: center;">
+          Email này được gửi tự động từ hệ thống <strong>UTH-ConfMS</strong>.<br>
+          Hội nghị: <strong>{{conferenceName}}</strong>
+        </p>
+      </div>
+    `);
   }
 
   /**
    * Gửi email mời reviewer (dùng template reviewer-invitation)
-   * @param toEmail Email người nhận
-   * @param data Dữ liệu template: name, conferenceName, acceptLink, declineLink, invitationId, conferenceId
    */
-  async sendReviewerInvitationEmail(toEmail: string, data: {
-    name: string;
-    conferenceName: string;
-    acceptLink: string;
-    declineLink: string;
-    invitationId: string;
-    conferenceId?: string;
-  }) {
+  async sendReviewerInvitationEmail(
+    toEmail: string,
+    data: {
+      name: string;
+      conferenceName: string;
+      acceptLink: string;
+      declineLink: string;
+      invitationId: string;
+      conferenceId?: string;
+    },
+  ) {
     return this.send('reviewer-invitation', [toEmail], {
       ...data,
       subject: `[${data.conferenceName}] Lời mời tham gia phản biện`,
@@ -102,13 +148,10 @@ export class EmailsService {
   }
 
   /**
-   * Gửi email chung (sử dụng template đã đăng ký)
-   * @param templateName Tên template
-   * @param to Danh sách email người nhận
-   * @param data Dữ liệu cho handlebars + subject (nếu không có thì mặc định)
+   * Gửi email chung với retry (tối đa 3 lần)
    */
-  async send(templateName: string, to: string[], data: any) {
-    const template = this.templates.get(templateName);
+  async send(templateName: string, to: string[], data: EmailTemplateData & { subject?: string }) {
+    const template = this.templates[templateName];
     if (!template) {
       throw new BadRequestException(`Template không tồn tại: ${templateName}`);
     }
@@ -116,25 +159,38 @@ export class EmailsService {
     const html = template(data);
     const subject = data.subject || 'UTH-ConfMS Notification';
 
-    // Dev mode: log thay vì gửi
+    // Dev mode: chỉ log nội dung (không gửi thật)
     if (!this.transporter) {
-      this.logger.log(`[DEV MODE] Gửi email "${subject}" đến ${to.join(', ')}`);
-      this.logger.log('Nội dung HTML:');
-      this.logger.log(html);
+      this.logger.log(`[DEV MODE] Email "${subject}" đến ${to.join(', ')}`);
+      this.logger.log('Nội dung HTML (cắt ngắn):');
+      this.logger.log(html.substring(0, 500) + '...');
       return { status: 'logged' };
     }
 
-    try {
-      await this.transporter.sendMail({
-        from: this.configService.get<string>('SMTP_FROM') || 'no-reply@uth-confms.vn',
-        to: to.join(', '),
-        subject,
-        html,
-      });
-      this.logger.log(`Email "${subject}" gửi thành công đến ${to.join(', ')}`);
-    } catch (error) {
-      this.logger.error(`Lỗi gửi email "${subject}": ${error.message}`);
-      throw new BadRequestException('Lỗi gửi email, vui lòng thử lại sau');
+    // Production: gửi thật với retry
+    let attempts = 0;
+    const maxAttempts = 3;
+
+    while (attempts < maxAttempts) {
+      attempts++;
+      try {
+        await this.transporter.sendMail({
+          from: this.configService.get<string>('SMTP_FROM') || 'no-reply@uth-confms.vn',
+          to: to.join(', '),
+          subject,
+          html,
+        });
+
+        this.logger.log(`Email "${subject}" gửi thành công đến ${to.join(', ')} (lần ${attempts})`);
+        return { status: 'sent', attempts };
+      } catch (error: any) {
+        this.logger.warn(`Lỗi gửi email "${subject}" lần ${attempts}/${maxAttempts}: ${error.message}`, error.stack);
+        if (attempts === maxAttempts) {
+          throw new BadRequestException(`Lỗi gửi email sau ${maxAttempts} lần thử: ${error.message}`);
+        }
+        // Delay 1s trước retry
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
     }
   }
 }

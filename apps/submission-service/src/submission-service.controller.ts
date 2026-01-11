@@ -174,7 +174,7 @@ export class SubmissionServiceController {
 
   // --- 4. API LẤY DANH SÁCH SUBMISSIONS THEO CONFERENCE (GET) ---
   @Get('conference/:conferenceId')
-  @Roles('CHAIR')
+  @Roles('CHAIR', 'ADMIN')
   @ApiOperation({ summary: 'Lấy danh sách bài nộp theo hội nghị' })
   async getByConference(@Param('conferenceId') conferenceId: string) {
     return this.submissionService.getSubmissionsByConference(conferenceId);
@@ -198,18 +198,21 @@ export class SubmissionServiceController {
 
   // --- 6. API CẬP NHẬT TRẠNG THÁI SUBMISSION (PATCH) ---
   @Patch(':id/status')
-  @Roles('CHAIR')
+  @Roles('CHAIR', 'ADMIN')
   @ApiOperation({ summary: 'Cập nhật trạng thái bài nộp (CHAIR only)' })
   async updateStatus(
     @Param('id') id: string,
     @Body() updateStatusDto: UpdateStatusDto,
     @Request() req
   ) {
+    const isChair = req.user.roles.includes('CHAIR') || req.user.roles.includes('ADMIN');
+
     return this.submissionService.updateStatus(
       Number(id),
       updateStatusDto.status,
       updateStatusDto.comment || '',
-      req.user.userId
+      req.user.userId,
+      isChair  // ← THÊM DÒNG NÀY: Truyền isChair = true khi là Chair/Admin
     );
   }
 

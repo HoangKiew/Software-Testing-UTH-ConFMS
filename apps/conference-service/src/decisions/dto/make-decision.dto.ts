@@ -1,6 +1,6 @@
 // apps/conference-service/src/decisions/dto/make-decision.dto.ts
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsEnum, IsOptional } from 'class-validator';
+import { IsString, IsOptional, IsIn } from 'class-validator';  // ← Thay IsEnum bằng IsIn
 import { DecisionType } from '../entities/decision.entity';
 
 export class MakeDecisionDto {
@@ -12,14 +12,14 @@ export class MakeDecisionDto {
   submissionId: string;
 
   @ApiProperty({
-    enum: DecisionType,
-    description: 'Quyết định cuối cùng của Chair',
-    example: DecisionType.ACCEPT,
+    enum: ['accept', 'reject', 'revise', 'withdraw'],  // ← Hiển thị lowercase trong Swagger
+    description: 'Quyết định cuối cùng của Chair (không phân biệt hoa/thường)',
+    example: 'accept',
   })
-  @IsEnum(DecisionType, {
-    message: `decision phải là một trong: ${Object.values(DecisionType).join(', ')}`,
+  @IsIn(['accept', 'ACCEPT', 'reject', 'REJECT', 'revise', 'REVISE', 'withdraw', 'WITHDRAW'], {
+    message: 'decision phải là một trong: accept, reject, revise, withdraw (không phân biệt hoa/thường)',
   })
-  decision: DecisionType;
+  decision: string;  // ← Đổi sang string để linh hoạt
 
   @ApiPropertyOptional({
     description: 'Phản hồi ẩn danh gửi cho tác giả (tùy chọn)',
