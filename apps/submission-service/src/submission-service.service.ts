@@ -344,7 +344,13 @@ export class SubmissionServiceService implements OnModuleInit {
   }
 
   // --- API 5: CẬP NHẬT TRẠNG THÁI SUBMISSION (CHAIR ONLY) ---
-  async updateStatus(id: number, status: SubmissionStatus, comment: string, actorId: number) {
+  async updateStatus(
+    id: number,
+    status: SubmissionStatus,
+    comment: string,
+    actorId: number,
+    isChair: boolean = false  // ← THÊM THAM SỐ NÀY (mặc định false)
+  ) {
     try {
       const submission = await this.subRepo.findOne({ where: { id } });
 
@@ -352,17 +358,24 @@ export class SubmissionServiceService implements OnModuleInit {
         throw new NotFoundException(`Không tìm thấy bài nộp với ID ${id}`);
       }
 
+      // Kiểm tra quyền: Nếu là Chair/Admin thì cho phép update mọi submission
+      // Nếu không phải Chair thì phải là owner (tạo ra bài nộp)
+      const isOwner = submission.created_by === actorId;
+      if (!isChair && !isOwner) {
+        throw new ForbiddenException('Bạn không có quyền cập nhật trạng thái bài nộp này');
+      }
+
       const oldStatus = submission.status;
       submission.status = status;
       await this.subRepo.save(submission);
 
-      // Audit log
+      // Audit log (thêm info isChair để dễ theo dõi ai ra quyết định)
       await this.logAudit(
         'UPDATE_STATUS',
         'SUBMISSION',
         id,
         actorId,
-        `Changed status from ${oldStatus} to ${status}${comment ? ': ' + comment : ''}`
+        `Changed status from ${oldStatus} to ${status}${comment ? ': ' + comment : ''} (by Chair: ${isChair})`
       );
 
       // Notify Review Service
@@ -374,7 +387,7 @@ export class SubmissionServiceService implements OnModuleInit {
         data: submission
       };
     } catch (error) {
-      if (error instanceof NotFoundException) {
+      if (error instanceof NotFoundException || error instanceof ForbiddenException) {
         throw error;
       }
       throw new InternalServerErrorException('Lỗi khi cập nhật trạng thái');

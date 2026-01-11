@@ -26,107 +26,204 @@ export class AssignmentsService {
     private auditService: AuditService,
     private submissionsClient: SubmissionsClient,
     private httpService: HttpService,
-  ) { }
+  ) {}
 
-  async findAllByConference(conferenceId: string, chairId: number) {
+  /**
+   * Lấy tất cả assignments của một hội nghị (dành cho Chair)
+   */
+  async findAllByConference(conferenceId: string, chairId: number): Promise<Assignment[]> {
     const conference = await this.conferencesService.findOne(conferenceId);
-    if (!conference) throw new NotFoundException('Conference not found');
-    if (conference.chairId !== chairId) throw new ForbiddenException('Only chair can view assignments');
+    if (!conference) {
+      throw new NotFoundException('Conference not found');
+    }
+    if (conference.chairId !== chairId) {
+      throw new ForbiddenException('Only chair can view assignments');
+    }
 
     return this.assignmentRepo.find({ where: { conferenceId } });
   }
 
-  // LẤY REVIEWER THẬT TỪ IDENTITY SERVICE
+  /**
+   * Kiểm tra xem user có phải là chair của hội nghị này không
+   */
+  async canChairSuggest(userId: number, conferenceId: string): Promise<boolean> {
+    try {
+      const conference = await this.conferencesService.findOne(conferenceId);
+      if (!conference) return false;
+      return conference.chairId === userId;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Lấy danh sách reviewer từ Identity Service (hoặc fallback mock)
+   */
   private async getReviewers(conferenceId: string): Promise<{ id: number; topics: string[] }[]> {
     try {
+      // Tương lai: có thể thêm query param ?conferenceId=${conferenceId}
+      // để chỉ lấy reviewer đã đăng ký tham gia hội nghị
       const url = `${process.env.IDENTITY_SERVICE_URL || 'http://identity-service:3001'}/api/users?role=REVIEWER`;
 
-      const { data } = await firstValueFrom(
-        this.httpService.get(url)
-      );
+      const { data } = await firstValueFrom(this.httpService.get(url));
 
-      // Giả định response là array user: { id, email, fullName, topics: string[] }
       return data.map((user: any) => ({
         id: user.id,
-        topics: user.topics || [], // Nếu chưa có field topics thì để rỗng, match manual sẽ 0
+        topics: user.topics || [],
       }));
     } catch (error) {
       console.error('Error fetching reviewers from Identity Service:', error.message);
-      // Fallback mock nhỏ để không crash
+      // Fallback mock data cho môi trường dev/test
       return [
-        { id: 2, topics: ['AI', 'Machine Learning'] }, // Đảm bảo id 2 luôn có
+        { id: 2, topics: ['AI', 'Machine Learning', 'Deep Learning'] },
+        { id: 3, topics: ['Natural Language Processing', 'AI Ethics'] },
+        { id: 5, topics: ['Computer Vision', 'Image Processing'] },
       ];
     }
   }
 
-  async suggestReviewersForTopic(topic: string, top: number = 5) {
-    // Lấy conference thật (có thể truyền conferenceId vào DTO sau)
-    // Tạm hard-code hoặc lấy từ context – chị có thể sửa sau
-    const conferenceId = 'c2a65b80-fd67-474e-8390-895c76422f10'; // Thay bằng real logic
+  /**
+   * Gợi ý reviewer phù hợp cho một topic trong hội nghị cụ thể
+   */
+  async suggestReviewersForTopic(
+    conferenceId: string,
+    topic: string,
+    limit: number = 5,
+    currentChairId?: number, // optional: để kiểm tra quyền trong service nếu cần
+  ): Promise<Assignment[]> {
+    if (!conferenceId) {
+      throw new BadRequestException('conferenceId is required for suggestion');
+    }
+
     const conference = await this.conferencesService.findOne(conferenceId);
+    if (!conference) {
+      throw new NotFoundException(`Conference with ID ${conferenceId} not found`);
+    }
+
+    // Kiểm tra quyền nếu truyền currentChairId
+    if (currentChairId && conference.chairId !== currentChairId) {
+      throw new ForbiddenException('Only chair of this conference can suggest reviewers');
+    }
 
     const reviewers = await this.getReviewers(conferenceId);
+    if (reviewers.length === 0) {
+      throw new BadRequestException('No reviewers available at the moment');
+    }
 
-    const matchTopics = [topic.toLowerCase(), ...conference.topics?.map(t => t.toLowerCase()) || []];
+    const matchTopics = [
+      topic.trim().toLowerCase(),
+      ...(conference.topics?.map(t => t.trim().toLowerCase()) || []),
+    ].filter(Boolean);
+
+    if (matchTopics.length === 0) {
+      throw new BadRequestException('No topics available for matching');
+    }
 
     let suggestions: { reviewerId: number; similarityScore: number; reason: string }[] = [];
+
     if (conference.aiConfig?.keywordSuggestion) {
-      suggestions = await this.aiService.suggestReviewers(matchTopics.join(', '), reviewers, top);
+      const context = matchTopics.join(', ');
+      suggestions = await this.aiService.suggestReviewers(context, reviewers, limit);
     } else {
-      suggestions = reviewers.map(rev => {
-        const revTopics = rev.topics.map(t => t.toLowerCase());
-        const overlap = matchTopics.filter(mt => revTopics.includes(mt)).length;
-        return {
-          reviewerId: rev.id,
-          similarityScore: overlap / Math.max(matchTopics.length, 1),
-          reason: overlap > 0 ? `Khớp ${overlap} topic` : 'No match',
-        };
-      })
-        .filter(sug => sug.similarityScore > 0)
+      // Fallback: Jaccard similarity
+      suggestions = reviewers
+        .map(rev => {
+          const revTopics = (rev.topics || []).map(t => t.trim().toLowerCase());
+          const intersection = matchTopics.filter(mt => revTopics.includes(mt));
+          const union = new Set([...matchTopics, ...revTopics]);
+          const score = union.size > 0 ? intersection.length / union.size : 0;
+
+          return {
+            reviewerId: rev.id,
+            similarityScore: score,
+            reason:
+              intersection.length > 0
+                ? `Khớp ${intersection.length} topic: ${intersection.join(', ')}`
+                : 'Không có topic trùng khớp',
+          };
+        })
+        .filter(s => s.similarityScore > 0.05)
         .sort((a, b) => b.similarityScore - a.similarityScore)
-        .slice(0, top);
+        .slice(0, limit);
     }
 
     const assignments: Assignment[] = [];
+
     for (const sug of suggestions) {
-      const assignment = this.assignmentRepo.create({
-        topic,
-        reviewerId: sug.reviewerId,
-        conferenceId: conference.id,
-        status: AssignmentStatus.SUGGESTED,
-        similarityScore: sug.similarityScore,
-        suggestionReason: sug.reason,
-        hasCoi: false,
+      const exists = await this.assignmentRepo.findOne({
+        where: {
+          conferenceId,
+          topic,
+          reviewerId: sug.reviewerId,
+          status: AssignmentStatus.SUGGESTED,
+        },
       });
-      assignments.push(await this.assignmentRepo.save(assignment));
+
+      if (!exists) {
+        const assignment = this.assignmentRepo.create({
+          topic,
+          reviewerId: sug.reviewerId,
+          conferenceId,
+          status: AssignmentStatus.SUGGESTED,
+          similarityScore: Number(sug.similarityScore.toFixed(4)),
+          suggestionReason: sug.reason,
+          hasCoi: false,
+        });
+        assignments.push(await this.assignmentRepo.save(assignment));
+      }
     }
 
-    await this.auditService.log('SUGGEST_REVIEWERS_FOR_TOPIC', conference.chairId, 'Topic', topic);
+    await this.auditService.log(
+      'SUGGEST_REVIEWERS_FOR_TOPIC',
+      conference.chairId,
+      'Conference-Topic',
+      `${conferenceId} | ${topic}`,
+    );
+
     return assignments;
   }
 
-  async assignReviewersToTopic(dto: AssignReviewersDto, chairId: number) {
+  /**
+   * Phân công thủ công reviewer cho một topic
+   */
+  async assignReviewersToTopic(dto: AssignReviewersDto, chairId: number): Promise<Assignment[]> {
     const conference = await this.conferencesService.findOne(dto.conferenceId);
+    if (!conference) throw new NotFoundException('Conference not found');
     if (conference.chairId !== chairId) throw new ForbiddenException('Only chair can assign');
 
-    const conferenceTopics = conference.topics?.map(t => t.toLowerCase()) || [];
+    const conferenceTopics = conference.topics?.map(t => t.toLowerCase().trim()) || [];
     const reviewers = await this.getReviewers(dto.conferenceId);
 
     const assignments: Assignment[] = [];
+
     for (const reviewerId of dto.reviewerIds) {
       const reviewer = reviewers.find(r => r.id === reviewerId);
-      if (!reviewer) throw new BadRequestException(`Invalid reviewer ID: ${reviewerId}`);
+      if (!reviewer) {
+        throw new BadRequestException(`Invalid reviewer ID: ${reviewerId}`);
+      }
 
-      const revTopics = reviewer.topics.map(t => t.toLowerCase());
+      const revTopics = reviewer.topics.map(t => t.toLowerCase().trim());
       const overlap = conferenceTopics.filter(ct => revTopics.includes(ct)).length;
+
       if (overlap === 0 && conferenceTopics.length > 0) {
-        throw new BadRequestException(`Reviewer ${reviewerId} không match topic của hội nghị`);
+        throw new BadRequestException(
+          `Reviewer ${reviewerId} không match bất kỳ topic nào của hội nghị`,
+        );
       }
 
       const existing = await this.assignmentRepo.findOne({
-        where: { topic: dto.topic, reviewerId },
+        where: {
+          topic: dto.topic,
+          reviewerId,
+          conferenceId: dto.conferenceId,
+        },
       });
-      if (existing) throw new BadRequestException(`Reviewer ${reviewerId} already assigned to this topic`);
+
+      if (existing) {
+        throw new BadRequestException(
+          `Reviewer ${reviewerId} đã được phân công cho topic này`,
+        );
+      }
 
       const assignment = this.assignmentRepo.create({
         topic: dto.topic,
@@ -134,10 +231,11 @@ export class AssignmentsService {
         conferenceId: conference.id,
         status: AssignmentStatus.ASSIGNED,
         similarityScore: 0,
-        suggestionReason: 'Manual assignment',
+        suggestionReason: 'Manual assignment by chair',
         hasCoi: false,
         assignedAt: new Date(),
       });
+
       assignments.push(await this.assignmentRepo.save(assignment));
     }
 
@@ -145,14 +243,19 @@ export class AssignmentsService {
     return assignments;
   }
 
-  async unassign(assignmentId: string, chairId: number) {
+  /**
+   * Hủy phân công một assignment cụ thể
+   */
+  async unassign(assignmentId: string, chairId: number): Promise<{ message: string }> {
     const assignment = await this.assignmentRepo.findOne({ where: { id: assignmentId } });
     if (!assignment) throw new NotFoundException('Assignment not found');
 
     const conference = await this.conferencesService.findOne(assignment.conferenceId);
+    if (!conference) throw new NotFoundException('Conference not found');
     if (conference.chairId !== chairId) throw new ForbiddenException('Only chair can unassign');
 
     await this.assignmentRepo.remove(assignment);
+
     await this.auditService.log('UNASSIGN_REVIEWER', chairId, 'Assignment', assignmentId);
 
     return { message: 'Reviewer unassigned successfully' };

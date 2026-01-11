@@ -11,12 +11,12 @@ export class BulkDecisionDto {
     example: [
       {
         submissionId: 'sub-123',
-        decision: 'ACCEPT',
+        decision: 'accept',  // ← Sửa thành lowercase
         feedback: 'Bài tốt, chấp nhận oral presentation',
       },
       {
         submissionId: 'sub-456',
-        decision: 'REJECT',
+        decision: 'reject',  // ← Sửa thành lowercase
         feedback: 'Chủ đề chưa phù hợp với hội nghị',
       },
     ],
