@@ -8,26 +8,37 @@ import {
     Settings,
 } from '@mui/icons-material';
 import iconUth from '../assets/icon_uth.svg';
+import { useAuth } from '../hooks/useAuth';
 
 const Header = () => {
     const navigate = useNavigate();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
 
-    // Mock user data - replace with actual auth state later
-    const isLoggedIn = true;
-    const userName = 'Nguyễn Văn A';
+    const { user, isAuthenticated, logout } = useAuth();
+    const isLoggedIn = !!isAuthenticated;
+    const userName = user?.fullName || user?.email || 'Người dùng';
+    const rolesInput = user?.roles;
+    let isAdmin = false;
+    if (rolesInput) {
+        if (Array.isArray(rolesInput)) {
+            const roles = rolesInput
+                .map((r) => (typeof r === 'string' ? r : r?.name ?? r?.role ?? r?.value))
+                .filter(Boolean)
+                .map((s) => s!.toString().toLowerCase().replace(/^role_/, '').trim());
+            isAdmin = roles.includes('admin');
+        } else if (typeof rolesInput === 'string') {
+            isAdmin = rolesInput.toLowerCase().replace(/^role_/, '').trim() === 'admin';
+        }
+    }
 
-    const navItems = [
-        { name: 'Trang chủ', path: '/' },
-        { name: 'Hội nghị', path: '/conferences' },
-        { name: 'Bài nộp', path: '/my-submissions' },
-        { name: 'Cài đặt', path: '/settings' },
-    ];
-
-    const handleLogout = () => {
-        // TODO: Implement logout logic
-        navigate('/login');
+    const handleLogout = async () => {
+        try {
+            await logout();
+        } catch (err) {
+            console.error('Logout failed', err);
+            navigate('/login');
+        }
     };
 
     return (
@@ -39,19 +50,8 @@ const Header = () => {
                         <img src={iconUth} alt="UTH Logo" className="h-10 w-auto" />
                     </Link>
 
-                    {/* Desktop Navigation */}
-                    <nav className="hidden md:flex items-center space-x-8">
-                        {navItems.map((item) => (
-                            <Link
-                                key={item.path}
-                                to={item.path}
-                                className="text-gray-700 hover:text-[#008689] font-medium transition-colors duration-200 relative group"
-                            >
-                                {item.name}
-                                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#008689] transition-all duration-200 group-hover:w-full"></span>
-                            </Link>
-                        ))}
-                    </nav>
+                    {/* Spacer where nav used to be (kept empty on purpose) */}
+                    <div className="flex-1"></div>
 
                     {/* Right Side - Auth Buttons / User Menu */}
                     <div className="hidden md:flex items-center space-x-4">
@@ -92,6 +92,17 @@ const Header = () => {
                                                 <Settings className="w-5 h-5 inline mr-2" />
                                                 Cài đặt
                                             </Link>
+
+                                            {isAdmin && (
+                                                <Link
+                                                    to="/admin/users"
+                                                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                                                    onClick={() => setUserMenuOpen(false)}
+                                                >
+                                                    Quản lý người dùng
+                                                </Link>
+                                            )}
+
                                             <hr className="my-2" />
                                             <button
                                                 onClick={handleLogout}
@@ -139,17 +150,6 @@ const Header = () => {
             {mobileMenuOpen && (
                 <div className="md:hidden bg-white border-t border-gray-200">
                     <nav className="px-4 py-4 space-y-2">
-                        {navItems.map((item) => (
-                            <Link
-                                key={item.path}
-                                to={item.path}
-                                className="block px-4 py-2 text-gray-700 hover:bg-[#008689] hover:text-white rounded-lg transition-colors duration-200"
-                                onClick={() => setMobileMenuOpen(false)}
-                            >
-                                {item.name}
-                            </Link>
-                        ))}
-
                         {isLoggedIn ? (
                             <>
                                 <hr className="my-2" />
@@ -169,6 +169,15 @@ const Header = () => {
                                     <Settings className="w-5 h-5 inline mr-2" />
                                     Cài đặt
                                 </Link>
+                                {isAdmin && (
+                                    <Link
+                                        to="/admin/users"
+                                        className="block px-4 py-2 text-gray-700 hover:bg-[#008689] hover:text-white rounded-lg transition-colors duration-200"
+                                        onClick={() => setMobileMenuOpen(false)}
+                                    >
+                                        Quản lý người dùng
+                                    </Link>
+                                )}
                                 <button
                                     onClick={handleLogout}
                                     className="block w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"

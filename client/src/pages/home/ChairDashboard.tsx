@@ -8,8 +8,13 @@ import {
     TrendingUp,
     CalendarMonth
 } from '@mui/icons-material';
+import { useAuth } from '../../hooks/useAuth';
 
-const ChairDashboard = () => {
+interface ChairDashboardProps {
+    currentRole?: string;
+}
+
+const ChairDashboard = ({ currentRole }: ChairDashboardProps) => {
     // Mock data for Chair
     const myConferences = [
         {
@@ -57,18 +62,11 @@ const ChairDashboard = () => {
                 <div className="max-w-7xl mx-auto">
                     <div className="text-white">
                         <h1 className="text-5xl font-bold mb-4">
-                            Bảng điều khiển Chair
+                            Bảng cài đặt của UTH
                         </h1>
                         <p className="text-xl text-white/90 mb-8">
-                            Quản lý hội nghị, theo dõi tiến độ đánh giá và đưa ra quyết định
+                            Cấu hình và quản trị nền tảng UTH-ConfMS
                         </p>
-                        <Link
-                            to="/chair/conferences/create"
-                            className="inline-flex items-center px-8 py-4 bg-white text-[#008689] hover:bg-gray-100 font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
-                        >
-                            <Add className="w-5 h-5 mr-2" />
-                            Tạo hội nghị mới
-                        </Link>
                     </div>
                 </div>
             </div>
@@ -131,6 +129,45 @@ const ChairDashboard = () => {
                                 Track review progress
                             </p>
                         </Link>
+
+                        {/* Show user-management quick action for Admin users */}
+                        {(() => {
+                            let isAdmin = false;
+                            if (currentRole) {
+                                isAdmin = currentRole.toLowerCase() === 'admin';
+                            } else {
+                                const { user } = useAuth();
+                                const rolesInput = user?.roles;
+                                let roles: string[] = [];
+                                if (Array.isArray(rolesInput)) {
+                                    roles = rolesInput
+                                        .map((r) => (typeof r === 'string' ? r : r?.name ?? r?.role ?? r?.value))
+                                        .filter(Boolean)
+                                        .map((s) => s!.toString().toLowerCase().replace(/^role_/, '').trim());
+                                } else if (typeof rolesInput === 'string') {
+                                    roles = [rolesInput.toLowerCase().replace(/^role_/, '').trim()];
+                                }
+                                isAdmin = roles.includes('admin');
+                            }
+
+                            if (isAdmin) {
+                                return (
+                                    <Link
+                                        to="/admin/users"
+                                        className="flex flex-col items-center p-6 border-2 border-gray-200 rounded-lg hover:border-[#008689] hover:bg-[#e6f7f7] transition-all duration-300 text-center"
+                                    >
+                                        <People className="w-12 h-12 text-[#008689] mb-3" />
+                                        <h3 className="font-semibold text-gray-900 mb-1">
+                                            Quản lý người dùng
+                                        </h3>
+                                        <p className="text-xs text-gray-600">
+                                            Xem, tạo, sửa, xóa người dùng
+                                        </p>
+                                    </Link>
+                                );
+                            }
+                            return null;
+                        })()}
                     </div>
                 </div>
             </div>

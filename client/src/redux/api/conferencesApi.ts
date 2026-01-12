@@ -53,6 +53,15 @@ export const conferencesApi = apiSlice.injectEndpoints({
         params: { type },
       }),
     }),
+    // Create conference
+    createConference: builder.mutation<any, Partial<Conference>>({
+      query: (body) => ({
+        url: '/conferences',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: [{ type: 'Conference', id: 'LIST' }],
+    }),
   }),
 });
 
@@ -62,5 +71,6 @@ export const {
   useGetTracksQuery,
   useGetTrackByIdQuery,
   useCheckDeadlineQuery,
+  useCreateConferenceMutation,
 } = conferencesApi;
 

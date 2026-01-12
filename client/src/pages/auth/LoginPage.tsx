@@ -61,7 +61,18 @@ const LoginPage = () => {
         localStorage.removeItem('rememberMe');
       }
 
-      navigate('/dashboard');
+
+      // Determine roles from response and redirect accordingly
+      const rolesInput = result.user?.roles;
+      let roles: string[] = [];
+      if (Array.isArray(rolesInput)) {
+        roles = rolesInput.map((r: any) => (typeof r === 'string' ? r : r?.name ?? r?.role ?? r?.value)).filter(Boolean).map((s: any) => s.toString().toLowerCase().replace(/^role_/, '').trim());
+      } else if (typeof rolesInput === 'string') {
+        roles = [rolesInput.toLowerCase().replace(/^role_/, '').trim()];
+      }
+
+      // For admin, navigate to home which will render Chair UI with admin quick-action
+      navigate('/');
     } catch (err: unknown) {
       setError(formatApiError(err));
     }

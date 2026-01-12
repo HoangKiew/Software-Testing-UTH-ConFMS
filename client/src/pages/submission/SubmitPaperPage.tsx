@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useCreateSubmissionMutation } from '../../redux/api/submissionsApi';
+import { createSubmissionFormData } from '../../utils/api-helpers';
 import { Link } from 'react-router-dom';
 import { Add, CloudUpload, Close } from '@mui/icons-material';
 import bgUth from '../../assets/bg_uth.svg';
@@ -15,6 +17,12 @@ const SubmitPaperPage = () => {
         { id: 1, name: '', email: '', affiliation: '' }
     ]);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [title, setTitle] = useState('');
+    const [abstract, setAbstract] = useState('');
+    const [keywords, setKeywords] = useState('');
+    const [conferenceId, setConferenceId] = useState<number | ''>('');
+    const [trackId, setTrackId] = useState<number | ''>('');
+    const [createSubmission, { isLoading }] = useCreateSubmissionMutation();
 
     const addCoAuthor = () => {
         const newId = coAuthors.length > 0 ? Math.max(...coAuthors.map(a => a.id)) + 1 : 1;
@@ -39,9 +47,34 @@ const SubmitPaperPage = () => {
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('Submit paper');
+        if (!selectedFile) {
+            alert('Vui lòng chọn file PDF để nộp');
+            return;
+        }
+        if (!conferenceId || !trackId) {
+            alert('Vui lòng chọn Conference ID và Track ID');
+            return;
+        }
+
+        const data = {
+            title,
+            abstract,
+            keywords,
+            trackId: Number(trackId),
+            conferenceId: Number(conferenceId),
+        };
+
+        const formData = createSubmissionFormData(data, selectedFile);
+
+        try {
+            await createSubmission(formData).unwrap();
+            alert('Nộp bài thành công');
+        } catch (err) {
+            console.error('Submit failed', err);
+            alert('Nộp bài thất bại');
+        }
     };
 
     return (
@@ -89,6 +122,8 @@ const SubmitPaperPage = () => {
                                 </label>
                                 <input
                                     type="text"
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
                                     placeholder="Nhập tiêu đề bài nghiên cứu của bạn"
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#008689] focus:border-[#008689] text-sm bg-gray-50"
                                     required
@@ -100,6 +135,8 @@ const SubmitPaperPage = () => {
                                     Tóm tắt *
                                 </label>
                                 <textarea
+                                    value={abstract}
+                                    onChange={(e) => setAbstract(e.target.value)}
                                     placeholder="Nhập tóm tắt bài viết (tối đa 250 từ - 300 từ)"
                                     rows={4}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#008689] focus:border-[#008689] resize-none text-sm bg-gray-50"
@@ -116,10 +153,27 @@ const SubmitPaperPage = () => {
                                 </label>
                                 <input
                                     type="text"
+                                    value={keywords}
+                                    onChange={(e) => setKeywords(e.target.value)}
                                     placeholder="Nhập các từ khóa, cách nhau bằng dấu phẩy"
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#008689] focus:border-[#008689] text-sm bg-gray-50"
                                     required
                                 />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Select Conference & Track (IDs) */}
+                    <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+                        <h2 className="text-base font-bold text-gray-900 mb-4">Thông tin hội nghị / phân ban</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">Conference ID *</label>
+                                <input type="number" value={conferenceId as any} onChange={(e) => setConferenceId(e.target.value ? Number(e.target.value) : '')} className="w-full px-3 py-2 border border-gray-300 rounded-md" required />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">Track ID *</label>
+                                <input type="number" value={trackId as any} onChange={(e) => setTrackId(e.target.value ? Number(e.target.value) : '')} className="w-full px-3 py-2 border border-gray-300 rounded-md" required />
                             </div>
                         </div>
                     </div>

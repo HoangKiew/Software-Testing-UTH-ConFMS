@@ -61,6 +61,15 @@ const AdminDashboard = () => {
 
     const quickActions = [
         {
+            title: 'Tạo hội nghị mới',
+            description: 'Tạo một hội nghị mới trong hệ thống',
+            icon: DashboardIcon,
+            path: '/chair/conferences/create',
+            color: 'text-[#008689]',
+            bgColor: 'bg-[#e6f7f7]',
+            borderColor: 'border-[#008689]/30',
+        },
+        {
             title: 'Chức năng Chair',
             description: 'Truy cập tất cả chức năng quản lý hội nghị',
             icon: DashboardIcon,

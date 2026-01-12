@@ -44,7 +44,7 @@ const appRouter = createBrowserRouter([
   },
   {
     path: '/activate-account',
-    element: <ActivateAccount />
+    element: <ActivateAccount />,
   },
   {
     path: '/',

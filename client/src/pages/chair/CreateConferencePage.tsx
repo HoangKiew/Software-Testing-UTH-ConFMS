@@ -6,6 +6,7 @@ import {
     Add,
     Delete
 } from '@mui/icons-material';
+import { useCreateConferenceMutation } from '../../redux/api/conferencesApi';
 import bgUth from '../../assets/bg_uth.svg';
 
 const CreateConferencePage = () => {
@@ -67,12 +68,39 @@ const CreateConferencePage = () => {
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const [createConference, { isLoading: creating }] = useCreateConferenceMutation();
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('Conference data:', formData);
-        // TODO: Implement API call
-        alert('Hội nghị đã được tạo thành công!');
-        navigate('/chair/conferences');
+
+        // Build payload matching API example
+        const payload: any = {
+            name: formData.fullName,
+            acronym: formData.shortName,
+            description: formData.cfpDescription || undefined,
+            startDate: formData.startDate || undefined,
+            endDate: formData.endDate || undefined,
+            topics: formData.tracks?.filter(Boolean) || [],
+            deadlines: {
+                submission: formData.submissionDeadline || undefined,
+                review: formData.reviewDeadline || undefined,
+                cameraReady: formData.cameraReadyDeadline || undefined,
+            },
+            location: formData.location || undefined,
+            website: formData.website || undefined,
+            reviewMode: formData.reviewMode,
+            enableCOI: formData.enableCOI,
+            minReviewers: formData.minReviewers,
+        };
+
+        try {
+            await createConference(payload).unwrap();
+            alert('Hội nghị đã được tạo thành công!');
+            navigate('/chair/conferences');
+        } catch (err) {
+            console.error('Create conference failed', err);
+            alert('Tạo hội nghị thất bại');
+        }
     };
 
     return (
