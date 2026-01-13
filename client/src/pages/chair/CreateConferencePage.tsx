@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     CalendarMonth,
-    CloudUpload,
     Add,
     Delete
 } from '@mui/icons-material';
@@ -19,11 +18,6 @@ const CreateConferencePage = () => {
         fullName: '',
         startDate: '',
         endDate: '',
-        location: '',
-        website: '',
-
-        // CFP Details
-        cfpTitle: '',
         cfpDescription: '',
 
         // Deadlines
@@ -33,14 +27,6 @@ const CreateConferencePage = () => {
 
         // Tracks/Topics
         tracks: [''],
-
-        // Review Settings
-        reviewMode: 'double-blind' as 'single-blind' | 'double-blind',
-        enableCOI: true,
-        minReviewers: 3,
-
-        // PDF
-        pdfFile: null as File | null,
     });
 
     const handleInputChange = (field: string, value: any) => {
@@ -62,36 +48,37 @@ const CreateConferencePage = () => {
         setFormData(prev => ({ ...prev, tracks: newTracks }));
     };
 
-    const handlePdfSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.files && event.target.files[0]) {
-            setFormData(prev => ({ ...prev, pdfFile: event.target.files![0] }));
-        }
-    };
-
     const [createConference, { isLoading: creating }] = useCreateConferenceMutation();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Build payload matching API example
+        // Build payload matching backend DTO exactly
         const payload: any = {
             name: formData.fullName,
             acronym: formData.shortName,
-            description: formData.cfpDescription || undefined,
-            startDate: formData.startDate || undefined,
-            endDate: formData.endDate || undefined,
-            topics: formData.tracks?.filter(Boolean) || [],
-            deadlines: {
-                submission: formData.submissionDeadline || undefined,
-                review: formData.reviewDeadline || undefined,
-                cameraReady: formData.cameraReadyDeadline || undefined,
-            },
-            location: formData.location || undefined,
-            website: formData.website || undefined,
-            reviewMode: formData.reviewMode,
-            enableCOI: formData.enableCOI,
-            minReviewers: formData.minReviewers,
+            startDate: formData.startDate,
+            endDate: formData.endDate,
         };
+
+        // Add optional fields only if they have values
+        if (formData.cfpDescription) {
+            payload.description = formData.cfpDescription;
+        }
+
+        const validTopics = formData.tracks.filter(t => t.trim());
+        if (validTopics.length > 0) {
+            payload.topics = validTopics;
+        }
+
+        const deadlines: any = {};
+        if (formData.submissionDeadline) deadlines.submission = formData.submissionDeadline;
+        if (formData.reviewDeadline) deadlines.review = formData.reviewDeadline;
+        if (formData.cameraReadyDeadline) deadlines.cameraReady = formData.cameraReadyDeadline;
+        
+        if (Object.keys(deadlines).length > 0) {
+            payload.deadlines = deadlines;
+        }
 
         try {
             await createConference(payload).unwrap();
@@ -196,35 +183,6 @@ const CreateConferencePage = () => {
                                     </div>
                                 </div>
                             </div>
-
-                            {/* Địa điểm */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Địa điểm tổ chức *
-                                </label>
-                                <input
-                                    type="text"
-                                    value={formData.location}
-                                    onChange={(e) => handleInputChange('location', e.target.value)}
-                                    placeholder="VD: TP. Hồ Chí Minh, Việt Nam"
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#008689] focus:border-transparent"
-                                    required
-                                />
-                            </div>
-
-                            {/* Website */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Website hội nghị
-                                </label>
-                                <input
-                                    type="url"
-                                    value={formData.website}
-                                    onChange={(e) => handleInputChange('website', e.target.value)}
-                                    placeholder="https://conference.example.com"
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#008689] focus:border-transparent"
-                                />
-                            </div>
                         </div>
                     </div>
 
@@ -235,21 +193,6 @@ const CreateConferencePage = () => {
                         </h2>
 
                         <div className="space-y-4">
-                            {/* CFP Title */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Tiêu đề CFP *
-                                </label>
-                                <input
-                                    type="text"
-                                    value={formData.cfpTitle}
-                                    onChange={(e) => handleInputChange('cfpTitle', e.target.value)}
-                                    placeholder="VD: Call for Papers - ICCS 2026"
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#008689] focus:border-transparent"
-                                    required
-                                />
-                            </div>
-
                             {/* CFP Description */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -341,115 +284,6 @@ const CreateConferencePage = () => {
                                     />
                                 </div>
                             </div>
-                        </div>
-                    </div>
-
-                    {/* Section 3: Cài đặt đánh giá (Review Settings) */}
-                    <div className="bg-white rounded-lg shadow-sm p-6">
-                        <h2 className="text-xl font-bold text-gray-900 mb-4">
-                            Cài đặt đánh giá
-                        </h2>
-
-                        <div className="space-y-4">
-                            {/* Review Mode */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Chế độ đánh giá *
-                                </label>
-                                <select
-                                    value={formData.reviewMode}
-                                    onChange={(e) => handleInputChange('reviewMode', e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#008689] focus:border-transparent"
-                                    required
-                                >
-                                    <option value="single-blind">Single-blind (Reviewer biết tác giả)</option>
-                                    <option value="double-blind">Double-blind (Ẩn danh 2 chiều)</option>
-                                </select>
-                                <p className="text-xs text-gray-500 mt-1">
-                                    {formData.reviewMode === 'double-blind'
-                                        ? 'Cả reviewer và tác giả đều ẩn danh với nhau'
-                                        : 'Reviewer biết tác giả nhưng tác giả không biết reviewer'}
-                                </p>
-                            </div>
-
-                            {/* COI Enforcement */}
-                            <div className="flex items-center">
-                                <input
-                                    type="checkbox"
-                                    id="enableCOI"
-                                    checked={formData.enableCOI}
-                                    onChange={(e) => handleInputChange('enableCOI', e.target.checked)}
-                                    className="w-4 h-4 text-[#008689] border-gray-300 rounded focus:ring-[#008689]"
-                                />
-                                <label htmlFor="enableCOI" className="ml-2 text-sm font-medium text-gray-700">
-                                    Bật kiểm tra xung đột lợi ích (COI)
-                                </label>
-                            </div>
-                            <p className="text-xs text-gray-500 ml-6">
-                                Hệ thống sẽ phát hiện và chặn các trường hợp xung đột lợi ích giữa reviewer và tác giả
-                            </p>
-
-                            {/* Min Reviewers */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Số lượng reviewer tối thiểu cho mỗi bài *
-                                </label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max="10"
-                                    value={formData.minReviewers}
-                                    onChange={(e) => handleInputChange('minReviewers', parseInt(e.target.value))}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#008689] focus:border-transparent"
-                                    required
-                                />
-                                <p className="text-xs text-gray-500 mt-1">
-                                    Khuyến nghị: 3 reviewers cho mỗi bài báo
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Section 4: Tải lên file PDF */}
-                    <div className="bg-white rounded-lg shadow-sm p-6">
-                        <h2 className="text-xl font-bold text-gray-900 mb-4">
-                            Tải lên file PDF
-                        </h2>
-
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-[#008689] transition-colors">
-                            <input
-                                type="file"
-                                accept=".pdf"
-                                onChange={handlePdfSelect}
-                                className="hidden"
-                                id="pdf-upload"
-                            />
-                            <label htmlFor="pdf-upload" className="cursor-pointer">
-                                {formData.pdfFile ? (
-                                    <div>
-                                        <CloudUpload className="w-16 h-16 text-[#008689] mx-auto mb-4" />
-                                        <p className="text-lg font-medium text-[#008689] mb-2">
-                                            {formData.pdfFile.name}
-                                        </p>
-                                        <p className="text-sm text-gray-500">
-                                            {(formData.pdfFile.size / 1024 / 1024).toFixed(2)} MB
-                                        </p>
-                                        <p className="text-sm text-[#008689] mt-4">
-                                            Click để chọn file khác
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div>
-                                        <CloudUpload className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                                        <p className="text-lg text-gray-600 mb-2">
-                                            Click để tải lên file PDF
-                                        </p>
-                                        <p className="text-sm text-gray-500">
-                                            Tài liệu hướng dẫn, template, hoặc thông tin bổ sung
-                                        </p>
-                                    </div>
-                                )}
-                            </label>
                         </div>
                     </div>
 

@@ -4,7 +4,7 @@ services:
   # =========================
   postgres:
     image: postgres:15-alpine
-    container_name: uth-database
+    container_name: uth-confms-database
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin123
@@ -46,7 +46,7 @@ services:
     build:
       context: .
       dockerfile: apps/conference-service/Dockerfile
-    container_name: uth-conference-service
+    container_name: uth-confms-conference-service
     ports:
       - '3002:3002'
     environment:
@@ -70,7 +70,7 @@ services:
     build:
       context: .
       dockerfile: ./apps/submission-service/Dockerfile
-    container_name: uth-submission-service
+    container_name: uth-confms-submission-service
     ports:
       - '3003:3003'
     env_file:
@@ -88,7 +88,7 @@ services:
     build:
       context: .
       dockerfile: ./apps/review-service/Dockerfile
-    container_name: uth-review-service
+    container_name: uth-confms-review-service
     ports:
       - '3004:3000'
     environment:
@@ -117,7 +117,7 @@ services:
     build:
       context: .
       dockerfile: ./apps/api-gateway/Dockerfile
-    container_name: uth-api-gateway
+    container_name: uth-confms-api-gateway
     ports:
       - '3000:3000'
     environment:
