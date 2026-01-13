@@ -70,6 +70,16 @@ async function bootstrap() {
       ...proxyOptions,
     }),
   );
+  app.use(
+    '/api/conferences',
+    createProxyMiddleware({
+      target: conferenceServiceUrl,
+      pathRewrite: {
+        '^(.*)': '/api/conferences$1',
+      },
+      ...proxyOptions,
+    }),
+  );
   await app.listen(3000);
   console.log('Gateway is running on http://localhost:3000');
 }
