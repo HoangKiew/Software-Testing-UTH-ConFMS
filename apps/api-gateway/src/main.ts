@@ -74,8 +74,11 @@ async function bootstrap() {
     '/api/conferences',
     createProxyMiddleware({
       target: conferenceServiceUrl,
-      pathRewrite: {
-        '^(.*)': '/api/conferences$1',
+      pathRewrite: (path) => {
+        // /api/conferences -> /api/conferences
+        // / -> /api/conferences
+        // /xyz -> /api/conferences/xyz
+        return path.startsWith('/api/conferences') ? path : '/api/conferences' + path;
       },
       ...proxyOptions,
     }),

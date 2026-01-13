@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useGetConferenceByIdQuery } from '../../redux/api/conferencesApi';
 import {
     CalendarMonth,
     LocationOn,
@@ -44,36 +45,55 @@ interface PCMember {
 const ConferenceDetailPageChair = () => {
     const { id } = useParams();
     const [activeTab, setActiveTab] = useState<'overview' | 'papers' | 'pc-members'>('overview');
+    const { data: apiConference, isLoading } = useGetConferenceByIdQuery(id || '', {
+        skip: !id,
+    });
 
-    // Mock conference data
-    const conference = {
-        id: parseInt(id || '1'),
-        name: 'International Conference on Computer Science 2026',
-        acronym: 'ICCS 2026',
-        description: 'The International Conference on Computer Science brings together researchers, practitioners, and students to share cutting-edge research and innovations in computer science and related fields.',
-        startDate: '2026-06-15',
-        endDate: '2026-06-17',
-        location: 'Ho Chi Minh City, Vietnam',
-        venue: 'University of Technology - VNU-HCM',
-        website: 'https://iccs2026.example.com',
-        status: 'Active',
-        submissionDeadline: '2026-04-15',
-        reviewDeadline: '2026-05-01',
-        notificationDate: '2026-05-15',
-        cameraReadyDeadline: '2026-05-30',
-        tracks: ['Artificial Intelligence', 'Software Engineering', 'Data Science', 'Cybersecurity'],
-        totalSubmissions: 45,
-        underReview: 37,
-        reviewed: 8,
-        decisionsMade: 15,
-        accepted: 8,
-        rejected: 5,
-        revisions: 2,
-        totalPCMembers: 12,
-        totalReviews: 135,
-        completedReviews: 98,
-        pendingReviews: 37
-    };
+    // Map API data to display format
+    const conference = apiConference ? {
+        id: apiConference.id,
+        name: apiConference.name,
+        acronym: apiConference.acronym,
+        description: apiConference.description || 'Không có mô tả',
+        startDate: apiConference.startDate,
+        endDate: apiConference.endDate,
+        location: apiConference.location || 'N/A',
+        venue: 'N/A',
+        website: 'N/A',
+        status: apiConference.status === 'draft' ? 'Draft' : apiConference.status === 'active' ? 'Active' : 'Closed',
+        submissionDeadline: apiConference.deadlines?.submission || 'N/A',
+        reviewDeadline: apiConference.deadlines?.review || 'N/A',
+        notificationDate: 'N/A',
+        cameraReadyDeadline: apiConference.deadlines?.cameraReady || 'N/A',
+        tracks: apiConference.topics || [],
+        totalSubmissions: 0,
+        underReview: 0,
+        reviewed: 0,
+        decisionsMade: 0,
+        accepted: 0,
+        rejected: 0,
+        revisions: 0,
+        totalPCMembers: 0,
+        totalReviews: 0,
+        completedReviews: 0,
+        pendingReviews: 0
+    } : null;
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <p className="text-xl text-gray-600">Đang tải dữ liệu...</p>
+            </div>
+        );
+    }
+
+    if (!conference) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <p className="text-xl text-red-600">Không tìm thấy hội nghị</p>
+            </div>
+        );
+    }
 
     const papers: Paper[] = [
         {

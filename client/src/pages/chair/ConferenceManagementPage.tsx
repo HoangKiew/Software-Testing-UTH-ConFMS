@@ -12,63 +12,32 @@ import {
     CheckCircle
 } from '@mui/icons-material';
 import bgUth from '../../assets/bg_uth.svg';
+import { useGetConferencesQuery, useDeleteConferenceMutation } from '../../redux/api/conferencesApi';
 
 const ConferenceManagementPage = () => {
-    // Mock data
-    const [conferences] = useState([
-        {
-            id: 1,
-            shortName: 'ICCS 2026',
-            fullName: 'International Conference on Computer Science 2026',
-            startDate: '2026-06-15',
-            endDate: '2026-06-17',
-            location: 'TP. Hồ Chí Minh, Việt Nam',
-            status: 'Active',
-            statusColor: 'text-green-600 bg-green-50',
-            submissions: 45,
-            reviews: 32,
-            decisions: 15,
-        },
-        {
-            id: 2,
-            shortName: 'VSEC 2026',
-            fullName: 'Vietnam Software Engineering Conference 2026',
-            startDate: '2026-05-20',
-            endDate: '2026-05-22',
-            location: 'Hà Nội, Việt Nam',
-            status: 'Active',
-            statusColor: 'text-green-600 bg-green-50',
-            submissions: 32,
-            reviews: 28,
-            decisions: 10,
-        },
-        {
-            id: 3,
-            shortName: 'ISIT 2026',
-            fullName: 'International Symposium on Information Technology 2026',
-            startDate: '2026-07-10',
-            endDate: '2026-07-12',
-            location: 'Đà Nẵng, Việt Nam',
-            status: 'Draft',
-            statusColor: 'text-gray-600 bg-gray-50',
-            submissions: 0,
-            reviews: 0,
-            decisions: 0,
-        },
-        {
-            id: 4,
-            shortName: 'UTHCONF 2026',
-            fullName: 'Hội nghị Khoa học Công nghệ UTH 2026',
-            startDate: '2026-04-01',
-            endDate: '2026-04-03',
-            location: 'TP. Hồ Chí Minh, Việt Nam',
-            status: 'Closed',
-            statusColor: 'text-red-600 bg-red-50',
-            submissions: 67,
-            reviews: 67,
-            decisions: 67,
-        },
-    ]);
+    // Fetch conferences from API
+    const { data: conferencesData, isLoading, error } = useGetConferencesQuery();
+    const [deleteConference] = useDeleteConferenceMutation();
+    
+    // Map API data to component format
+    // Backend returns array directly, not wrapped in {data: []}
+    const apiConferences = Array.isArray(conferencesData) ? conferencesData : (conferencesData?.data || []);
+    
+    const conferences = apiConferences.map((conf: any) => ({
+        id: conf.id,
+        shortName: conf.acronym,
+        fullName: conf.name,
+        startDate: conf.startDate,
+        endDate: conf.endDate,
+        location: conf.location || 'N/A',
+        status: conf.status === 'draft' ? 'Draft' : conf.status === 'active' ? 'Active' : 'Closed',
+        statusColor: conf.status === 'draft' ? 'text-gray-600 bg-gray-50' : 
+                     conf.status === 'active' ? 'text-green-600 bg-green-50' : 
+                     'text-red-600 bg-red-50',
+        submissions: 0, // These would come from another API
+        reviews: 0,
+        decisions: 0,
+    }));
 
     // Filter states
     const [searchTerm, setSearchTerm] = useState('');
@@ -82,10 +51,15 @@ const ConferenceManagementPage = () => {
         return matchesSearch && matchesStatus;
     });
 
-    const handleDelete = (id: number) => {
+    const handleDelete = async (id: number) => {
         if (window.confirm('Bạn có chắc chắn muốn xóa hội nghị này?')) {
-            console.log('Delete conference:', id);
-            // TODO: Implement delete API call
+            try {
+                await deleteConference(id).unwrap();
+                alert('Xóa hội nghị thành công!');
+            } catch (err) {
+                console.error('Delete failed:', err);
+                alert('Xóa hội nghị thất bại!');
+            }
         }
     };
 
@@ -181,7 +155,15 @@ const ConferenceManagementPage = () => {
 
                 {/* Conference List */}
                 <div className="space-y-4">
-                    {filteredConferences.length === 0 ? (
+                    {isLoading ? (
+                        <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+                            <p className="text-gray-500 text-lg">Đang tải dữ liệu...</p>
+                        </div>
+                    ) : error ? (
+                        <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+                            <p className="text-red-500 text-lg">Lỗi khi tải danh sách hội nghị</p>
+                        </div>
+                    ) : filteredConferences.length === 0 ? (
                         <div className="bg-white rounded-lg shadow-sm p-12 text-center">
                             <p className="text-gray-500 text-lg">Không tìm thấy hội nghị nào</p>
                             <Link

@@ -1,0 +1,10 @@
+node_modules
+client/node_modules
+apps/*/node_modules
+dist
+client/dist
+*.log
+.git
+.env
+.env.local
+.vscode

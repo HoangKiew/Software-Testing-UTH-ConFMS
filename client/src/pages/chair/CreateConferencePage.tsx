@@ -81,12 +81,12 @@ const CreateConferencePage = () => {
         }
 
         try {
-            await createConference(payload).unwrap();
+            const result = await createConference(payload).unwrap();
             alert('Hội nghị đã được tạo thành công!');
             navigate('/chair/conferences');
         } catch (err) {
             console.error('Create conference failed', err);
-            alert('Tạo hội nghị thất bại');
+            alert('Tạo hội nghị thất bại: ' + (err as any)?.data?.message || 'Lỗi không xác định');
         }
     };
 

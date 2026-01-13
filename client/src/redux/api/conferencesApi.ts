@@ -8,18 +8,21 @@ import type {
 export const conferencesApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     // Get all conferences
-    getConferences: builder.query<ApiResponse<Conference[]>, void>({
+    getConferences: builder.query<any, void>({
       query: () => '/conferences',
-      providesTags: (result) =>
-        result
+      providesTags: (result) => {
+        // Backend returns array directly, not wrapped in {data: []}
+        const conferences = Array.isArray(result) ? result : (result?.data || []);
+        return conferences.length > 0
           ? [
-              ...result.data.map(({ id }) => ({ type: 'Conference' as const, id })),
+              ...conferences.map(({ id }: any) => ({ type: 'Conference' as const, id })),
               { type: 'Conference', id: 'LIST' },
             ]
-          : [{ type: 'Conference', id: 'LIST' }],
+          : [{ type: 'Conference', id: 'LIST' }];
+      },
     }),
     // Get conference by ID
-    getConferenceById: builder.query<ApiResponse<Conference>, number>({
+    getConferenceById: builder.query<any, string | number>({
       query: (id) => `/conferences/${id}`,
       providesTags: (_result, _error, id) => [{ type: 'Conference', id }],
     }),
@@ -62,6 +65,26 @@ export const conferencesApi = apiSlice.injectEndpoints({
       }),
       invalidatesTags: [{ type: 'Conference', id: 'LIST' }],
     }),
+    // Update conference
+    updateConference: builder.mutation<any, { id: string | number; data: Partial<Conference> }>({
+      query: ({ id, data }) => ({
+        url: `/conferences/${id}`,
+        method: 'PATCH',
+        body: data,
+      }),
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: 'Conference', id },
+        { type: 'Conference', id: 'LIST' },
+      ],
+    }),
+    // Delete conference
+    deleteConference: builder.mutation<any, string | number>({
+      query: (id) => ({
+        url: `/conferences/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: [{ type: 'Conference', id: 'LIST' }],
+    }),
   }),
 });
 
@@ -72,5 +95,7 @@ export const {
   useGetTrackByIdQuery,
   useCheckDeadlineQuery,
   useCreateConferenceMutation,
+  useUpdateConferenceMutation,
+  useDeleteConferenceMutation,
 } = conferencesApi;
 
