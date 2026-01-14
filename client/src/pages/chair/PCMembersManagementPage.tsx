@@ -1,137 +1,100 @@
 import { useState } from 'react';
-import {
-    Add,
-    Edit,
-    Delete,
-    People
-} from '@mui/icons-material';
+import { Add, Delete, People } from '@mui/icons-material';
+import CircularProgress from '@mui/material/CircularProgress';
 import bgUth from '../../assets/bg_uth.svg';
+import { useParams } from 'react-router-dom';
+import {
+    useInviteReviewerMutation,
+    useGetAcceptedReviewersQuery,
+    useRemoveInvitationMutation,
+} from '../../redux/api/invitationsApi';
 
-interface PCMember {
-    id: number;
-    name: string;
-    email: string;
-    role: string;
-    affiliation?: string;
-    expertise?: string[];
+interface AcceptedReviewer {
+    invitationId: string;
+    userId: number;
+    acceptedAt: string;
+    topics: string[];
 }
 
 const PCMembersManagementPage = () => {
-    const [showAddForm, setShowAddForm] = useState(false);
-    const [editingMember, setEditingMember] = useState<PCMember | null>(null);
-    const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        role: ''
-    });
+    const { id: conferenceId } = useParams<{ id: string }>();
+    const [showInviteForm, setShowInviteForm] = useState(false);
+    const [userIdInput, setUserIdInput] = useState<string>(''); // input dạng string để dễ validate
+    const [inputError, setInputError] = useState<string | null>(null);
 
-    // Mock data
-    const [pcMembers, setPcMembers] = useState<PCMember[]>([
-        {
-            id: 1,
-            name: 'Nguyễn Văn A',
-            email: 'nguyenvana@gmail.com',
-            role: 'Chủ tịch',
-            affiliation: 'VNU-HCM',
-            expertise: ['AI', 'Machine Learning']
-        },
-        {
-            id: 2,
-            name: 'Nguyễn Văn B',
-            email: 'hoangvanb@gmail.com',
-            role: 'Phản biện viên',
-            affiliation: 'HCMUT',
-            expertise: ['Software Engineering']
-        },
-        {
-            id: 3,
-            name: 'Phạm Văn Việt',
-            email: 'vanviet@gmail.com',
-            role: 'Phản biện viên',
-            affiliation: 'UIT',
-            expertise: ['Data Science']
-        },
-        {
-            id: 4,
-            name: 'Thu Uyên',
-            email: 'hoangthu@gmail.com',
-            role: 'Phản biện viên',
-            affiliation: 'HCMUS',
-            expertise: ['Cybersecurity']
-        },
-        {
-            id: 5,
-            name: 'Nguyễn Trần Huyền',
-            email: 'nguyentranhuyen@gmail.com',
-            role: 'Phản biện viên',
-            affiliation: 'VNU-HCM',
-            expertise: ['Cloud Computing']
-        }
-    ]);
+    // Debug
+    console.log('Token hiện tại:', localStorage.getItem('token') || localStorage.getItem('accessToken'));
 
-    const handleInputChange = (field: string, value: string) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
-    };
+    const {
+        data: acceptedReviewers = [],
+        isLoading: isLoadingAccepted,
+        error: acceptedError,
+        refetch: refetchAccepted,
+    } = useGetAcceptedReviewersQuery(conferenceId!, { skip: !conferenceId });
 
-    const handleAddMember = () => {
-        if (!formData.name || !formData.email || !formData.role) {
-            alert('⚠️ Vui lòng điền đầy đủ thông tin!');
+    const [inviteReviewer, { isLoading: isInviting }] = useInviteReviewerMutation();
+    const [removeInvitation, { isLoading: isRemoving }] = useRemoveInvitationMutation();
+
+    const handleInvite = async () => {
+        const userId = Number(userIdInput.trim());
+
+        if (!conferenceId || isNaN(userId) || userId <= 0) {
+            setInputError('Vui lòng nhập ID reviewer hợp lệ (số nguyên dương)!');
             return;
         }
 
-        const newMember: PCMember = {
-            id: pcMembers.length + 1,
-            name: formData.name,
-            email: formData.email,
-            role: formData.role
-        };
+        if (!window.confirm(`Gửi lời mời cho reviewer ID ${userId}?`)) return;
 
-        setPcMembers([...pcMembers, newMember]);
-        setFormData({ name: '', email: '', role: '' });
-        setShowAddForm(false);
-        alert('✅ Đã thêm thành viên mới thành công!');
-    };
-
-    const handleEditMember = (member: PCMember) => {
-        setEditingMember(member);
-        setFormData({
-            name: member.name,
-            email: member.email,
-            role: member.role
-        });
-        setShowAddForm(true);
-    };
-
-    const handleUpdateMember = () => {
-        if (!editingMember) return;
-
-        setPcMembers(pcMembers.map(m =>
-            m.id === editingMember.id
-                ? { ...m, name: formData.name, email: formData.email, role: formData.role }
-                : m
-        ));
-
-        setFormData({ name: '', email: '', role: '' });
-        setEditingMember(null);
-        setShowAddForm(false);
-        alert('✅ Đã cập nhật thông tin thành viên!');
-    };
-
-    const handleDeleteMember = (memberId: number) => {
-        const member = pcMembers.find(m => m.id === memberId);
-        if (!member) return;
-
-        if (window.confirm(`Xác nhận xóa thành viên "${member.name}"?`)) {
-            setPcMembers(pcMembers.filter(m => m.id !== memberId));
-            alert('✅ Đã xóa thành viên!');
+        try {
+            await inviteReviewer({ conferenceId, userId }).unwrap();
+            alert('Đã gửi lời mời thành công!');
+            setShowInviteForm(false);
+            setUserIdInput('');
+            setInputError(null);
+        } catch (err: any) {
+            const msg = err.data?.message || 'Lỗi không xác định';
+            alert(`Gửi lời mời thất bại: ${msg}`);
+            if (err.status === 401) {
+                alert('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
+                localStorage.clear();
+                window.location.href = '/login';
+            }
         }
     };
 
-    const handleCancel = () => {
-        setFormData({ name: '', email: '', role: '' });
-        setEditingMember(null);
-        setShowAddForm(false);
+    const handleRemove = async (invitationId: string) => {
+        if (!window.confirm('Xác nhận thu hồi lời mời này?')) return;
+        try {
+            await removeInvitation(invitationId).unwrap();
+            alert('Đã thu hồi lời mời thành công!');
+            refetchAccepted();
+        } catch (err: any) {
+            const msg = err.data?.message || 'Lỗi';
+            alert(`Thu hồi thất bại: ${msg}`);
+            if (err.status === 401) {
+                alert('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
+                localStorage.clear();
+                window.location.href = '/login';
+            }
+        }
     };
+
+    if (isLoadingAccepted) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <CircularProgress />
+                <span className="ml-3">Đang tải danh sách...</span>
+            </div>
+        );
+    }
+
+    if (acceptedError) {
+        return (
+            <div className="min-h-screen flex items-center justify-center text-red-600 font-medium">
+                Lỗi tải danh sách: {JSON.stringify(acceptedError)}
+            </div>
+        );
+    }
 
     return (
         <div
@@ -139,173 +102,150 @@ const PCMembersManagementPage = () => {
             style={{
                 backgroundImage: `url(${bgUth})`,
                 backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                backgroundAttachment: 'fixed'
+                backgroundAttachment: 'fixed',
             }}
         >
             <div className="max-w-6xl mx-auto">
                 {/* Header */}
                 <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-                    <div className="flex items-center mb-2">
-                        <People className="w-8 h-8 text-[#008689] mr-3" />
-                        <h1 className="text-3xl font-bold text-gray-900">
-                            Quản lý ban trường trình (PC)
-                        </h1>
-                    </div>
-                    <p className="text-gray-600">
-                        Quản lý danh sách Program Committee Members cho hội nghị
-                    </p>
-                </div>
-
-                {/* Add Member Form */}
-                {!showAddForm && (
-                    <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                            <People className="w-8 h-8 text-[#008689] mr-3" />
+                            <h1 className="text-3xl font-bold text-gray-900">Quản lý Program Committee</h1>
+                        </div>
                         <button
-                            onClick={() => setShowAddForm(true)}
-                            className="w-full flex items-center justify-center px-6 py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-[#008689] hover:text-[#008689] hover:bg-[#e6f7f7] transition-all"
+                            onClick={() => setShowInviteForm(!showInviteForm)}
+                            className="flex items-center px-6 py-3 bg-[#008689] text-white rounded-lg hover:bg-[#006666] transition-colors shadow-sm"
                         >
-                            <Add className="w-5 h-5 mr-2" />
-                            Thêm thành viên mới
+                            <Add className="mr-2" /> Mời Reviewer
                         </button>
                     </div>
-                )}
+                </div>
 
-                {showAddForm && (
+                {/* Form mời reviewer - nhập ID trực tiếp */}
+                {showInviteForm && (
                     <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-                        <h2 className="text-xl font-bold text-gray-900 mb-4">
-                            {editingMember ? 'Chỉnh sửa thành viên' : 'Thêm thành viên mới'}
-                        </h2>
+                        <h2 className="text-xl font-bold mb-4">Mời reviewer tham gia</h2>
 
-                        <div className="space-y-4">
-                            {/* Name Input */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Họ và tên<span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    placeholder="Họ tên"
-                                    value={formData.name}
-                                    onChange={(e) => handleInputChange('name', e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#008689] focus:border-transparent"
-                                />
-                            </div>
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Nhập ID của reviewer (số nguyên)
+                            </label>
+                            <input
+                                type="number"
+                                value={userIdInput}
+                                onChange={(e) => {
+                                    setUserIdInput(e.target.value);
+                                    setInputError(null);
+                                }}
+                                placeholder="Ví dụ: 4"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#008689] focus:border-transparent outline-none"
+                                min="1"
+                            />
+                            {inputError && <p className="text-red-600 text-sm mt-1">{inputError}</p>}
+                        </div>
 
-                            {/* Email Input */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Email<span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="email"
-                                    placeholder="Email"
-                                    value={formData.email}
-                                    onChange={(e) => handleInputChange('email', e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#008689] focus:border-transparent"
-                                />
-                            </div>
-
-                            {/* Role Select */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Chọn vai trò<span className="text-red-500">*</span>
-                                </label>
-                                <select
-                                    value={formData.role}
-                                    onChange={(e) => handleInputChange('role', e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#008689] focus:border-transparent appearance-none"
-                                >
-                                    <option value="">Vai trò</option>
-                                    <option value="Chủ tịch">Chủ tịch</option>
-                                    <option value="Phó chủ tịch">Phó chủ tịch</option>
-                                    <option value="Phản biện viên">Phản biện viên</option>
-                                    <option value="Thư ký">Thư ký</option>
-                                </select>
-                            </div>
-
-                            {/* Action Buttons */}
-                            <div className="flex gap-3 pt-2">
-                                <button
-                                    onClick={handleCancel}
-                                    className="flex-1 px-6 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
-                                >
-                                    Hủy
-                                </button>
-                                <button
-                                    onClick={editingMember ? handleUpdateMember : handleAddMember}
-                                    className="flex-1 px-6 py-2 bg-[#008689] hover:bg-[#006666] text-white font-semibold rounded-lg transition-colors"
-                                >
-                                    {editingMember ? 'Cập nhật' : 'Thêm thành viên'}
-                                </button>
-                            </div>
+                        <div className="flex gap-4">
+                            <button
+                                onClick={() => {
+                                    setShowInviteForm(false);
+                                    setUserIdInput('');
+                                    setInputError(null);
+                                }}
+                                className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                                disabled={isInviting}
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                onClick={handleInvite}
+                                disabled={isInviting || !userIdInput.trim() || Number(userIdInput) <= 0}
+                                className={`flex-1 py-3 rounded-lg text-white font-medium transition-colors ${!isInviting && userIdInput.trim() && Number(userIdInput) > 0
+                                        ? 'bg-[#008689] hover:bg-[#006666]'
+                                        : 'bg-gray-400 cursor-not-allowed'
+                                    }`}
+                            >
+                                {isInviting ? 'Đang gửi...' : 'Gửi lời mời'}
+                            </button>
                         </div>
                     </div>
                 )}
 
-                {/* PC Members List */}
+                {/* Danh sách đã chấp nhận */}
                 <div className="bg-white rounded-lg shadow-sm p-6">
-                    <h2 className="text-xl font-bold text-gray-900 mb-4">
-                        Danh sách PC
+                    <h2 className="text-xl font-bold mb-4">
+                        Danh sách đã chấp nhận ({acceptedReviewers.length})
                     </h2>
 
                     <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-gray-50 border-b border-gray-200">
+                        <table className="w-full min-w-max">
+                            <thead className="bg-gray-50">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
-                                        Họ và tên
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
-                                        Email
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
-                                        Vai trò
-                                    </th>
-                                    <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
-                                        Thao tác
-                                    </th>
+                                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-700">Reviewer</th>
+                                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-700">Chuyên môn (Topics)</th>
+                                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-700">Thời gian chấp nhận</th>
+                                    <th className="px-6 py-3 text-center text-sm font-medium text-gray-700">Thao tác</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">
-                                {pcMembers.map((member) => (
-                                    <tr key={member.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4 text-sm text-gray-900">
-                                            {member.name}
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-gray-600">
-                                            {member.email}
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-gray-900">
-                                            {member.role}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center justify-center gap-2">
-                                                <button
-                                                    onClick={() => handleEditMember(member)}
-                                                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                    title="Chỉnh sửa"
-                                                >
-                                                    <Edit className="w-5 h-5" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteMember(member.id)}
-                                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                    title="Xóa"
-                                                >
-                                                    <Delete className="w-5 h-5" />
-                                                </button>
-                                            </div>
+                                {acceptedReviewers.length > 0 ? (
+                                    acceptedReviewers.map((member) => {
+                                        const acceptedDate = member.acceptedAt ? new Date(member.acceptedAt) : null;
+                                        const formattedDate =
+                                            acceptedDate && !isNaN(acceptedDate.getTime())
+                                                ? acceptedDate.toLocaleString('vi-VN', {
+                                                    day: '2-digit',
+                                                    month: '2-digit',
+                                                    year: 'numeric',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit',
+                                                })
+                                                : 'Chưa xác định';
+
+                                        return (
+                                            <tr key={member.invitationId} className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                                                    Reviewer ID: {member.userId}
+                                                </td>
+                                                <td className="px-6 py-4 text-sm text-gray-700">
+                                                    {member.topics?.length > 0 ? (
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {member.topics.map((topic, tIdx) => (
+                                                                <span
+                                                                    key={`${topic}-${tIdx}`}
+                                                                    className="inline-block bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded"
+                                                                >
+                                                                    {topic}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-gray-500 italic">Chưa cập nhật</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4 text-sm text-gray-600">{formattedDate}</td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <button
+                                                        onClick={() => handleRemove(member.invitationId)}
+                                                        disabled={isRemoving}
+                                                        className="p-2 text-red-600 hover:text-red-800 rounded-full hover:bg-red-50 transition-colors"
+                                                        title="Thu hồi lời mời"
+                                                    >
+                                                        <Delete className="w-5 h-5" />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                ) : (
+                                    <tr>
+                                        <td colSpan={4} className="text-center py-12 text-gray-500 italic">
+                                            Chưa có reviewer nào chấp nhận lời mời
                                         </td>
                                     </tr>
-                                ))}
+                                )}
                             </tbody>
                         </table>
-
-                        {pcMembers.length === 0 && (
-                            <div className="text-center py-12 text-gray-500">
-                                Chưa có PC Member nào. Nhấn "Thêm thành viên mới" để bắt đầu.
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>
