@@ -15,7 +15,7 @@ import EditSubmissionPage from '../pages/submission/EditSubmissionPage.tsx';
 import CameraReadyUploadPage from '../pages/submission/CameraReadyUploadPage.tsx';
 import CreateConferencePage from '../pages/chair/CreateConferencePage.tsx';
 import ConferenceManagementPage from '../pages/chair/ConferenceManagementPage.tsx';
-import PaperAssignmentPage from '../pages/chair/PaperAssignmentPage.tsx';
+import TopicAssignmentPage from '../pages/chair/TopicAssignmentPage.tsx';
 import DecisionMakingPage from '../pages/chair/DecisionMakingPage.tsx';
 import ReviewProgressPage from '../pages/chair/ReviewProgressPage.tsx';
 import ConferenceDetailPageChair from '../pages/chair/ConferenceDetailPageChair.tsx';
@@ -102,9 +102,10 @@ const appRouter = createBrowserRouter([
         path: 'chair/conferences/:id',
         element: <ConferenceDetailPageChair />,
       },
+      // ── ĐÃ SỬA THEO GIẢI PHÁP 2: Không cần :id nữa ──
       {
         path: 'chair/assignments',
-        element: <PaperAssignmentPage />,
+        element: <TopicAssignmentPage />,
       },
       {
         path: 'chair/decisions',
