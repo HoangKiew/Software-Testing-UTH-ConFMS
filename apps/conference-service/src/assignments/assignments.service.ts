@@ -26,10 +26,12 @@ export class AssignmentsService {
     private auditService: AuditService,
     private submissionsClient: SubmissionsClient,
     private httpService: HttpService,
-  ) {}
+  ) { }
 
   /**
    * Lấy tất cả assignments của một hội nghị (dành cho Chair)
+   * CHỈ trả về các assignment đã được phân công (status = ASSIGNED),
+   * không bao gồm các gợi ý (SUGGESTED).
    */
   async findAllByConference(conferenceId: string, chairId: number): Promise<Assignment[]> {
     const conference = await this.conferencesService.findOne(conferenceId);
@@ -40,7 +42,12 @@ export class AssignmentsService {
       throw new ForbiddenException('Only chair can view assignments');
     }
 
-    return this.assignmentRepo.find({ where: { conferenceId } });
+    return this.assignmentRepo.find({
+      where: {
+        conferenceId,
+        status: AssignmentStatus.ASSIGNED, // ← CHỈ LẤY NHỮNG AI ĐÃ ĐƯỢC PHÂN CÔNG
+      },
+    });
   }
 
   /**
@@ -123,7 +130,11 @@ export class AssignmentsService {
 
     if (conference.aiConfig?.keywordSuggestion) {
       const context = matchTopics.join(', ');
-      suggestions = await this.aiService.suggestReviewers(context, reviewers, limit);
+      suggestions = await this.aiService.suggestReviewers(
+        context,          // submissionTopics
+        conferenceId,     // conferenceId (bắt buộc) - SỬA Ở ĐÂY, bỏ dto.conferenceId
+        limit,            // top
+      );
     } else {
       // Fallback: Jaccard similarity
       suggestions = reviewers
@@ -191,7 +202,6 @@ export class AssignmentsService {
     if (!conference) throw new NotFoundException('Conference not found');
     if (conference.chairId !== chairId) throw new ForbiddenException('Only chair can assign');
 
-    const conferenceTopics = conference.topics?.map(t => t.toLowerCase().trim()) || [];
     const reviewers = await this.getReviewers(dto.conferenceId);
 
     const assignments: Assignment[] = [];
@@ -202,29 +212,41 @@ export class AssignmentsService {
         throw new BadRequestException(`Invalid reviewer ID: ${reviewerId}`);
       }
 
-      const revTopics = reviewer.topics.map(t => t.toLowerCase().trim());
-      const overlap = conferenceTopics.filter(ct => revTopics.includes(ct)).length;
-
-      if (overlap === 0 && conferenceTopics.length > 0) {
-        throw new BadRequestException(
-          `Reviewer ${reviewerId} không match bất kỳ topic nào của hội nghị`,
-        );
-      }
-
-      const existing = await this.assignmentRepo.findOne({
+      // 1) Nếu đã có assignment ASSIGNED cho topic này → bỏ qua, không báo lỗi
+      const existingAssigned = await this.assignmentRepo.findOne({
         where: {
           topic: dto.topic,
           reviewerId,
           conferenceId: dto.conferenceId,
+          status: AssignmentStatus.ASSIGNED,
         },
       });
 
-      if (existing) {
-        throw new BadRequestException(
-          `Reviewer ${reviewerId} đã được phân công cho topic này`,
-        );
+      if (existingAssigned) {
+        // Idempotent: không tạo mới, không ném lỗi
+        continue;
       }
 
+      // 2) Nếu đang có SUGGESTED cho topic này → nâng cấp lên ASSIGNED
+      const existingSuggested = await this.assignmentRepo.findOne({
+        where: {
+          topic: dto.topic,
+          reviewerId,
+          conferenceId: dto.conferenceId,
+          status: AssignmentStatus.SUGGESTED,
+        },
+      });
+
+      if (existingSuggested) {
+        existingSuggested.status = AssignmentStatus.ASSIGNED;
+        existingSuggested.assignedAt = new Date();
+        // giữ nguyên similarityScore & suggestionReason
+        const saved = await this.assignmentRepo.save(existingSuggested);
+        assignments.push(saved);
+        continue;
+      }
+
+      // 3) Chưa có bản ghi nào → tạo mới ASSIGNED
       const assignment = this.assignmentRepo.create({
         topic: dto.topic,
         reviewerId,
