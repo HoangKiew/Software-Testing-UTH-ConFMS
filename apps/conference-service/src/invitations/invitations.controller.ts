@@ -52,7 +52,15 @@ export class InvitationsController {
     @Body() dto: InviteReviewerDto,
     @CurrentUser('userId') chairId: number,
   ) {
-    return this.invitationsService.inviteReviewer(dto.conferenceId, dto.userId, chairId);
+    // ──────────────────────────────────────────────────────────────────────────────
+    // SỬA: truyền thêm dto.email vào service (nếu Chair gửi kèm)
+    // ──────────────────────────────────────────────────────────────────────────────
+    return this.invitationsService.inviteReviewer(
+      dto.conferenceId,
+      dto.userId,
+      chairId,
+      dto.email,  // ← Truyền email từ body vào service
+    );
   }
 
   // Chair xem danh sách reviewer đã chấp nhận

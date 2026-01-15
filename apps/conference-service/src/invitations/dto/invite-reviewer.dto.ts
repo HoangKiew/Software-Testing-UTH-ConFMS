@@ -1,7 +1,7 @@
 // apps/conference-service/src/invitations/dto/invite-reviewer.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNumber } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsNumber, IsOptional, IsEmail } from 'class-validator';
 
 export class InviteReviewerDto {
   @ApiProperty({
@@ -17,4 +17,12 @@ export class InviteReviewerDto {
   })
   @IsNumber()
   userId: number;
+
+  @ApiPropertyOptional({
+    description: 'Email của reviewer (tùy chọn, nếu cung cấp sẽ ưu tiên dùng để gửi lời mời)',
+    example: 'reviewer@example.com',
+  })
+  @IsOptional()
+  @IsEmail({}, { message: 'Email không hợp lệ nếu được cung cấp' })
+  email?: string;
 }

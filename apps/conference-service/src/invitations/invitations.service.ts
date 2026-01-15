@@ -30,7 +30,12 @@ export class InvitationsService {
     private readonly auditService: AuditService,
   ) { }
 
-  async inviteReviewer(conferenceId: string, userId: number, chairId: number) {
+  async inviteReviewer(
+    conferenceId: string,
+    userId: number,
+    chairId: number,
+    reviewerEmailFromBody?: string,
+  ) {
     const conference = await this.conferencesService.findOne(conferenceId);
     if (!conference) throw new NotFoundException('Conference not found');
     if (conference.chairId !== chairId) throw new ForbiddenException('Only chair can invite');
@@ -42,6 +47,9 @@ export class InvitationsService {
         throw new BadRequestException('User has already processed this invitation');
       }
       existing.invitedAt = new Date();
+      if (reviewerEmailFromBody) {
+        existing.reviewerEmail = reviewerEmailFromBody;
+      }
       await this.invitationRepo.save(existing);
       await this.auditService.log('RE_INVITE_REVIEWER', chairId, 'Invitation', existing.id, { userId });
       return { message: 'Re-invitation sent', invitationId: existing.id };
@@ -55,13 +63,30 @@ export class InvitationsService {
       topics: [],
       coiUserIds: [],
       coiInstitutions: [],
+      reviewerEmail: undefined,
     });
+
+    // XỬ LÝ EMAIL: Ưu tiên từ body → fallback từ identity-service
+    let userEmail: string | undefined = reviewerEmailFromBody;  // ← Sửa type ở đây (khớp với optional DTO)
+
+    if (!userEmail) {
+      try {
+        userEmail = await this.usersClient.getUserEmail(userId);
+        this.logger.log(`[INVITE] Lấy email từ identity-service thành công cho user ${userId}: ${userEmail}`);
+      } catch (err) {
+        this.logger.warn(`[INVITE] Không lấy được email từ identity-service cho user ${userId}: ${err.message}`);
+        userEmail = undefined;
+      }
+    }
+
+    // Lưu email vào entity
+    invitation.reviewerEmail = userEmail;
 
     const saved = await this.invitationRepo.save(invitation);
 
-    try {
-      const userEmail = await this.usersClient.getUserEmail(userId);
-      if (userEmail && userEmail !== 'unknown@author.example.com') {
+    // Gửi email nếu có email hợp lệ
+    if (userEmail && userEmail !== 'unknown@author.example.com') {
+      try {
         await this.emailsService.sendReviewerInvitationEmail(userEmail, {
           name: userEmail.split('@')[0],
           conferenceName: conference.name,
@@ -70,9 +95,12 @@ export class InvitationsService {
           invitationId: saved.id,
           conferenceId,
         });
+        this.logger.log(`[INVITE] Đã gửi email mời reviewer thành công đến ${userEmail} (invitation ${saved.id})`);
+      } catch (emailErr) {
+        this.logger.error(`[INVITE] Lỗi gửi email mời đến ${userEmail}: ${emailErr.message}`);
       }
-    } catch (err) {
-      this.logger.warn(`Could not send invitation email to user ${userId}: ${err.message}`);
+    } else {
+      this.logger.warn(`[INVITE] Không gửi email mời cho user ${userId} vì không có email hợp lệ`);
     }
 
     await this.auditService.log('INVITE_REVIEWER', chairId, 'Invitation', saved.id, { userId, conferenceId });
@@ -80,6 +108,7 @@ export class InvitationsService {
     return { message: 'Invitation sent successfully', invitationId: saved.id };
   }
 
+  // Các hàm còn lại giữ nguyên 100%
   async acceptInvitation(invitationId: string, userId?: number) {
     const invitation = await this.invitationRepo.findOne({
       where: { id: invitationId },

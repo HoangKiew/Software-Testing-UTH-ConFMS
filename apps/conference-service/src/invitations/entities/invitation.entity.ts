@@ -43,6 +43,7 @@ export class Invitation {
   })
   status: InvitationStatus;
 
+  // Fixed: use correct type 'timestamptz' (or omit type completely)
   @CreateDateColumn({ name: 'invited_at', type: 'timestamptz' })
   invitedAt: Date;
 
@@ -51,6 +52,9 @@ export class Invitation {
 
   @Column({ name: 'declined_at', type: 'timestamptz', nullable: true })
   declinedAt: Date | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  reviewerEmail?: string;
 
   @ManyToOne(() => Conference, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'conference_id' })
