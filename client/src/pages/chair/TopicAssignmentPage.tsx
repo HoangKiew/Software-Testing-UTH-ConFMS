@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Search, Person, Assignment, AutoAwesome, FilterList } from '@mui/icons-material';
 import bgUth from '../../assets/bg_uth.svg';
 
@@ -8,9 +8,8 @@ import {
     useAssignReviewersToTopicMutation,
     useGetAssignmentsByConferenceQuery,
 } from '../../redux/api/assignmentsApi';
-
-// Giả định bạn đã có slice conferencesApi với endpoint này
-import { useGetConferencesQuery } from '../../redux/api/conferencesApi'; // Nếu chưa có → cần tạo
+import { useGetAcceptedReviewersQuery } from '../../redux/api/invitationsApi';
+import { useGetConferencesQuery } from '../../redux/api/conferencesApi';
 
 const TopicAssignmentPage = () => {
     const [selectedConferenceId, setSelectedConferenceId] = useState<string | null>(null);
@@ -33,6 +32,12 @@ const TopicAssignmentPage = () => {
 
     // Lấy assignments của hội nghị đã chọn
     const { data: assignments = [] } = useGetAssignmentsByConferenceQuery(
+        selectedConferenceId!,
+        { skip: !selectedConferenceId }
+    );
+
+    // Lấy danh sách reviewer đã chấp nhận (có name/email) cho hội nghị đang chọn
+    const { data: acceptedReviewers = [] } = useGetAcceptedReviewersQuery(
         selectedConferenceId!,
         { skip: !selectedConferenceId }
     );
@@ -77,6 +82,34 @@ const TopicAssignmentPage = () => {
             .then(() => alert('Đã tự động phân công top reviewers!'))
             .catch((err) => alert('Lỗi: ' + (err.data?.message || 'Không thể phân công')));
     };
+
+    // Gom assignments theo topic, map reviewerId -> name/email từ acceptedReviewers
+    const groupedAssignments = useMemo(
+        () =>
+            (assignments as any[]).reduce((acc: any[], assignment: any) => {
+                const reviewer = (acceptedReviewers as any[]).find(
+                    (r) => r.userId === assignment.reviewerId
+                );
+
+                const reviewerInfo = {
+                    id: assignment.reviewerId,
+                    name: reviewer?.name,
+                    email: reviewer?.email,
+                };
+
+                const existing = acc.find((a) => a.topic === assignment.topic);
+                if (existing) {
+                    existing.reviewers.push(reviewerInfo);
+                } else {
+                    acc.push({
+                        topic: assignment.topic,
+                        reviewers: [reviewerInfo],
+                    });
+                }
+                return acc;
+            }, []),
+        [assignments, acceptedReviewers]
+    );
 
     return (
         <div className="min-h-screen bg-gray-50 py-8 px-4" style={{ backgroundImage: `url(${bgUth})`, backgroundSize: 'cover' }}>
@@ -132,8 +165,8 @@ const TopicAssignmentPage = () => {
                                             key={topic}
                                             onClick={() => setSelectedTopic(topic)}
                                             className={`w-full text-left p-3 rounded border transition-colors ${selectedTopic === topic
-                                                    ? 'border-[#008689] bg-[#e6f7f7] text-[#008689]'
-                                                    : 'border-gray-200 hover:bg-gray-50'
+                                                ? 'border-[#008689] bg-[#e6f7f7] text-[#008689]'
+                                                : 'border-gray-200 hover:bg-gray-50'
                                                 }`}
                                         >
                                             {topic}
@@ -231,12 +264,19 @@ const TopicAssignmentPage = () => {
                         <div className="bg-white rounded-lg shadow p-6 mt-6">
                             <h2 className="text-xl font-bold mb-4">Phân công hiện tại của hội nghị</h2>
                             <div className="space-y-3">
-                                {assignments.length > 0 ? (
-                                    assignments.map((assign: any) => (
+                                {groupedAssignments.length > 0 ? (
+                                    groupedAssignments.map((assign: any) => (
                                         <div key={assign.topic} className="border rounded p-4 bg-gray-50">
                                             <strong className="block mb-1">{assign.topic}</strong>
                                             <div className="text-gray-700">
-                                                {assign.reviewers?.map((r: any) => r.name).join(', ') || 'Chưa có reviewer nào được phân công'}
+                                                {assign.reviewers?.length > 0
+                                                    ? assign.reviewers
+                                                        .map(
+                                                            (r: any) =>
+                                                                `${r.name || `Reviewer #${r.id}`} (${r.email || `ID: ${r.id}`})`
+                                                        )
+                                                        .join(', ')
+                                                    : 'Chưa có reviewer nào được phân công'}
                                             </div>
                                         </div>
                                     ))
