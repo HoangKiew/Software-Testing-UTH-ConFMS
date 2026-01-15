@@ -316,5 +316,23 @@ export class UsersService {
 
     await this.usersRepository.remove(user);
   }
+
+  async findAll(role?: string, searchQuery?: string): Promise<User[]> {
+    let query = this.usersRepository.createQueryBuilder('user')
+      .leftJoinAndSelect('user.roles', 'roles');
+
+    if (role) {
+      query = query.where('roles.name = :role', { role });
+    }
+
+    if (searchQuery) {
+      const searchTerm = `%${searchQuery}%`;
+      query = query.andWhere('(user.fullName ILIKE :search OR user.email ILIKE :search)', {
+        search: searchTerm,
+      });
+    }
+
+    return query.getMany();
+  }
 }
 

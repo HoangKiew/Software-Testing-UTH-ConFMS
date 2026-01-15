@@ -9,51 +9,36 @@ import {
     CalendarMonth
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
+import { useGetConferencesQuery } from '../../redux/api/conferencesApi';
 
 interface ChairDashboardProps {
     currentRole?: string;
 }
 
 const ChairDashboard = ({ currentRole }: ChairDashboardProps) => {
-    // Mock data for Chair
-    const myConferences = [
-        {
-            id: 1,
-            name: 'International Conference on Computer Science 2026',
-            acronym: 'ICCS 2026',
-            startDate: '2026-06-15',
-            endDate: '2026-06-17',
-            status: 'Active',
-            statusColor: 'text-green-600 bg-green-50',
-            submissions: 45,
-            reviews: 32,
-            decisions: 15,
-        },
-        {
-            id: 2,
-            name: 'Vietnam Software Engineering Conference 2026',
-            acronym: 'VSEC 2026',
-            startDate: '2026-05-20',
-            endDate: '2026-05-22',
-            status: 'Active',
-            statusColor: 'text-green-600 bg-green-50',
-            submissions: 32,
-            reviews: 28,
-            decisions: 10,
-        },
-        {
-            id: 3,
-            name: 'International Symposium on Information Technology 2026',
-            acronym: 'ISIT 2026',
-            startDate: '2026-07-10',
-            endDate: '2026-07-12',
-            status: 'Draft',
-            statusColor: 'text-gray-600 bg-gray-50',
-            submissions: 0,
-            reviews: 0,
-            decisions: 0,
-        },
-    ];
+    // Fetch conferences from API
+    const { data: conferencesData, isLoading, error } = useGetConferencesQuery();
+    
+    // Map API data to component format
+    const apiConferences = Array.isArray(conferencesData) ? conferencesData : (conferencesData?.data || []);
+    
+    const myConferences = apiConferences.map((conf: any) => ({
+        id: conf.id,
+        name: conf.name,
+        acronym: conf.acronym,
+        startDate: conf.startDate,
+        endDate: conf.endDate,
+        status: conf.status === 'draft' ? 'Draft' : conf.status === 'active' ? 'Active' : 'Closed',
+        statusColor: conf.status === 'draft' ? 'text-gray-600 bg-gray-50' : 
+                     conf.status === 'active' ? 'text-green-600 bg-green-50' : 
+                     'text-red-600 bg-red-50',
+        submissions: 0, // These would come from another API
+        reviews: 0,
+        decisions: 0,
+    }));
+
+    // Only display first 3 conferences
+    const displayConferences = myConferences.slice(0, 3);
 
     return (
         <div>
@@ -190,7 +175,28 @@ const ChairDashboard = ({ currentRole }: ChairDashboardProps) => {
                         </div>
 
                         <div className="space-y-4">
-                            {myConferences.map((conf) => (
+                            {isLoading ? (
+                                <div className="text-center py-12">
+                                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#008689]"></div>
+                                    <p className="mt-2 text-gray-600">Đang tải...</p>
+                                </div>
+                            ) : error ? (
+                                <div className="text-center py-12">
+                                    <p className="text-red-600">Không thể tải danh sách hội nghị</p>
+                                </div>
+                            ) : myConferences.length === 0 ? (
+                                <div className="text-center py-12">
+                                    <p className="text-gray-600">Bạn chưa có hội nghị nào</p>
+                                    <Link
+                                        to="/chair/conferences/create"
+                                        className="inline-block mt-4 px-6 py-2 bg-[#008689] text-white rounded-lg hover:bg-[#006666]"
+                                    >
+                                        Tạo hội nghị đầu tiên
+                                    </Link>
+                                </div>
+                            ) : (
+                                <>
+                            {displayConferences.map((conf) => (
                                 <div
                                     key={conf.id}
                                     className="border border-gray-200 rounded-lg p-6 hover:border-[#008689] hover:shadow-md transition-all duration-300"
@@ -257,6 +263,8 @@ const ChairDashboard = ({ currentRole }: ChairDashboardProps) => {
                                     </div>
                                 </div>
                             ))}
+                                </>
+                            )}
                         </div>
                     </div>
 

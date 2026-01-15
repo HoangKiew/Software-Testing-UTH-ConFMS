@@ -31,6 +31,30 @@ export class UsersController {
     };
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleName.ADMIN)
+  @Get()
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Lấy danh sách tất cả users (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
+  @ApiResponse({ status: 403, description: 'Không có quyền ADMIN' })
+  @ApiQuery({ name: 'role', description: 'Lọc theo role (optional)', required: false })
+  @ApiQuery({ name: 'q', description: 'Tìm kiếm theo tên/email (optional)', required: false })
+  async getAllUsers(
+    @Query('role') role?: string,
+    @Query('q') searchQuery?: string,
+  ) {
+    const users = await this.usersService.findAll(role, searchQuery);
+    const usersWithoutPassword = users.map(user => {
+      const { password, ...rest } = user;
+      return rest;
+    });
+    return {
+      message: 'Lấy danh sách người dùng thành công',
+      data: usersWithoutPassword,
+    };
+  }
+
   @UseGuards(JwtAuthGuard)
   @Patch('change-password')
   @ApiBearerAuth('JWT-auth')

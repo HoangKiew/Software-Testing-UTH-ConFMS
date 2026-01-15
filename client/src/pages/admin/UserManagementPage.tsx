@@ -9,88 +9,49 @@ import {
     Download,
     Visibility,
 } from '@mui/icons-material';
+import { useGetUsersQuery, useDeleteUserMutation } from '../../redux/api/usersApi';
 
 interface User {
     id: number;
-    name: string;
+    name?: string;
+    fullName?: string;
     email: string;
-    role: string;
-    status: 'Active' | 'Inactive';
-    createdAt: string;
+    role?: string;
+    roles?: string[] | any[];
+    status?: 'Active' | 'Inactive';
+    createdAt?: string;
+    created_at?: string;
 }
 
 const UserManagementPage = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [filterRole, setFilterRole] = useState('all');
     const [filterStatus, setFilterStatus] = useState('all');
+    const [deleteUser] = useDeleteUserMutation();
 
-    // Mock data - replace with API call
-    const users: User[] = [
-        {
-            id: 1,
-            name: 'Nguyễn Văn A',
-            email: 'nguyenvana@example.com',
-            role: 'ADMIN',
-            status: 'Active',
-            createdAt: '2025-01-15',
-        },
-        {
-            id: 2,
-            name: 'Trần Thị B',
-            email: 'tranthib@example.com',
-            role: 'CHAIR',
-            status: 'Active',
-            createdAt: '2025-02-20',
-        },
-        {
-            id: 3,
-            name: 'Lê Văn C',
-            email: 'levanc@example.com',
-            role: 'REVIEWER',
-            status: 'Active',
-            createdAt: '2025-03-10',
-        },
-        {
-            id: 4,
-            name: 'Phạm Thị D',
-            email: 'phamthid@example.com',
-            role: 'AUTHOR',
-            status: 'Active',
-            createdAt: '2025-03-25',
-        },
-        {
-            id: 5,
-            name: 'Hoàng Văn E',
-            email: 'hoangvane@example.com',
-            role: 'AUTHOR',
-            status: 'Inactive',
-            createdAt: '2025-04-05',
-        },
-        {
-            id: 6,
-            name: 'Võ Thị F',
-            email: 'vothif@example.com',
-            role: 'REVIEWER',
-            status: 'Active',
-            createdAt: '2025-04-12',
-        },
-        {
-            id: 7,
-            name: 'Đặng Văn G',
-            email: 'dangvang@example.com',
-            role: 'CHAIR',
-            status: 'Active',
-            createdAt: '2025-05-01',
-        },
-        {
-            id: 8,
-            name: 'Bùi Thị H',
-            email: 'buithih@example.com',
-            role: 'AUTHOR',
-            status: 'Active',
-            createdAt: '2025-05-18',
-        },
-    ];
+    // Fetch users from API
+    const { data: usersData, isLoading, error } = useGetUsersQuery();
+    
+    // Map API data to component format
+    const apiUsers = Array.isArray(usersData) ? usersData : (usersData?.data || usersData?.users || []);
+    
+    const users: User[] = apiUsers.map((user: any) => {
+        // Extract role from different possible formats
+        let role = user.role || 'AUTHOR';
+        if (Array.isArray(user.roles) && user.roles.length > 0) {
+            role = typeof user.roles[0] === 'string' ? user.roles[0] : user.roles[0]?.name || user.roles[0]?.role || 'AUTHOR';
+        }
+
+        return {
+            id: user.id,
+            name: user.fullName || user.name || '',
+            fullName: user.fullName || user.name || '',
+            email: user.email,
+            role: role,
+            status: user.isActive !== false ? 'Active' : 'Inactive',
+            createdAt: user.createdAt || user.created_at || new Date().toISOString(),
+        };
+    });
 
     // Filter users based on search and filters
     const filteredUsers = users.filter((user) => {
@@ -123,10 +84,15 @@ const UserManagementPage = () => {
             : 'bg-gray-100 text-gray-800';
     };
 
-    const handleDeleteUser = (userId: number) => {
+    const handleDeleteUser = async (userId: number) => {
         if (window.confirm('Bạn có chắc chắn muốn xóa người dùng này?')) {
-            // TODO: Call API to delete user
-            console.log('Delete user:', userId);
+            try {
+                await deleteUser(userId).unwrap();
+                alert('Xóa người dùng thành công!');
+            } catch (err) {
+                console.error('Delete failed:', err);
+                alert('Xóa người dùng thất bại!');
+            }
         }
     };
 
@@ -254,41 +220,48 @@ const UserManagementPage = () => {
                 {/* Users Table */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                     <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        ID
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Tên
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Email
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Vai trò
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Trạng thái
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Ngày tạo
-                                    </th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Thao tác
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {filteredUsers.length === 0 ? (
+                        {isLoading ? (
+                            <div className="px-6 py-12 text-center">
+                                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#008689]"></div>
+                                <p className="mt-2 text-gray-600">Đang tải danh sách người dùng...</p>
+                            </div>
+                        ) : error ? (
+                            <div className="px-6 py-12 text-center">
+                                <p className="text-red-600">Không thể tải danh sách người dùng</p>
+                            </div>
+                        ) : filteredUsers.length === 0 ? (
+                            <div className="px-6 py-12 text-center">
+                                <p className="text-gray-500">Không tìm thấy người dùng nào</p>
+                            </div>
+                        ) : (
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
                                     <tr>
-                                        <td colSpan={7} className="px-6 py-12 text-center">
-                                            <p className="text-gray-500">Không tìm thấy người dùng nào</p>
-                                        </td>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            ID
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Tên
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Email
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Vai trò
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Trạng thái
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Ngày tạo
+                                        </th>
+                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Thao tác
+                                        </th>
                                     </tr>
-                                ) : (
-                                    filteredUsers.map((user) => (
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {filteredUsers.map((user) => (
                                         <tr key={user.id} className="hover:bg-gray-50">
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                 #{user.id}
@@ -350,10 +323,10 @@ const UserManagementPage = () => {
                                                 </div>
                                             </td>
                                         </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
                     </div>
 
                     {/* Pagination */}
@@ -363,23 +336,6 @@ const UserManagementPage = () => {
                                 Hiển thị <span className="font-medium">{filteredUsers.length}</span> /{' '}
                                 <span className="font-medium">{users.length}</span> người dùng
                             </p>
-                            <div className="flex items-center gap-2">
-                                <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors duration-200">
-                                    Trước
-                                </button>
-                                <button className="px-4 py-2 bg-[#008689] text-white rounded-lg text-sm font-medium">
-                                    1
-                                </button>
-                                <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors duration-200">
-                                    2
-                                </button>
-                                <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors duration-200">
-                                    3
-                                </button>
-                                <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors duration-200">
-                                    Sau
-                                </button>
-                            </div>
                         </div>
                     </div>
                 </div>

@@ -43,6 +43,21 @@ export interface SearchUsersParams {
 
 export const usersApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
+    // Get all users
+    getUsers: builder.query<any, void>({
+      query: () => '/users',
+      providesTags: (result) => {
+        // Backend returns object with data property: { data: [...] } or { message, data: [...] }
+        const users = Array.isArray(result) ? result : (result?.data || result?.users || []);
+        return users.length > 0
+          ? [
+              ...users.map(({ id }: any) => ({ type: 'User' as const, id })),
+              { type: 'User', id: 'LIST' },
+            ]
+          : [{ type: 'User', id: 'LIST' }];
+      },
+    }),
+
     // Đổi mật khẩu
     changePassword: builder.mutation<{ message: string }, ChangePasswordRequest>({
       query: (body) => ({
@@ -140,10 +155,10 @@ export const usersApi = apiSlice.injectEndpoints({
 
         const candidates = [
           // Gateway custom: /api/reviewers → identity /api/users?... (nếu tồn tại)
-          { url: 'reviewers', params: { q, page, limit } },
-          // Một số triển khai có /users/search
+          { url: '/reviewers', params: { q, page, limit } },
+          // Một số triển khai có /api/users/search
           { url: '/users/search', params: { role: 'REVIEWER', q, page, limit } },
-          // Fallback chung: /users
+          // Fallback chung: /api/users
           { url: '/users', params: { role: 'REVIEWER', q, page, limit } },
         ];
 
@@ -206,4 +221,5 @@ export const {
   useDeleteUserMutation,
   useSearchReviewersQuery,            // Hook để search reviewer
   useLazySearchReviewersQuery,        // Lazy version nếu cần gọi thủ công
+  useGetUsersQuery,                   // Hook để lấy danh sách users
 } = usersApi;
