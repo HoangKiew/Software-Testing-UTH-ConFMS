@@ -25,4 +25,12 @@ export class InviteReviewerDto {
   @IsOptional()
   @IsEmail({}, { message: 'Email không hợp lệ nếu được cung cấp' })
   email?: string;
+
+  @ApiPropertyOptional({
+    description: 'Tên hiển thị của reviewer (tùy chọn)',
+    example: 'Nguyễn Văn A',
+  })
+  @IsOptional()
+  @IsString()
+  name?: string;
 }

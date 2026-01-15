@@ -35,24 +35,40 @@ export class InvitationsService {
     userId: number,
     chairId: number,
     reviewerEmailFromBody?: string,
+    reviewerNameFromBody?: string, // NEW
   ) {
     const conference = await this.conferencesService.findOne(conferenceId);
     if (!conference) throw new NotFoundException('Conference not found');
     if (conference.chairId !== chairId) throw new ForbiddenException('Only chair can invite');
 
-    const existing = await this.invitationRepo.findOne({ where: { conferenceId, userId } });
+    // Lấy lời mời mới nhất của user này trong hội nghị này
+    const existing = await this.invitationRepo.findOne({
+      where: { conferenceId, userId },
+      order: { invitedAt: 'DESC' },
+    });
 
     if (existing) {
-      if (existing.status !== InvitationStatus.PENDING) {
-        throw new BadRequestException('User has already processed this invitation');
+      if (existing.status === InvitationStatus.PENDING) {
+        existing.invitedAt = new Date();
+        if (reviewerEmailFromBody) {
+          existing.reviewerEmail = reviewerEmailFromBody;
+        }
+        if (reviewerNameFromBody) {
+          existing.reviewerName = reviewerNameFromBody;
+        }
+        await this.invitationRepo.save(existing);
+        await this.auditService.log('RE_INVITE_REVIEWER', chairId, 'Invitation', existing.id, { userId });
+        return { message: 'Re-invitation sent', invitationId: existing.id };
       }
-      existing.invitedAt = new Date();
-      if (reviewerEmailFromBody) {
-        existing.reviewerEmail = reviewerEmailFromBody;
+
+      if (existing.status === InvitationStatus.ACCEPTED) {
+        throw new BadRequestException('User has already accepted this invitation');
       }
-      await this.invitationRepo.save(existing);
-      await this.auditService.log('RE_INVITE_REVIEWER', chairId, 'Invitation', existing.id, { userId });
-      return { message: 'Re-invitation sent', invitationId: existing.id };
+
+      // Nếu đã DECLINED thì cho phép tạo lời mời mới (không throw lỗi)
+      this.logger.log(
+        `[INVITE] Creating new invitation after decline for user ${userId} in conference ${conferenceId} (previous invitation ${existing.id})`,
+      );
     }
 
     const invitation = this.invitationRepo.create({
@@ -64,11 +80,11 @@ export class InvitationsService {
       coiUserIds: [],
       coiInstitutions: [],
       reviewerEmail: undefined,
+      reviewerName: undefined,
     });
 
     // XỬ LÝ EMAIL: Ưu tiên từ body → fallback từ identity-service
-    let userEmail: string | undefined = reviewerEmailFromBody;  // ← Sửa type ở đây (khớp với optional DTO)
-
+    let userEmail: string | undefined = reviewerEmailFromBody;
     if (!userEmail) {
       try {
         userEmail = await this.usersClient.getUserEmail(userId);
@@ -79,8 +95,11 @@ export class InvitationsService {
       }
     }
 
-    // Lưu email vào entity
+    // Lưu email + name vào entity
     invitation.reviewerEmail = userEmail;
+    if (reviewerNameFromBody) {
+      invitation.reviewerName = reviewerNameFromBody;
+    }
 
     const saved = await this.invitationRepo.save(invitation);
 
@@ -108,7 +127,6 @@ export class InvitationsService {
     return { message: 'Invitation sent successfully', invitationId: saved.id };
   }
 
-  // Các hàm còn lại giữ nguyên 100%
   async acceptInvitation(invitationId: string, userId?: number) {
     const invitation = await this.invitationRepo.findOne({
       where: { id: invitationId },
@@ -167,6 +185,9 @@ export class InvitationsService {
       userId: i.userId,
       acceptedAt: i.acceptedAt,
       topics: i.topics,
+      // Fallback: nếu chưa có reviewerName thì lấy phần trước @ của email
+      name: i.reviewerName ?? (i.reviewerEmail ? i.reviewerEmail.split('@')[0] : undefined),
+      email: i.reviewerEmail,
     }));
   }
 

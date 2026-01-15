@@ -56,6 +56,10 @@ export class Invitation {
   @Column({ type: 'varchar', length: 255, nullable: true })
   reviewerEmail?: string;
 
+  // NEW: lưu tên reviewer tại thời điểm mời
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  reviewerName?: string;
+
   @ManyToOne(() => Conference, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'conference_id' })
   conference: Conference;

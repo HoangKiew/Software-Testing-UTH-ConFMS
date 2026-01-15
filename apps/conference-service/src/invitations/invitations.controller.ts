@@ -60,6 +60,7 @@ export class InvitationsController {
       dto.userId,
       chairId,
       dto.email,  // ← Truyền email từ body vào service
+      dto.name,   // ← Truyền tên từ body vào service
     );
   }
 
