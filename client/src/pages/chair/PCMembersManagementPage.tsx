@@ -37,16 +37,25 @@ const PCMembersManagementPage = () => {
     const [inviteReviewer, { isLoading: isInviting }] = useInviteReviewerMutation();
     const [removeInvitation, { isLoading: isRemoving }] = useRemoveInvitationMutation();
 
+    // QUAN TRỌNG: load reviewers cả khi đã có accepted reviewers (để join lấy tên)
+    const shouldLoadReviewers = showInviteForm || acceptedReviewers.length > 0;
+
     const {
         data: reviewers = [],
         isLoading: isLoadingReviewers,
         error: reviewersError,
     } = useSearchReviewersQuery(
         { q: searchTerm || undefined, page: 1, limit: 50 },
-        { skip: !showInviteForm }
+        { skip: !shouldLoadReviewers }
     );
 
     const invitedIds = new Set(acceptedReviewers.map((r) => r.userId));
+
+    // Tạo map userId -> user để dùng cho danh sách đã chấp nhận
+    const reviewersById = new Map<number, any>();
+    reviewers.forEach((u: any) => {
+        reviewersById.set(u.id, u);
+    });
 
     const handleInvite = async (userId: number, displayName?: string, email?: string) => {
         if (!conferenceId) {
@@ -65,7 +74,8 @@ const PCMembersManagementPage = () => {
             await inviteReviewer({
                 conferenceId,
                 userId,
-                email  // ← THÊM: gửi kèm email vào body API
+                email,        // gửi email
+                name: displayName, // NEW: gửi luôn tên hiển thị
             }).unwrap();
 
             alert('Đã gửi lời mời thành công!');
@@ -218,8 +228,8 @@ const PCMembersManagementPage = () => {
                                                             onClick={() => handleInvite(u.id, name, email)}
                                                             disabled={isInviting || alreadyInPc || !email}  // ← Disable nếu không có email
                                                             className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${alreadyInPc || !email
-                                                                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                                                                    : 'bg-[#008689] text-white hover:bg-[#006666]'
+                                                                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                                                : 'bg-[#008689] text-white hover:bg-[#006666]'
                                                                 }`}
                                                             title={!email ? 'Không có email để gửi lời mời' : ''}
                                                         >
@@ -267,14 +277,26 @@ const PCMembersManagementPage = () => {
                                                 })
                                                 : 'Chưa xác định';
 
+                                        // Lấy thêm thông tin từ users API nếu backend chưa trả name
+                                        const linkedUser = reviewersById.get(member.userId);
+                                        const displayName =
+                                            member.name ||
+                                            linkedUser?.fullName ||
+                                            linkedUser?.name ||
+                                            `Reviewer #${member.userId}`;
+                                        const displayEmail =
+                                            member.email ||
+                                            linkedUser?.email ||
+                                            `ID: ${member.userId}`;
+
                                         return (
                                             <tr key={member.invitationId} className="hover:bg-gray-50 transition-colors">
                                                 <td className="px-6 py-4 text-sm font-medium text-gray-900">
                                                     <div className="font-semibold">
-                                                        {member.name || `Reviewer #${member.userId}`}
+                                                        {displayName}
                                                     </div>
                                                     <div className="text-sm text-gray-600">
-                                                        {member.email || `ID: ${member.userId}`}
+                                                        {displayEmail}
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 text-sm text-gray-700">

@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Search, Person, Assignment, AutoAwesome, FilterList } from '@mui/icons-material';
+import { useState, useEffect, useMemo, MouseEvent } from 'react';
+import { Search, Person, Assignment, AutoAwesome, FilterList, Delete } from '@mui/icons-material';
 import bgUth from '../../assets/bg_uth.svg';
 
 // ── API hooks ──
@@ -7,6 +7,7 @@ import {
     useSuggestReviewersForTopicQuery,
     useAssignReviewersToTopicMutation,
     useGetAssignmentsByConferenceQuery,
+    useUnassignMutation,
 } from '../../redux/api/assignmentsApi';
 import { useGetAcceptedReviewersQuery } from '../../redux/api/invitationsApi';
 import { useGetConferencesQuery } from '../../redux/api/conferencesApi';
@@ -16,45 +17,40 @@ const TopicAssignmentPage = () => {
     const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
     const [topN, setTopN] = useState(5);
 
-    // Lấy danh sách hội nghị mà Chair đang quản lý
     const {
         data: conferences = [],
         isLoading: loadingConfs,
         isError: confError,
-    } = useGetConferencesQuery({}); // Có thể thêm { status: 'Active' } nếu muốn lọc
+    } = useGetConferencesQuery({});
 
-    // Tự động chọn hội nghị đầu tiên nếu chỉ có 1 hội nghị
     useEffect(() => {
         if (conferences.length === 1 && !selectedConferenceId) {
             setSelectedConferenceId(conferences[0].id);
         }
     }, [conferences, selectedConferenceId]);
 
-    // Lấy assignments của hội nghị đã chọn
-    const { data: assignments = [] } = useGetAssignmentsByConferenceQuery(
+    const { data: assignments = [], refetch: refetchAssignments } = useGetAssignmentsByConferenceQuery(
         selectedConferenceId!,
         { skip: !selectedConferenceId }
     );
 
-    // Lấy danh sách reviewer đã chấp nhận (có name/email) cho hội nghị đang chọn
     const { data: acceptedReviewers = [] } = useGetAcceptedReviewersQuery(
         selectedConferenceId!,
         { skip: !selectedConferenceId }
     );
 
-    // Gợi ý reviewer khi đã chọn topic
     const { data: suggestions = [] } = useSuggestReviewersForTopicQuery(
         { conferenceId: selectedConferenceId!, topic: selectedTopic || '', top: topN },
         { skip: !selectedConferenceId || !selectedTopic }
     );
 
     const [assignReviewers] = useAssignReviewersToTopicMutation();
+    const [unassignReviewer] = useUnassignMutation(); // ← ĐỔI TÊN HOOK Ở ĐÂY
 
-    // Lấy topics từ hội nghị đã chọn (fallback nếu API chưa trả về)
     const selectedConf = conferences.find((c: any) => c.id === selectedConferenceId);
     const topics = selectedConf?.topics?.length > 0
         ? selectedConf.topics
-        : ['Artificial Intelligence', 'Cybersecurity', 'Data Science', 'IoT']; // fallback
+        : ['Artificial Intelligence', 'Cybersecurity', 'Data Science', 'IoT'];
 
     const handleAssign = async (reviewerId: number) => {
         if (!selectedTopic || !selectedConferenceId) return;
@@ -65,25 +61,72 @@ const TopicAssignmentPage = () => {
                 reviewerIds: [reviewerId],
             }).unwrap();
             alert(`Đã phân công reviewer cho topic "${selectedTopic}"`);
+            refetchAssignments(); // ← Refetch để update danh sách phân công
         } catch (err: any) {
             alert('Phân công thất bại: ' + (err.data?.message || 'Lỗi hệ thống'));
         }
     };
 
-    const handleAutoAssign = () => {
-        if (!selectedTopic || suggestions.length === 0 || !selectedConferenceId) return;
-        const topIds = suggestions.slice(0, 3).map((r: any) => r.reviewerId);
+    // Chỉ được gọi từ onClick của nút Auto-assign
+    const handleAutoAssign = (e: MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault();
+
+        if (!selectedTopic || !selectedConferenceId || suggestions.length === 0) return;
+
+        // Lọc giống logic hiển thị: 
+        // - cho phép nếu chưa khai báo topic nào
+        // - hoặc declaredTopics có chứa selectedTopic
+        const filteredSuggestions = (suggestions as any[]).filter((sug) => {
+            const reviewer = (acceptedReviewers as any[]).find(
+                (r) => r.userId === sug.reviewerId,
+            );
+
+            const declaredTopics: string[] =
+                (Array.isArray(sug.expertise) && sug.expertise.length > 0
+                    ? sug.expertise
+                    : Array.isArray(reviewer?.topics)
+                        ? reviewer.topics
+                        : []) as string[];
+
+            if (declaredTopics.length > 0 && selectedTopic && !declaredTopics.includes(selectedTopic)) {
+                return false;
+            }
+            return true;
+        });
+
+        if (filteredSuggestions.length === 0) {
+            alert('Không có reviewer phù hợp (topic đã khai báo không trùng với topic hội nghị).');
+            return;
+        }
+
+        const topIds = filteredSuggestions.slice(0, 3).map((r: any) => r.reviewerId);
+
         assignReviewers({
             conferenceId: selectedConferenceId,
             topic: selectedTopic,
             reviewerIds: topIds,
         })
             .unwrap()
-            .then(() => alert('Đã tự động phân công top reviewers!'))
+            .then(() => {
+                alert('Đã tự động phân công top reviewers!');
+                refetchAssignments();
+            })
             .catch((err) => alert('Lỗi: ' + (err.data?.message || 'Không thể phân công')));
     };
 
-    // Gom assignments theo topic, map reviewerId -> name/email từ acceptedReviewers
+    // THÊM: Hàm hủy phân công
+    const handleUnassign = async (assignmentId: string) => {
+        if (!window.confirm('Bạn có chắc muốn hủy phân công reviewer này?')) return;
+
+        try {
+            await unassignReviewer(assignmentId).unwrap();
+            alert('Đã hủy phân công thành công!');
+            refetchAssignments(); // ← Update lại danh sách phân công
+        } catch (err: any) {
+            alert('Hủy phân công thất bại: ' + (err.data?.message || 'Lỗi hệ thống'));
+        }
+    };
+
     const groupedAssignments = useMemo(
         () =>
             (assignments as any[]).reduce((acc: any[], assignment: any) => {
@@ -95,6 +138,7 @@ const TopicAssignmentPage = () => {
                     id: assignment.reviewerId,
                     name: reviewer?.name,
                     email: reviewer?.email,
+                    assignmentId: assignment.id, // ← LƯU ID PHÂN CÔNG
                 };
 
                 const existing = acc.find((a) => a.topic === assignment.topic);
@@ -118,7 +162,7 @@ const TopicAssignmentPage = () => {
                     <h1 className="text-3xl font-bold">Phân công Reviewer theo Topic</h1>
                 </div>
 
-                {/* ── Chọn hội nghị ── */}
+                {/* Chọn hội nghị */}
                 <div className="bg-white rounded-lg shadow p-6 mb-6">
                     <h2 className="text-xl font-bold mb-4">Chọn Hội nghị cần phân công</h2>
 
@@ -138,7 +182,7 @@ const TopicAssignmentPage = () => {
                             value={selectedConferenceId || ''}
                             onChange={(e) => {
                                 setSelectedConferenceId(e.target.value || null);
-                                setSelectedTopic(null); // reset topic khi đổi hội nghị
+                                setSelectedTopic(null);
                             }}
                             className="w-full max-w-md border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-[#008689] focus:ring-1 focus:ring-[#008689]"
                         >
@@ -152,7 +196,6 @@ const TopicAssignmentPage = () => {
                     )}
                 </div>
 
-                {/* Chỉ hiển thị nội dung chính khi đã chọn hội nghị */}
                 {selectedConferenceId ? (
                     <>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -197,7 +240,7 @@ const TopicAssignmentPage = () => {
                                         </div>
 
                                         <button
-                                            onClick={handleAutoAssign}
+                                            onClick={(e) => handleAutoAssign(e)}
                                             disabled={suggestions.length === 0}
                                             className="mb-6 flex items-center px-5 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
                                         >
@@ -206,45 +249,86 @@ const TopicAssignmentPage = () => {
 
                                         <div className="space-y-4">
                                             {suggestions.length > 0 ? (
-                                                suggestions.map((sug: any) => (
-                                                    <div
-                                                        key={sug.reviewerId}
-                                                        className="border rounded-lg p-4 hover:border-[#008689] transition"
-                                                    >
-                                                        <div className="flex justify-between items-start">
-                                                            <div>
-                                                                <div className="font-medium">{sug.name || 'Reviewer'}</div>
-                                                                <div className="text-sm text-gray-600">{sug.email || '—'}</div>
-                                                            </div>
-                                                            <div className="text-right">
-                                                                <div className="text-green-600 font-bold text-lg">
-                                                                    {sug.score ? `${(sug.score * 100).toFixed(1)}%` : '—'}
-                                                                </div>
-                                                                <div className="text-xs text-gray-500">độ phù hợp</div>
-                                                            </div>
-                                                        </div>
+                                                suggestions.map((sug: any) => {
+                                                    // Lấy thêm thông tin từ danh sách reviewer đã chấp nhận
+                                                    const reviewer = (acceptedReviewers as any[]).find(
+                                                        (r) => r.userId === sug.reviewerId,
+                                                    );
 
-                                                        {sug.expertise?.length > 0 && (
-                                                            <div className="flex flex-wrap gap-1 mt-3">
-                                                                {sug.expertise.map((exp: string) => (
-                                                                    <span
-                                                                        key={exp}
-                                                                        className="px-2 py-1 bg-blue-50 text-blue-800 text-xs rounded-full"
-                                                                    >
-                                                                        {exp}
-                                                                    </span>
-                                                                ))}
-                                                            </div>
-                                                        )}
+                                                    const displayName =
+                                                        sug.name ||
+                                                        reviewer?.name ||
+                                                        `Reviewer #${sug.reviewerId}`;
+                                                    const displayEmail =
+                                                        sug.email ||
+                                                        reviewer?.email ||
+                                                        '—';
 
-                                                        <button
-                                                            onClick={() => handleAssign(sug.reviewerId)}
-                                                            className="mt-4 px-5 py-1.5 bg-[#008689] text-white text-sm rounded hover:bg-[#006666] transition"
+                                                    // Topics reviewer đã khai báo cho hội nghị này
+                                                    const declaredTopics: string[] =
+                                                        (Array.isArray(sug.expertise) && sug.expertise.length > 0
+                                                            ? sug.expertise
+                                                            : Array.isArray(reviewer?.topics)
+                                                                ? reviewer.topics
+                                                                : []) as string[];
+
+                                                    // LỌC: nếu đã khai báo topics nhưng KHÔNG chứa selectedTopic thì ẩn
+                                                    if (
+                                                        declaredTopics.length > 0 &&
+                                                        selectedTopic &&
+                                                        !declaredTopics.includes(selectedTopic)
+                                                    ) {
+                                                        return null;
+                                                    }
+
+                                                    const scorePercent =
+                                                        typeof sug.score === 'number'
+                                                            ? `${(sug.score * 100).toFixed(1)}%`
+                                                            : '—';
+
+                                                    return (
+                                                        <div
+                                                            key={sug.reviewerId}
+                                                            className="border rounded-lg p-4 hover:border-[#008689] transition"
                                                         >
-                                                            <Assignment className="inline mr-1 text-sm" /> Phân công
-                                                        </button>
-                                                    </div>
-                                                ))
+                                                            <div className="flex justify-between items-start">
+                                                                <div>
+                                                                    <div className="font-medium">{displayName}</div>
+                                                                    <div className="text-sm text-gray-600">
+                                                                        {displayEmail}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="text-right">
+                                                                    <div className="text-green-600 font-bold text-lg">
+                                                                        {scorePercent}
+                                                                    </div>
+                                                                    <div className="text-xs text-gray-500">độ phù hợp</div>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Topics reviewer đã khai báo */}
+                                                            {declaredTopics.length > 0 && (
+                                                                <div className="flex flex-wrap gap-1 mt-3">
+                                                                    {declaredTopics.map((exp: string) => (
+                                                                        <span
+                                                                            key={exp}
+                                                                            className="px-2 py-1 bg-blue-50 text-blue-800 text-xs rounded-full"
+                                                                        >
+                                                                            {exp}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+
+                                                            <button
+                                                                onClick={() => handleAssign(sug.reviewerId)}
+                                                                className="mt-4 px-5 py-1.5 bg-[#008689] text-white text-sm rounded hover:bg-[#006666] transition"
+                                                            >
+                                                                <Assignment className="inline mr-1 text-sm" /> Phân công
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })
                                             ) : (
                                                 <div className="text-center py-10 text-gray-500">
                                                     Không có gợi ý reviewer nào cho topic này
@@ -260,7 +344,7 @@ const TopicAssignmentPage = () => {
                             </div>
                         </div>
 
-                        {/* Phân công hiện tại */}
+                        {/* Phân công hiện tại - THÊM nút hủy */}
                         <div className="bg-white rounded-lg shadow p-6 mt-6">
                             <h2 className="text-xl font-bold mb-4">Phân công hiện tại của hội nghị</h2>
                             <div className="space-y-3">
@@ -268,15 +352,28 @@ const TopicAssignmentPage = () => {
                                     groupedAssignments.map((assign: any) => (
                                         <div key={assign.topic} className="border rounded p-4 bg-gray-50">
                                             <strong className="block mb-1">{assign.topic}</strong>
-                                            <div className="text-gray-700">
-                                                {assign.reviewers?.length > 0
-                                                    ? assign.reviewers
-                                                        .map(
-                                                            (r: any) =>
-                                                                `${r.name || `Reviewer #${r.id}`} (${r.email || `ID: ${r.id}`})`
-                                                        )
-                                                        .join(', ')
-                                                    : 'Chưa có reviewer nào được phân công'}
+                                            <div className="text-gray-700 space-y-2">
+                                                {assign.reviewers?.length > 0 ? (
+                                                    assign.reviewers.map((r: any, idx: number) => (
+                                                        <div
+                                                            key={r.assignmentId || `${assign.topic}-${r.id}-${idx}`} // ← KEY DUY NHẤT
+                                                            className="flex items-center justify-between"
+                                                        >
+                                                            <span>
+                                                                {r.name || `Reviewer #${r.id}`} ({r.email || `ID: ${r.id}`})
+                                                            </span>
+                                                            <button
+                                                                onClick={() => handleUnassign(r.assignmentId)} // ← TRUYỀN ĐÚNG assignmentId
+                                                                className="p-1 text-red-600 hover:text-red-800 rounded-full hover:bg-red-50 transition"
+                                                                title="Hủy phân công reviewer này"
+                                                            >
+                                                                <Delete className="w-5 h-5" />
+                                                            </button>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    'Chưa có reviewer nào được phân công'
+                                                )}
                                             </div>
                                         </div>
                                     ))
