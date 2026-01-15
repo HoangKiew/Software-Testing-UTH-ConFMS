@@ -1,11 +1,13 @@
 // src/ai/ai.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AiAuditLog } from './ai-audit.entity';
 import * as crypto from 'crypto';
+import { Invitation, InvitationStatus } from '../invitations/entities/invitation.entity';
+import { Logger } from '@nestjs/common';  // ← ĐẢM BẢO IMPORT Logger (nếu chưa có)
 
 export interface KeywordSuggestionResponse {
   score: number;
@@ -15,15 +17,18 @@ export interface KeywordSuggestionResponse {
 @Injectable()
 export class AiService {
   private openai: OpenAI;
+  private readonly logger = new Logger(AiService.name);  // ← THÊM DÒNG NÀY (fix lỗi TS2339)
 
   constructor(
     private configService: ConfigService,
     @InjectRepository(AiAuditLog)
     private aiAuditRepo: Repository<AiAuditLog>,
+    @InjectRepository(Invitation)
+    private invitationRepo: Repository<Invitation>,
   ) {
     const apiKey = this.configService.get<string>('OPENAI_API_KEY');
     if (!apiKey) {
-      console.warn('⚠️  OPENAI_API_KEY is not defined - AI features will be disabled');
+      console.warn('⚠️ OPENAI_API_KEY is not defined - AI features will be disabled');
     } else {
       this.openai = new OpenAI({ apiKey });
     }
@@ -224,20 +229,39 @@ export class AiService {
     }
   }
 
-  // THÊM METHOD MỚI ĐỂ ASSIGNMENTS SERVICE GỌI
+  // SỬA HÀM suggestReviewers: Chỉ gợi ý từ reviewer đã ACCEPT invitation của hội nghị
   async suggestReviewers(
     submissionTopics: string,
-    reviewers: { id: number; topics: string[] }[],
+    conferenceId: string,  // ← Bắt buộc để lọc invitation
     top: number = 5,
-    conferenceId: string | null = null,
     userId: number | null = null,
   ): Promise<{ reviewerId: number; similarityScore: number; reason: string }[]> {
+    if (!conferenceId) {
+      throw new BadRequestException('Conference ID is required for reviewer suggestions');
+    }
+
+    // Lấy danh sách reviewer đã ACCEPT invitation cho hội nghị này
+    const acceptedInvitations = await this.invitationRepo.find({
+      where: { conferenceId, status: InvitationStatus.ACCEPTED },
+      select: ['userId', 'topics'],
+    });
+
+    const reviewers = acceptedInvitations.map(inv => ({
+      id: inv.userId,
+      topics: inv.topics || [],
+    }));
+
+    if (reviewers.length === 0) {
+      this.logger.warn(`[SUGGEST] Không có reviewer nào accept cho conference ${conferenceId}`);
+      return [];  // Không gợi ý nếu chưa có ai accept
+    }
+
     if (!this.openai) {
-      // Fallback khi AI disabled: trả top reviewer ngẫu nhiên với score 0
+      // Fallback khi AI disabled: ngẫu nhiên từ accepted reviewers
       return reviewers.slice(0, top).map(r => ({
         reviewerId: r.id,
         similarityScore: 0,
-        reason: 'AI features disabled - random suggestion',
+        reason: 'AI features disabled - random suggestion from accepted reviewers',
       }));
     }
 
@@ -259,7 +283,7 @@ export class AiService {
       const suggestion = await this.generateKeywordSuggestion(prompt, conferenceId, userId);
       results.push({
         reviewerId: reviewer.id,
-        similarityScore: suggestion.score / 10, // normalize về 0-1
+        similarityScore: suggestion.score / 10,
         reason: suggestion.reason,
       });
     }

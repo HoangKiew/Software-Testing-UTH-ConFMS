@@ -6,15 +6,16 @@ import { AiService } from './ai.service';
 import { AiAuditLog } from './ai-audit.entity';
 import { ConferencesModule } from '../conferences/conferences.module';
 import { AuditModule } from '../audit/audit.module'; // Thêm nếu muốn dùng AuditService thay vì repo trực tiếp
+import { Invitation } from '../invitations/entities/invitation.entity';  // ← THÊM import
 
 @Module({
   imports: [
     ConfigModule,
-    TypeOrmModule.forFeature([AiAuditLog]),
+    TypeOrmModule.forFeature([AiAuditLog, Invitation]),  // ← THÊM Invitation để inject repo
     ConferencesModule,
     // AuditModule nếu dùng AuditService thay repo
   ],
   providers: [AiService],
   exports: [AiService],
 })
-export class AiModule {}
+export class AiModule { }
