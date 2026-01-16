@@ -43,87 +43,217 @@ export class EmailsService {
   }
 
   private registerTemplates() {
-    // ──────────────────────────────────────────────────────────────────────────────
-    // Template 1: Mời reviewer (giữ nguyên)
-    // ──────────────────────────────────────────────────────────────────────────────
+    // Template 1: Mời reviewer
     this.templates['reviewer-invitation'] = handlebars.compile(`
-      <div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #f9f9f9;">
-        <h2 style="color: #1a73e8; text-align: center;">Lời mời tham gia phản biện</h2>
-        
-        <p>Xin chào <strong>{{name}}</strong>,</p>
-        
-        <p>Bạn đã được mời tham gia làm <strong>Reviewer</strong> cho hội nghị:</p>
-        <h3 style="color: #0f9d58; text-align: center;">{{conferenceName}}</h3>
-        
-        <p>Vai trò của bạn sẽ là đánh giá các bài báo khoa học phù hợp với chuyên môn. Chúng tôi rất mong nhận được sự đồng hành từ bạn!</p>
-        
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="{{acceptLink}}" 
-             style="background-color: #0f9d58; color: white; padding: 14px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 0 10px; display: inline-block;">
-            ✅ Chấp nhận lời mời
-          </a>
-          
-          <a href="{{declineLink}}" 
-             style="background-color: #d93025; color: white; padding: 14px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 0 10px; display: inline-block;">
-            ❌ Từ chối lời mời
-          </a>
-        </div>
-        
-        <p>Nếu bạn chấp nhận, chúng tôi sẽ liên hệ để hướng dẫn tiếp theo và phân công bài báo phù hợp.</p>
-        <p>Cảm ơn bạn đã dành thời gian và đóng góp cho cộng đồng khoa học!</p>
-        
-        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-        
-        <p style="font-size: 12px; color: #666; text-align: center;">
-          Email này được gửi tự động từ hệ thống <strong>UTH ConfMS</strong>.<br>
-          ID lời mời: <strong>{{invitationId}}</strong> | Hội nghị ID: {{conferenceId}}
-        </p>
-      </div>
+      <!DOCTYPE html>
+      <html lang="vi">
+      <head>
+        <meta charset="UTF-8" />
+        <title>Lời mời tham gia phản biện</title>
+      </head>
+      <body style="margin:0;padding:0;background-color:#f5f5f5;font-family:Roboto,Arial,Helvetica,sans-serif;">
+        <table role="presentation" style="width:100%;border-collapse:collapse;border-spacing:0;background-color:#f5f5f5;">
+          <tr>
+            <td align="center" style="padding:24px 8px;">
+              <table role="presentation" style="max-width:600px;width:100%;border-collapse:collapse;border-spacing:0;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(60,64,67,0.2);">
+                <tr>
+                  <td style="background-color:#1a73e8;color:#ffffff;padding:16px 24px;">
+                    <h2 style="margin:0;font-size:20px;font-weight:500;">UTH-ConfMS · Lời mời tham gia phản biện</h2>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:24px 24px 16px 24px;color:#202124;font-size:14px;line-height:1.6;">
+                    <p style="margin:0 0 12px 0;">Xin chào <strong>{{name}}</strong>,</p>
+                    <p style="margin:0 0 12px 0;">
+                      Bạn đã được mời tham gia làm <strong>Reviewer</strong> cho hội nghị:
+                    </p>
+                    <p style="margin:12px 0;font-size:18px;font-weight:600;color:#0f9d58;text-align:center;">
+                      {{conferenceName}}
+                    </p>
+                    <p style="margin:0 0 12px 0;">
+                      Vai trò của bạn là đánh giá các bài báo khoa học phù hợp với chuyên môn. 
+                      Chúng tôi rất mong nhận được sự đồng hành từ bạn!
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding:8px 24px 24px 24px;">
+                    <table role="presentation" style="border-collapse:collapse;border-spacing:0;">
+                      <tr>
+                        <td align="center" style="padding:8px;">
+                          <a href="{{acceptLink}}"
+                             style="display:inline-block;background-color:#0f9d58;color:#ffffff;text-decoration:none;padding:10px 24px;border-radius:4px;font-size:14px;font-weight:500;">
+                            Chấp nhận lời mời
+                          </a>
+                        </td>
+                        <td align="center" style="padding:8px;">
+                          <a href="{{declineLink}}"
+                             style="display:inline-block;background-color:#d93025;color:#ffffff;text-decoration:none;padding:10px 24px;border-radius:4px;font-size:14px;font-weight:500;">
+                            Từ chối lời mời
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:0 24px 24px 24px;color:#5f6368;font-size:12px;line-height:1.5;">
+                    <p style="margin:0 0 8px 0;">
+                      Nếu bạn chấp nhận, hệ thống sẽ kích hoạt quyền Reviewer và Chair sẽ phân công bài báo phù hợp cho bạn.
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="border-top:1px solid #e0e0e0;padding:16px 24px;color:#9aa0a6;font-size:11px;text-align:center;line-height:1.5;">
+                    <p style="margin:0;">
+                      Email này được gửi tự động từ hệ thống <strong>UTH-ConfMS</strong>.<br/>
+                      ID lời mời: <strong>{{invitationId}}</strong> &nbsp;|&nbsp; Hội nghị ID: {{conferenceId}}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
     `);
 
-    // ──────────────────────────────────────────────────────────────────────────────
-    // Template 2: Thông báo quyết định bài nộp (mới thêm)
-    // ──────────────────────────────────────────────────────────────────────────────
+    // Template 2: Thông báo quyết định bài nộp
     this.templates['decision_notification'] = handlebars.compile(`
-      <div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #f9f9f9;">
-        <h2 style="color: #1a73e8; text-align: center;">Thông báo kết quả đánh giá bài nộp</h2>
-        
-        <p>Xin chào quý tác giả,</p>
-        
-        <p>Bài báo của bạn với tiêu đề:</p>
-        <h3 style="color: #0f9d58; text-align: center; margin: 10px 0;">{{submissionTitle}}</h3>
-        
-        <p>Đã được Hội đồng Chương trình đưa ra quyết định cuối cùng:</p>
-        <h3 style="text-align: center; font-size: 24px; margin: 20px 0; color: {{decisionColor}};">
-          {{decision}}
-        </h3>
-        
-        <p>Phản hồi từ Chair:</p>
-        <blockquote style="border-left: 4px solid #ccc; padding-left: 15px; margin: 15px 0; font-style: italic; color: #444;">
-          {{feedback}}
-        </blockquote>
-        
-        {{#if isAccepted}}
-        <p style="background-color: #e8f5e9; padding: 15px; border-radius: 6px;">
-          <strong>Chúc mừng!</strong> Vui lòng chuẩn bị và upload bản camera-ready theo hướng dẫn trên hệ thống trong thời gian quy định.
-        </p>
-        {{/if}}
-        
-        {{#if isRevision}}
-        <p style="background-color: #fff3cd; padding: 15px; border-radius: 6px;">
-          Vui lòng chỉnh sửa bài báo theo phản hồi và nộp lại phiên bản mới.
-        </p>
-        {{/if}}
-        
-        <p>Cảm ơn bạn đã đóng góp bài báo cho hội nghị!</p>
-        
-        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-        
-        <p style="font-size: 12px; color: #666; text-align: center;">
-          Email này được gửi tự động từ hệ thống <strong>UTH-ConfMS</strong>.<br>
-          Hội nghị: <strong>{{conferenceName}}</strong>
-        </p>
-      </div>
+      <!DOCTYPE html>
+      <html lang="vi">
+      <head>
+        <meta charset="UTF-8" />
+        <title>Thông báo kết quả bài nộp</title>
+      </head>
+      <body style="margin:0;padding:0;background-color:#f5f5f5;font-family:Roboto,Arial,Helvetica,sans-serif;">
+        <table role="presentation" style="width:100%;border-collapse:collapse;border-spacing:0;background-color:#f5f5f5;">
+          <tr>
+            <td align="center" style="padding:24px 8px;">
+              <table role="presentation" style="max-width:600px;width:100%;border-collapse:collapse;border-spacing:0;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(60,64,67,0.2);">
+                <tr>
+                  <td style="background-color:#1a73e8;color:#ffffff;padding:16px 24px;">
+                    <h2 style="margin:0;font-size:20px;font-weight:500;">UTH-ConfMS · Thông báo kết quả bài nộp</h2>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:24px 24px 12px 24px;color:#202124;font-size:14px;line-height:1.6;">
+                    <p style="margin:0 0 12px 0;">Xin chào quý tác giả,</p>
+                    <p style="margin:0 0 12px 0;">Bài báo của bạn với tiêu đề:</p>
+                    <p style="margin:12px 0;font-size:18px;font-weight:600;color:#0f9d58;text-align:center;">
+                      {{submissionTitle}}
+                    </p>
+                    <p style="margin:0 0 12px 0;">Đã được Hội đồng Chương trình đưa ra quyết định cuối cùng:</p>
+                    <p style="margin:12px 0;font-size:22px;font-weight:700;text-align:center;color:{{decisionColor}};">
+                      {{decision}}
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:0 24px 16px 24px;color:#202124;font-size:14px;line-height:1.6;">
+                    <p style="margin:0 0 8px 0;">Phản hồi từ Chair:</p>
+                    <blockquote style="margin:0;border-left:4px solid #e0e0e0;padding-left:12px;font-style:italic;color:#5f6368;">
+                      {{feedback}}
+                    </blockquote>
+                  </td>
+                </tr>
+                {{#if isAccepted}}
+                <tr>
+                  <td style="padding:0 24px 16px 24px;">
+                    <div style="background-color:#e8f5e9;border-radius:4px;padding:12px 14px;color:#1e8e3e;font-size:13px;line-height:1.5;">
+                      <strong>Chúc mừng!</strong> Vui lòng chuẩn bị và upload bản camera-ready theo hướng dẫn trên hệ thống trong thời gian quy định.
+                    </div>
+                  </td>
+                </tr>
+                {{/if}}
+                {{#if isRevision}}
+                <tr>
+                  <td style="padding:0 24px 16px 24px;">
+                    <div style="background-color:#fff3cd;border-radius:4px;padding:12px 14px;color:#8a6d3b;font-size:13px;line-height:1.5;">
+                      Vui lòng chỉnh sửa bài báo theo phản hồi và nộp lại phiên bản mới.
+                    </div>
+                  </td>
+                </tr>
+                {{/if}}
+                <tr>
+                  <td style="padding:0 24px 24px 24px;color:#5f6368;font-size:13px;line-height:1.6;">
+                    <p style="margin:0;">Cảm ơn bạn đã đóng góp bài báo cho hội nghị!</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="border-top:1px solid #e0e0e0;padding:16px 24px;color:#9aa0a6;font-size:11px;text-align:center;line-height:1.5;">
+                    <p style="margin:0;">
+                      Email này được gửi tự động từ hệ thống <strong>UTH-ConfMS</strong>.<br/>
+                      Hội nghị: <strong>{{conferenceName}}</strong>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `);
+
+    // Template 3: Thông báo phân công reviewer cho topic
+    this.templates['reviewer-assignment'] = handlebars.compile(`
+      <!DOCTYPE html>
+      <html lang="vi">
+      <head>
+        <meta charset="UTF-8" />
+        <title>Thông báo phân công phản biện</title>
+      </head>
+      <body style="margin:0;padding:0;background-color:#f5f5f5;font-family:Roboto,Arial,Helvetica,sans-serif;">
+        <table role="presentation" style="width:100%;border-collapse:collapse;border-spacing:0;background-color:#f5f5f5;">
+          <tr>
+            <td align="center" style="padding:24px 8px;">
+              <table role="presentation" style="max-width:600px;width:100%;border-collapse:collapse;border-spacing:0;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(60,64,67,0.2);">
+                <tr>
+                  <td style="background-color:#1a73e8;color:#ffffff;padding:16px 24px;">
+                    <h2 style="margin:0;font-size:20px;font-weight:500;">UTH-ConfMS · Phân công phản biện</h2>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:24px 24px 16px 24px;color:#202124;font-size:14px;line-height:1.6;">
+                    <p style="margin:0 0 12px 0;">Xin chào <strong>{{name}}</strong>,</p>
+                    <p style="margin:0 0 12px 0;">
+                      Bạn vừa được phân công làm <strong>Reviewer</strong> cho hội nghị:
+                    </p>
+                    <p style="margin:12px 0;font-size:18px;font-weight:600;color:#0f9d58;text-align:center;">
+                      {{conferenceName}}
+                    </p>
+                    <p style="margin:0 0 8px 0;">Topic bạn được phân công:</p>
+                    <p style="margin:8px 0 16px 0;font-size:16px;font-weight:600;text-align:center;color:#202124;">
+                      {{topic}}
+                    </p>
+                    <p style="margin:0 0 12px 0;">
+                      Vui lòng đăng nhập vào hệ thống để xem chi tiết bài báo sẽ được giao cho bạn trong topic này.
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:0 24px 24px 24px;color:#5f6368;font-size:13px;line-height:1.6;">
+                    <p style="margin:0;">
+                      Nếu có bất kỳ khó khăn nào trong quá trình phản biện, vui lòng liên hệ Chair của hội nghị để được hỗ trợ.
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="border-top:1px solid #e0e0e0;padding:16px 24px;color:#9aa0a6;font-size:11px;text-align:center;line-height:1.5;">
+                    <p style="margin:0;">
+                      Email này được gửi tự động từ hệ thống <strong>UTH-ConfMS</strong>.<br/>
+                      Vui lòng không trả lời trực tiếp email này.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
     `);
   }
 
@@ -144,6 +274,19 @@ export class EmailsService {
     return this.send('reviewer-invitation', [toEmail], {
       ...data,
       subject: `[${data.conferenceName}] Lời mời tham gia phản biện`,
+    });
+  }
+
+  /**
+   * Gửi email thông báo phân công reviewer cho topic
+   */
+  async sendReviewerAssignmentEmail(
+    toEmail: string,
+    data: { name: string; conferenceName: string; topic: string },
+  ) {
+    return this.send('reviewer-assignment', [toEmail], {
+      ...data,
+      subject: `[${data.conferenceName}] Bạn được phân công phản biện topic "${data.topic}"`,
     });
   }
 
