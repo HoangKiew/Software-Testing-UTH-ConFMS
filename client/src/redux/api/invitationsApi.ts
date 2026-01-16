@@ -15,6 +15,8 @@ interface AcceptedReviewer {
 interface InviteReviewerBody {
     conferenceId: string;
     userId: number;
+    email?: string; // NEW
+    name?: string;  // NEW
 }
 
 const API_BASE_URL =

@@ -13,8 +13,8 @@ import { useSearchReviewersQuery } from '../../redux/api/usersApi';
 interface AcceptedReviewer {
     invitationId: string;
     userId: number;
-    acceptedAt: string;
-    topics: string[];
+    acceptedAt?: string;   // sửa: cho phép undefined
+    topics?: string[];     // sửa: cho phép undefined
     name?: string;
     email?: string;
 }

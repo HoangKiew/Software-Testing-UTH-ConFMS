@@ -11,6 +11,7 @@ import {
 } from '../../redux/api/assignmentsApi';
 import { useGetAcceptedReviewersQuery } from '../../redux/api/invitationsApi';
 import { useGetConferencesQuery } from '../../redux/api/conferencesApi';
+import { useSearchReviewersQuery } from '../../redux/api/usersApi'; // ← THÊM
 
 const TopicAssignmentPage = () => {
     const [selectedConferenceId, setSelectedConferenceId] = useState<string | null>(null);
@@ -29,53 +30,67 @@ const TopicAssignmentPage = () => {
         }
     }, [conferences, selectedConferenceId]);
 
-    const { data: assignments = [], refetch: refetchAssignments } = useGetAssignmentsByConferenceQuery(
-        selectedConferenceId!,
-        { skip: !selectedConferenceId }
-    );
+    const { data: assignments = [], refetch: refetchAssignments } =
+        useGetAssignmentsByConferenceQuery(selectedConferenceId!, {
+            skip: !selectedConferenceId,
+        });
 
     const { data: acceptedReviewers = [] } = useGetAcceptedReviewersQuery(
         selectedConferenceId!,
-        { skip: !selectedConferenceId }
+        { skip: !selectedConferenceId },
     );
+
+    // Lấy thông tin user cho các reviewer đã chấp nhận để hiển thị tên/email
+    const shouldLoadReviewers = acceptedReviewers.length > 0;
+    const { data: reviewers = [] } = useSearchReviewersQuery(
+        { q: undefined, page: 1, limit: 200 },
+        { skip: !shouldLoadReviewers },
+    );
+
+    const reviewersById = useMemo(() => {
+        const map = new Map<number, any>();
+        (reviewers as any[]).forEach((u) => {
+            map.set(u.id, u);
+        });
+        return map;
+    }, [reviewers]);
 
     const { data: suggestions = [] } = useSuggestReviewersForTopicQuery(
         { conferenceId: selectedConferenceId!, topic: selectedTopic || '', top: topN },
-        { skip: !selectedConferenceId || !selectedTopic }
+        { skip: !selectedConferenceId || !selectedTopic },
     );
 
-    const [assignReviewers] = useAssignReviewersToTopicMutation();
-    const [unassignReviewer] = useUnassignMutation(); // ← ĐỔI TÊN HOOK Ở ĐÂY
+    // SỬA: lấy thêm isAssigning để disable nút khi đang gọi API
+    const [assignReviewers, { isLoading: isAssigning }] = useAssignReviewersToTopicMutation();
+    const [unassignReviewer] = useUnassignMutation();
 
     const selectedConf = conferences.find((c: any) => c.id === selectedConferenceId);
-    const topics = selectedConf?.topics?.length > 0
-        ? selectedConf.topics
-        : ['Artificial Intelligence', 'Cybersecurity', 'Data Science', 'IoT'];
+    const topics =
+        selectedConf?.topics?.length > 0
+            ? selectedConf.topics
+            : ['Artificial Intelligence', 'Cybersecurity', 'Data Science', 'IoT'];
 
     const handleAssign = async (reviewerId: number) => {
-        if (!selectedTopic || !selectedConferenceId) return;
+        if (!selectedTopic || !selectedConferenceId || isAssigning) return;
         try {
             await assignReviewers({
                 conferenceId: selectedConferenceId,
                 topic: selectedTopic,
                 reviewerIds: [reviewerId],
             }).unwrap();
+            // KHÔNG cần refetchAssignments() vì mutation đã invalidatesTags
             alert(`Đã phân công reviewer cho topic "${selectedTopic}"`);
-            refetchAssignments(); // ← Refetch để update danh sách phân công
         } catch (err: any) {
             alert('Phân công thất bại: ' + (err.data?.message || 'Lỗi hệ thống'));
         }
     };
 
     // Chỉ được gọi từ onClick của nút Auto-assign
-    const handleAutoAssign = (e: MouseEvent<HTMLButtonElement>) => {
+    const handleAutoAssign = async (e: MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
 
-        if (!selectedTopic || !selectedConferenceId || suggestions.length === 0) return;
+        if (!selectedTopic || !selectedConferenceId || suggestions.length === 0 || isAssigning) return;
 
-        // Lọc giống logic hiển thị: 
-        // - cho phép nếu chưa khai báo topic nào
-        // - hoặc declaredTopics có chứa selectedTopic
         const filteredSuggestions = (suggestions as any[]).filter((sug) => {
             const reviewer = (acceptedReviewers as any[]).find(
                 (r) => r.userId === sug.reviewerId,
@@ -101,17 +116,16 @@ const TopicAssignmentPage = () => {
 
         const topIds = filteredSuggestions.slice(0, 3).map((r: any) => r.reviewerId);
 
-        assignReviewers({
-            conferenceId: selectedConferenceId,
-            topic: selectedTopic,
-            reviewerIds: topIds,
-        })
-            .unwrap()
-            .then(() => {
-                alert('Đã tự động phân công top reviewers!');
-                refetchAssignments();
-            })
-            .catch((err) => alert('Lỗi: ' + (err.data?.message || 'Không thể phân công')));
+        try {
+            await assignReviewers({
+                conferenceId: selectedConferenceId,
+                topic: selectedTopic,
+                reviewerIds: topIds,
+            }).unwrap();
+            alert('Đã tự động phân công top reviewers!');
+        } catch (err: any) {
+            alert('Lỗi: ' + (err.data?.message || 'Không thể phân công'));
+        }
     };
 
     // THÊM: Hàm hủy phân công
@@ -131,14 +145,22 @@ const TopicAssignmentPage = () => {
         () =>
             (assignments as any[]).reduce((acc: any[], assignment: any) => {
                 const reviewer = (acceptedReviewers as any[]).find(
-                    (r) => r.userId === assignment.reviewerId
+                    (r) => r.userId === assignment.reviewerId,
                 );
+                const linkedUser = reviewersById.get(assignment.reviewerId);
 
                 const reviewerInfo = {
                     id: assignment.reviewerId,
-                    name: reviewer?.name,
-                    email: reviewer?.email,
-                    assignmentId: assignment.id, // ← LƯU ID PHÂN CÔNG
+                    name:
+                        reviewer?.name ||
+                        linkedUser?.fullName ||
+                        linkedUser?.name ||
+                        `Reviewer #${assignment.reviewerId}`,
+                    email:
+                        reviewer?.email ||
+                        linkedUser?.email ||
+                        `ID: ${assignment.reviewerId}`,
+                    assignmentId: assignment.id,
                 };
 
                 const existing = acc.find((a) => a.topic === assignment.topic);
@@ -152,11 +174,24 @@ const TopicAssignmentPage = () => {
                 }
                 return acc;
             }, []),
-        [assignments, acceptedReviewers]
+        [assignments, acceptedReviewers, reviewersById],
     );
 
+    // NEW: tập reviewer đã được phân công cho topic đang chọn
+    const assignedReviewerIdsForSelectedTopic = useMemo(() => {
+        if (!selectedTopic) return new Set<number>();
+        return new Set<number>(
+            (assignments as any[])
+                .filter((a) => a.topic === selectedTopic)
+                .map((a) => a.reviewerId as number),
+        );
+    }, [assignments, selectedTopic]);
+
     return (
-        <div className="min-h-screen bg-gray-50 py-8 px-4" style={{ backgroundImage: `url(${bgUth})`, backgroundSize: 'cover' }}>
+        <div
+            className="min-h-screen bg-gray-50 py-8 px-4"
+            style={{ backgroundImage: `url(${bgUth})`, backgroundSize: 'cover' }}
+        >
             <div className="max-w-7xl mx-auto">
                 <div className="bg-white rounded-lg shadow p-6 mb-6">
                     <h1 className="text-3xl font-bold">Phân công Reviewer theo Topic</h1>
@@ -241,7 +276,7 @@ const TopicAssignmentPage = () => {
 
                                         <button
                                             onClick={(e) => handleAutoAssign(e)}
-                                            disabled={suggestions.length === 0}
+                                            disabled={suggestions.length === 0 || isAssigning}
                                             className="mb-6 flex items-center px-5 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
                                         >
                                             <AutoAwesome className="mr-2" /> Auto-assign top reviewers
@@ -250,27 +285,31 @@ const TopicAssignmentPage = () => {
                                         <div className="space-y-4">
                                             {suggestions.length > 0 ? (
                                                 suggestions.map((sug: any) => {
-                                                    // Lấy thêm thông tin từ danh sách reviewer đã chấp nhận
                                                     const reviewer = (acceptedReviewers as any[]).find(
                                                         (r) => r.userId === sug.reviewerId,
                                                     );
+                                                    const linkedUser = reviewersById.get(sug.reviewerId);
 
                                                     const displayName =
                                                         sug.name ||
                                                         reviewer?.name ||
+                                                        linkedUser?.fullName ||
+                                                        linkedUser?.name ||
                                                         `Reviewer #${sug.reviewerId}`;
                                                     const displayEmail =
                                                         sug.email ||
                                                         reviewer?.email ||
+                                                        linkedUser?.email ||
                                                         '—';
 
-                                                    // Topics reviewer đã khai báo cho hội nghị này
                                                     const declaredTopics: string[] =
                                                         (Array.isArray(sug.expertise) && sug.expertise.length > 0
                                                             ? sug.expertise
                                                             : Array.isArray(reviewer?.topics)
                                                                 ? reviewer.topics
-                                                                : []) as string[];
+                                                                : Array.isArray(linkedUser?.topics)
+                                                                    ? linkedUser.topics
+                                                                    : []) as string[];
 
                                                     // LỌC: nếu đã khai báo topics nhưng KHÔNG chứa selectedTopic thì ẩn
                                                     if (
@@ -285,6 +324,11 @@ const TopicAssignmentPage = () => {
                                                         typeof sug.score === 'number'
                                                             ? `${(sug.score * 100).toFixed(1)}%`
                                                             : '—';
+
+                                                    // NEW: kiểm tra đã phân công chưa
+                                                    const isAssigned = assignedReviewerIdsForSelectedTopic.has(
+                                                        sug.reviewerId,
+                                                    );
 
                                                     return (
                                                         <div
@@ -321,10 +365,19 @@ const TopicAssignmentPage = () => {
                                                             )}
 
                                                             <button
-                                                                onClick={() => handleAssign(sug.reviewerId)}
-                                                                className="mt-4 px-5 py-1.5 bg-[#008689] text-white text-sm rounded hover:bg-[#006666] transition"
+                                                                onClick={() => {
+                                                                    if (!isAssigned && !isAssigning) handleAssign(sug.reviewerId);
+                                                                }}
+                                                                disabled={isAssigned || isAssigning}
+                                                                className={
+                                                                    'mt-4 px-5 py-1.5 text-sm rounded transition ' +
+                                                                    (isAssigned || isAssigning
+                                                                        ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                                                                        : 'bg-[#008689] text-white hover:bg-[#006666]')
+                                                                }
                                                             >
-                                                                <Assignment className="inline mr-1 text-sm" /> Phân công
+                                                                <Assignment className="inline mr-1 text-sm" />{' '}
+                                                                {isAssigned ? 'Đã phân công' : 'Phân công'}
                                                             </button>
                                                         </div>
                                                     );
