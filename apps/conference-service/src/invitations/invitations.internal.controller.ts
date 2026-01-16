@@ -21,17 +21,16 @@ export class InvitationsInternalController {
   @ApiOperation({ summary: 'Internal: Chấp nhận lời mời tham gia phản biện' })
   @ApiParam({ name: 'id', description: 'ID của lời mời', type: String })
   @ApiResponse({ status: 200, description: 'Đã chấp nhận lời mời, role REVIEWER đã được thêm' })
-  async acceptInvitation(@Param('id') id: string, @Body() body: { userId?: number }) {
-    const userId = body?.userId;
-    return this.invitationsService.acceptInvitation(id, userId);
+  async acceptInvitation(@Param('id') id: string, @Body() body: { userId: number }) {
+    // Gọi service với userId bắt buộc, KHÔNG fallback
+    return this.invitationsService.acceptInvitation(id, body.userId);
   }
 
   @Patch(':id/decline')
   @ApiOperation({ summary: 'Internal: Từ chối lời mời tham gia phản biện' })
   @ApiParam({ name: 'id', description: 'ID của lời mời', type: String })
   @ApiResponse({ status: 200, description: 'Đã từ chối lời mời' })
-  async declineInvitation(@Param('id') id: string, @Body() body: { userId?: number }) {
-    const userId = body?.userId;
-    return this.invitationsService.declineInvitation(id, userId);
+  async declineInvitation(@Param('id') id: string, @Body() body: { userId: number }) {
+    return this.invitationsService.declineInvitation(id, body.userId);
   }
 }

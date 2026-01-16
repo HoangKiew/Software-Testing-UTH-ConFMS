@@ -127,16 +127,23 @@ export class InvitationsService {
     return { message: 'Invitation sent successfully', invitationId: saved.id };
   }
 
-  async acceptInvitation(invitationId: string, userId?: number) {
+  async acceptInvitation(invitationId: string, userId: number) {
+    if (userId === undefined || userId === null) {
+      throw new ForbiddenException('User context is required to accept an invitation');
+    }
+
     const invitation = await this.invitationRepo.findOne({
       where: { id: invitationId },
       relations: ['conference'],
     });
     if (!invitation) throw new NotFoundException('Invitation not found');
 
-    const actingUserId = userId ?? invitation.userId;
-    if (invitation.userId !== actingUserId) throw new ForbiddenException('Not your invitation');
-    if (invitation.status !== InvitationStatus.PENDING) throw new BadRequestException('Already processed');
+    if (invitation.userId !== userId) {
+      throw new ForbiddenException('Not your invitation');
+    }
+    if (invitation.status !== InvitationStatus.PENDING) {
+      throw new BadRequestException('Already processed');
+    }
 
     invitation.status = InvitationStatus.ACCEPTED;
     invitation.acceptedAt = new Date();
@@ -149,24 +156,31 @@ export class InvitationsService {
       this.logger.error(`Failed to add REVIEWER role to user ${invitation.userId}:`, err);
     }
 
-    await this.auditService.log('ACCEPT_INVITATION', actingUserId, 'Invitation', invitationId);
+    await this.auditService.log('ACCEPT_INVITATION', userId, 'Invitation', invitationId);
 
     return { message: 'Accepted successfully. You are now a reviewer!' };
   }
 
-  async declineInvitation(invitationId: string, userId?: number) {
+  async declineInvitation(invitationId: string, userId: number) {
+    if (userId === undefined || userId === null) {
+      throw new ForbiddenException('User context is required to decline an invitation');
+    }
+
     const invitation = await this.invitationRepo.findOne({ where: { id: invitationId } });
     if (!invitation) throw new NotFoundException('Invitation not found');
 
-    const actingUserId = userId ?? invitation.userId;
-    if (invitation.userId !== actingUserId) throw new ForbiddenException('Not your invitation');
-    if (invitation.status !== InvitationStatus.PENDING) throw new BadRequestException('Already processed');
+    if (invitation.userId !== userId) {
+      throw new ForbiddenException('Not your invitation');
+    }
+    if (invitation.status !== InvitationStatus.PENDING) {
+      throw new BadRequestException('Already processed');
+    }
 
     invitation.status = InvitationStatus.DECLINED;
     invitation.declinedAt = new Date();
     await this.invitationRepo.save(invitation);
 
-    await this.auditService.log('DECLINE_INVITATION', actingUserId, 'Invitation', invitationId);
+    await this.auditService.log('DECLINE_INVITATION', userId, 'Invitation', invitationId);
 
     return { message: 'Invitation declined' };
   }

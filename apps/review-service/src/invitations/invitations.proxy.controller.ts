@@ -62,10 +62,18 @@ export class InvitationsProxyController {
         const authHeader = req.headers['authorization'] || req.get('Authorization');
         const headers: Record<string, string> = authHeader ? { Authorization: authHeader } : {};
 
+        const userId: number | undefined =
+            req.user?.userId ?? req.user?.id ?? req.user?.sub;
+
+        if (!userId) {
+            this.logger.error('Không lấy được userId từ token khi accept');
+            throw new HttpException('Cannot determine current user', 401);
+        }
+
         try {
-            const res$ = this.http.patch(url, {}, { headers });
+            const res$ = this.http.patch(url, { userId }, { headers });
             const res = await lastValueFrom(res$);
-            this.logger.log(`Accept success for invitation ${id}`);
+            this.logger.log(`Accept success for invitation ${id} by user ${userId}`);
             return res.data;
         } catch (error: any) {
             const status = error.response?.status || 500;
@@ -87,10 +95,18 @@ export class InvitationsProxyController {
         const authHeader = req.headers['authorization'] || req.get('Authorization');
         const headers: Record<string, string> = authHeader ? { Authorization: authHeader } : {};
 
+        const userId: number | undefined =
+            req.user?.userId ?? req.user?.id ?? req.user?.sub;
+
+        if (!userId) {
+            this.logger.error('Không lấy được userId từ token khi decline');
+            throw new HttpException('Cannot determine current user', 401);
+        }
+
         try {
-            const res$ = this.http.patch(url, {}, { headers });
+            const res$ = this.http.patch(url, { userId }, { headers });
             const res = await lastValueFrom(res$);
-            this.logger.log(`Decline success for invitation ${id}`);
+            this.logger.log(`Decline success for invitation ${id} by user ${userId}`);
             return res.data;
         } catch (error: any) {
             const status = error.response?.status || 500;
