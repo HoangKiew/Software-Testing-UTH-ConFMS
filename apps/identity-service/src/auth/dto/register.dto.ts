@@ -4,14 +4,14 @@ import { ApiProperty } from '@nestjs/swagger';
 export class RegisterDto {
   @ApiProperty({
     description: 'Email đăng ký',
-    example: 'user@example.com',
+    example: 'string@gmail.com',
   })
   @IsEmail()
   email: string;
 
   @ApiProperty({
     description: 'Mật khẩu (tối thiểu 6 ký tự)',
-    example: 'password123',
+    example: 'string',
     minLength: 6,
   })
   @IsString()
@@ -20,7 +20,7 @@ export class RegisterDto {
 
   @ApiProperty({
     description: 'Họ và tên',
-    example: 'Nguyễn Văn A',
+    example: 'string',
   })
   @IsString()
   fullName: string;

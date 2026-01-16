@@ -1,103 +1,108 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowBack, Save, Cancel, Delete } from '@mui/icons-material';
+import { 
+    useGetUserByIdQuery, 
+    useUpdateUserRolesMutation, 
+    useDeleteUserMutation 
+} from '../../redux/api/usersApi';
+import { showToast } from '../../utils/toast.ts';
+import CircularProgress from '@mui/material/CircularProgress';
 
 const EditUserPage = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const userId = Number(id);
+
+    const { data: userData, isLoading, error } = useGetUserByIdQuery(userId);
+    const [updateUserRoles, { isLoading: isUpdating }] = useUpdateUserRolesMutation();
+    const [deleteUser, { isLoading: isDeleting }] = useDeleteUserMutation();
 
     const [formData, setFormData] = useState({
         name: '',
         email: '',
-        roles: [] as string[],
-        status: 'Active',
+        role: 'AUTHOR' as 'ADMIN' | 'CHAIR' | 'AUTHOR' | 'REVIEWER' | 'PC_MEMBER',
     });
 
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
-    const [loading, setLoading] = useState(true);
 
-    const availableRoles = ['ADMIN', 'CHAIR', 'REVIEWER', 'AUTHOR'];
+    const availableRoles: Array<'ADMIN' | 'CHAIR' | 'REVIEWER' | 'AUTHOR' | 'PC_MEMBER'> = [
+        'ADMIN', 
+        'CHAIR', 
+        'REVIEWER', 
+        'AUTHOR',
+        'PC_MEMBER'
+    ];
 
-    // Mock data - replace with API call
-    useEffect(() => {
-        // TODO: Fetch user data from API
-        const mockUser = {
-            id: parseInt(id || '0'),
-            name: 'Nguyễn Văn A',
-            email: 'nguyenvana@example.com',
-            roles: ['ADMIN', 'CHAIR'],
-            status: 'Active',
-        };
-
-        setFormData({
-            name: mockUser.name,
-            email: mockUser.email,
-            roles: mockUser.roles,
-            status: mockUser.status,
-        });
-        setLoading(false);
-    }, [id]);
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
-        // Clear error when user starts typing
-        if (errors[name]) {
-            setErrors((prev) => ({ ...prev, [name]: '' }));
-        }
+    const roleDescriptions = {
+        ADMIN: 'Quản trị viên hệ thống',
+        CHAIR: 'Chủ tịch hội nghị',
+        REVIEWER: 'Phản biện viên',
+        AUTHOR: 'Tác giả',
+        PC_MEMBER: 'Thành viên Ban Chương trình'
     };
 
-    const handleRoleToggle = (role: string) => {
-        setFormData((prev) => ({
-            ...prev,
-            roles: prev.roles.includes(role)
-                ? prev.roles.filter((r) => r !== role)
-                : [...prev.roles, role],
-        }));
+    // Load user data from API
+    useEffect(() => {
+        if (userData?.data) {
+            const user = userData.data;
+            const userRole = Array.isArray(user.roles) && user.roles.length > 0
+                ? user.roles[0]
+                : 'AUTHOR';
+
+            setFormData({
+                name: user.fullName || '',
+                email: user.email || '',
+                role: userRole as typeof formData.role,
+            });
+        }
+    }, [userData]);
+
+    const handleRoleChange = (role: typeof formData.role) => {
+        setFormData((prev) => ({ ...prev, role }));
+        if (errors.role) {
+            setErrors((prev) => ({ ...prev, role: '' }));
+        }
     };
 
     const validateForm = () => {
         const newErrors: { [key: string]: string } = {};
-
-        if (!formData.name.trim()) {
-            newErrors.name = 'Tên không được để trống';
-        }
-
-        if (!formData.email.trim()) {
-            newErrors.email = 'Email không được để trống';
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-            newErrors.email = 'Email không hợp lệ';
-        }
-
-        if (formData.roles.length === 0) {
-            newErrors.roles = 'Vui lòng chọn ít nhất một vai trò';
-        }
-
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!validateForm()) {
             return;
         }
 
-        // TODO: Call API to update user
-        console.log('Update user:', { id, ...formData });
+        try {
+            await updateUserRoles({
+                userId,
+                data: { role: formData.role }
+            }).unwrap();
 
-        // Show success message and redirect
-        alert('Cập nhật người dùng thành công!');
-        navigate('/admin/users');
+            showToast.success('Cập nhật vai trò người dùng thành công!');
+            navigate('/admin/users');
+        } catch (err: any) {
+            const errorMessage = err?.data?.message || 'Có lỗi xảy ra khi cập nhật vai trò';
+            showToast.error(errorMessage);
+            setErrors({ general: errorMessage });
+        }
     };
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (window.confirm('Bạn có chắc chắn muốn xóa người dùng này? Hành động này không thể hoàn tác.')) {
-            // TODO: Call API to delete user
-            console.log('Delete user:', id);
-            alert('Xóa người dùng thành công!');
-            navigate('/admin/users');
+            try {
+                await deleteUser(userId).unwrap();
+                showToast.success('Xóa người dùng thành công!');
+                navigate('/admin/users');
+            } catch (err: any) {
+                const errorMessage = err?.data?.message || 'Có lỗi xảy ra khi xóa người dùng';
+                showToast.error(errorMessage);
+            }
         }
     };
 
@@ -107,10 +112,29 @@ const EditUserPage = () => {
         }
     };
 
-    if (loading) {
+    if (isLoading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <p className="text-gray-600">Đang tải...</p>
+                <div className="text-center">
+                    <CircularProgress size={40} />
+                    <p className="mt-4 text-gray-600">Đang tải...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <p className="text-red-600">Không thể tải thông tin người dùng</p>
+                    <button
+                        onClick={() => navigate('/admin/users')}
+                        className="mt-4 px-4 py-2 bg-[#008689] text-white rounded-lg hover:bg-[#006666]"
+                    >
+                        Quay lại
+                    </button>
+                </div>
             </div>
         );
     }
@@ -138,10 +162,19 @@ const EditUserPage = () => {
                         </div>
                         <button
                             onClick={handleDelete}
-                            className="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors duration-200"
-                        >
-                            <Delete className="w-5 h-5 mr-2" />
-                            Xóa người dùng
+                            disabled={isDeleting}
+                            className="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                            {isDeleting ? (
+                                <>
+                                    <CircularProgress size={16} style={{ color: 'white' }} className="mr-2" />
+                                    Đang xóa...
+                                </>
+                            ) : (
+                                <>
+                                    <Delete className="w-5 h-5 mr-2" />
+                                    Xóa người dùng
+                                </>
+                            )}
                         </button>
                     </div>
                 </div>
@@ -154,47 +187,45 @@ const EditUserPage = () => {
                         <h2 className="text-xl font-bold text-gray-900 mb-6">
                             Thông tin cơ bản
                         </h2>
+                        <p className="text-sm text-gray-600 mb-4">
+                            Tên và email không thể chỉnh sửa. Chỉ có thể cập nhật vai trò.
+                        </p>
 
                         <div className="space-y-6">
-                            {/* Name */}
+                            {/* Name - Readonly */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Họ và tên <span className="text-red-500">*</span>
+                                    Họ và tên
                                 </label>
                                 <input
                                     type="text"
-                                    name="name"
                                     value={formData.name}
-                                    onChange={handleInputChange}
-                                    className={`w-full px-4 py-2 border ${errors.name ? 'border-red-500' : 'border-gray-300'
-                                        } rounded-lg focus:outline-none focus:ring-2 focus:ring-[#008689] focus:border-transparent`}
-                                    placeholder="Nhập họ và tên"
+                                    readOnly
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed"
                                 />
-                                {errors.name && (
-                                    <p className="mt-1 text-sm text-red-500">{errors.name}</p>
-                                )}
                             </div>
 
-                            {/* Email */}
+                            {/* Email - Readonly */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Email <span className="text-red-500">*</span>
+                                    Email
                                 </label>
                                 <input
                                     type="email"
-                                    name="email"
                                     value={formData.email}
-                                    onChange={handleInputChange}
-                                    className={`w-full px-4 py-2 border ${errors.email ? 'border-red-500' : 'border-gray-300'
-                                        } rounded-lg focus:outline-none focus:ring-2 focus:ring-[#008689] focus:border-transparent`}
-                                    placeholder="example@email.com"
+                                    readOnly
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed"
                                 />
-                                {errors.email && (
-                                    <p className="mt-1 text-sm text-red-500">{errors.email}</p>
-                                )}
                             </div>
                         </div>
                     </div>
+
+                    {/* General Error */}
+                    {errors.general && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                            <p className="text-red-600 text-sm">{errors.general}</p>
+                        </div>
+                    )}
 
                     {/* Roles */}
                     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
@@ -202,79 +233,41 @@ const EditUserPage = () => {
                             Vai trò <span className="text-red-500">*</span>
                         </h2>
                         <p className="text-sm text-gray-600 mb-4">
-                            Chọn một hoặc nhiều vai trò cho người dùng
+                            Chọn một vai trò cho người dùng
                         </p>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {availableRoles.map((role) => (
                                 <div
                                     key={role}
-                                    onClick={() => handleRoleToggle(role)}
-                                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${formData.roles.includes(role)
+                                    onClick={() => handleRoleChange(role)}
+                                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
+                                        formData.role === role
                                             ? 'border-[#008689] bg-[#e6f7f7]'
                                             : 'border-gray-200 hover:border-gray-300'
-                                        }`}
+                                    }`}
                                 >
                                     <div className="flex items-center">
                                         <input
-                                            type="checkbox"
-                                            checked={formData.roles.includes(role)}
-                                            onChange={() => handleRoleToggle(role)}
-                                            className="w-4 h-4 text-[#008689] border-gray-300 rounded focus:ring-[#008689]"
+                                            type="radio"
+                                            name="role"
+                                            checked={formData.role === role}
+                                            onChange={() => handleRoleChange(role)}
+                                            className="w-4 h-4 text-[#008689] border-gray-300 focus:ring-[#008689]"
                                         />
                                         <label className="ml-3 text-sm font-medium text-gray-900 cursor-pointer">
                                             {role}
                                         </label>
                                     </div>
                                     <p className="ml-7 text-xs text-gray-600 mt-1">
-                                        {role === 'ADMIN' && 'Quản trị viên hệ thống'}
-                                        {role === 'CHAIR' && 'Chủ tịch hội nghị'}
-                                        {role === 'REVIEWER' && 'Phản biện viên'}
-                                        {role === 'AUTHOR' && 'Tác giả'}
+                                        {roleDescriptions[role]}
                                     </p>
                                 </div>
                             ))}
                         </div>
-                        {errors.roles && (
-                            <p className="mt-2 text-sm text-red-500">{errors.roles}</p>
+                        {errors.role && (
+                            <p className="mt-2 text-sm text-red-500">{errors.role}</p>
                         )}
-                    </div>
-
-                    {/* Status */}
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-                        <h2 className="text-xl font-bold text-gray-900 mb-4">
-                            Trạng thái
-                        </h2>
-
-                        <div className="flex items-center gap-4">
-                            <label className="flex items-center cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="status"
-                                    value="Active"
-                                    checked={formData.status === 'Active'}
-                                    onChange={handleInputChange}
-                                    className="w-4 h-4 text-[#008689] border-gray-300 focus:ring-[#008689]"
-                                />
-                                <span className="ml-2 text-sm font-medium text-gray-900">
-                                    Đang hoạt động
-                                </span>
-                            </label>
-
-                            <label className="flex items-center cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="status"
-                                    value="Inactive"
-                                    checked={formData.status === 'Inactive'}
-                                    onChange={handleInputChange}
-                                    className="w-4 h-4 text-[#008689] border-gray-300 focus:ring-[#008689]"
-                                />
-                                <span className="ml-2 text-sm font-medium text-gray-900">
-                                    Không hoạt động
-                                </span>
-                            </label>
-                        </div>
                     </div>
 
                     {/* Action Buttons */}
@@ -282,17 +275,28 @@ const EditUserPage = () => {
                         <button
                             type="button"
                             onClick={handleCancel}
-                            className="inline-flex items-center px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                            disabled={isUpdating}
+                            className="inline-flex items-center px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <Cancel className="w-5 h-5 mr-2" />
                             Hủy
                         </button>
                         <button
                             type="submit"
-                            className="inline-flex items-center px-6 py-3 bg-[#008689] hover:bg-[#006666] text-white font-medium rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg"
+                            disabled={isUpdating}
+                            className="inline-flex items-center px-6 py-3 bg-[#008689] hover:bg-[#006666] text-white font-medium rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            <Save className="w-5 h-5 mr-2" />
-                            Lưu thay đổi
+                            {isUpdating ? (
+                                <>
+                                    <CircularProgress size={20} className="mr-2" style={{ color: 'white' }} />
+                                    Đang cập nhật...
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="w-5 h-5 mr-2" />
+                                    Lưu thay đổi
+                                </>
+                            )}
                         </button>
                     </div>
                 </form>

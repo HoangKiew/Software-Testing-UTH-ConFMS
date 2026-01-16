@@ -23,7 +23,7 @@ import { EmailService } from '../common/services/email.service';
 export class AuthService {
   private readonly refreshSecret: string;
   private readonly refreshExpiresIn: string;
-
+  
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
@@ -32,6 +32,8 @@ export class AuthService {
     private readonly refreshTokenRepository: Repository<RefreshToken>,
     @InjectRepository(EmailVerificationToken)
     private readonly emailVerificationTokenRepository: Repository<EmailVerificationToken>,
+    @InjectRepository(User)
+    private readonly usersRepository: Repository<User>,
     private readonly emailService: EmailService,
   ) {
     this.refreshSecret =
@@ -41,18 +43,23 @@ export class AuthService {
   }
 // APi 1:  Đăng ký tài admin
   async register(dto: RegisterDto) {
-    const existing = await this.usersService.findByEmail(dto.email);
-    if (existing) {
+    const existingActive = await this.usersService.findByEmail(dto.email);
+    if (existingActive) {
       throw new BadRequestException('Email đã tồn tại');
     }
-
+    const existingIncludingDeleted = await this.usersService.findByEmailIncludingDeleted(dto.email);
+    if (existingIncludingDeleted) {
+      if (existingIncludingDeleted.deletedAt !== null) {
+        throw new BadRequestException('Email này đã được sử dụng trước đó (tài khoản đã bị xóa)');
+      }
+      throw new BadRequestException('Email đã tồn tại');
+    }
     const adminRole = await this.usersService.findRoleByName(RoleName.ADMIN);
     if (!adminRole || !adminRole.id) {
       throw new BadRequestException(
         'Không tìm thấy quyền ADMIN.',
       );
     }
-
     const hashed = await bcrypt.hash(dto.password, 10);
     const user = await this.usersService.createUser({
       email: dto.email,
@@ -68,9 +75,8 @@ export class AuthService {
   }
 // Api 2: Xác tài khoản qua email với mã 6 số
   private async createAndSendEmailVerificationToken(user: User) {
-    // Tạo mã 6 chữ số
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 phút
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); 
 
     const entity = this.emailVerificationTokenRepository.create({
       token: code,
@@ -83,7 +89,7 @@ export class AuthService {
     try {
       await this.emailService.sendVerificationEmail(user.email, code, user.fullName);
     } catch (error) {
-      console.error(`[AuthService] Failed to send verification email to ${user.email}:`, error);
+      throw new BadRequestException('Không thể gửi email xác minh');
     }
   }
 // Api 3: Đăng nhập
@@ -95,7 +101,7 @@ export class AuthService {
 
     if (!user.isVerified) {
       throw new UnauthorizedException(
-        'Tài khoản chưa được xác minh email. Vui lòng kiểm tra email.',
+        'Tài khoản chưa được xác minh email. Vui lòng kích hoạt tài khoản.',
       );
     }
 
@@ -147,29 +153,38 @@ export class AuthService {
       throw new UnauthorizedException('Mã xác minh không hợp lệ');
     }
 
+    // Check if user is already verified before processing
+    const user = await this.usersService.findById(record.userId);
+    if (user?.isVerified) {
+      // Mark token as used even though user is already verified
+      record.used = true;
+      await this.emailVerificationTokenRepository.save(record);
+      
+      throw new BadRequestException('Tài khoản này đã được xác minh email trước đó');
+    }
+
     if (record.expiresAt.getTime() < Date.now()) {
       throw new UnauthorizedException('Mã xác minh đã hết hạn');
     }
 
-    const user = await this.usersService.markEmailVerified(record.userId);
+    const verifiedUser = await this.usersService.markEmailVerified(record.userId);
 
     record.used = true;
     await this.emailVerificationTokenRepository.save(record);
 
-    return { message: 'Xác minh email thành công' };
+    return { 
+      message: 'Xác minh email thành công',
+      isVerified: true,
+    };
   }
-
+// Api 7: Lấy code xác minh từ db
   async getVerificationTokenByEmail(email: string) {
     const user = await this.usersService.findByEmail(email);
     if (!user) {
       throw new NotFoundException('Không tìm thấy người dùng');
     }
     if (user.isVerified) {
-      return {
-        email: user.email,
-        message: 'Email đã được xác minh',
-        isVerified: true,
-      };
+      throw new BadRequestException('Tài khoản này đã được xác minh email. Bạn không cần xác minh lại.');
     }
     await this.emailVerificationTokenRepository.delete({
       userId: user.id,
@@ -235,7 +250,7 @@ export class AuthService {
       accessToken,
       refreshToken,
       expiresIn:
-        this.configService.get<string>('JWT_ACCESS_EXPIRES_IN') || '1800',
+        this.configService.get<string>('JWT_ACCESS_EXPIRES_IN') || '3600',
       refreshExpiresIn: this.refreshExpiresIn,
     };
   }

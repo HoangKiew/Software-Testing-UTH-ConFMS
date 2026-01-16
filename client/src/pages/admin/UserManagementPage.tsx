@@ -10,16 +10,17 @@ import {
     Visibility,
 } from '@mui/icons-material';
 import { useGetUsersQuery, useDeleteUserMutation } from '../../redux/api/usersApi';
+import { showToast } from '../../utils/toast.ts';
 
 interface User {
     id: number;
-    name?: string;
-    fullName?: string;
+    name: string;
+    fullName: string;
     email: string;
-    role?: string;
+    role: string;
     roles?: string[] | any[];
-    status?: 'Active' | 'Inactive';
-    createdAt?: string;
+    status: 'Active' | 'Inactive';
+    createdAt: string;
     created_at?: string;
 }
 
@@ -33,7 +34,7 @@ const UserManagementPage = () => {
     const { data: usersData, isLoading, error } = useGetUsersQuery();
     
     // Map API data to component format
-    const apiUsers = Array.isArray(usersData) ? usersData : (usersData?.data || usersData?.users || []);
+    const apiUsers = Array.isArray(usersData) ? usersData : (usersData?.data || []);
     
     const users: User[] = apiUsers.map((user: any) => {
         // Extract role from different possible formats
@@ -44,8 +45,8 @@ const UserManagementPage = () => {
 
         return {
             id: user.id,
-            name: user.fullName || user.name || '',
-            fullName: user.fullName || user.name || '',
+            name: user.fullName || '',
+            fullName: user.fullName || '',
             email: user.email,
             role: role,
             status: user.isActive !== false ? 'Active' : 'Inactive',
@@ -88,10 +89,10 @@ const UserManagementPage = () => {
         if (window.confirm('Bạn có chắc chắn muốn xóa người dùng này?')) {
             try {
                 await deleteUser(userId).unwrap();
-                alert('Xóa người dùng thành công!');
-            } catch (err) {
-                console.error('Delete failed:', err);
-                alert('Xóa người dùng thất bại!');
+                showToast.success('Xóa người dùng thành công!');
+            } catch (err: any) {
+                const errorMessage = err?.data?.message || 'Xóa người dùng thất bại!';
+                showToast.error(errorMessage);
             }
         }
     };

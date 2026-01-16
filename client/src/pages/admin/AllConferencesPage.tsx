@@ -10,99 +10,58 @@ import {
     CalendarMonth,
     Person,
 } from '@mui/icons-material';
+import { useGetConferencesQuery, useDeleteConferenceMutation } from '../../redux/api/conferencesApi';
+import { showToast } from '../../utils/toast.ts';
+import CircularProgress from '@mui/material/CircularProgress';
 
 interface Conference {
     id: number;
     name: string;
-    acronym: string;
-    chair: string;
+    acronym?: string;
+    chair?: string;
     startDate: string;
     endDate: string;
-    status: 'Draft' | 'Active' | 'Completed' | 'Cancelled';
-    submissions: number;
-    reviews: number;
-    decisions: number;
+    status?: 'Draft' | 'Active' | 'Completed' | 'Cancelled';
+    submissions?: number;
+    reviews?: number;
+    decisions?: number;
 }
 
 const AllConferencesPage = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
 
-    // Mock data - replace with API call
-    const conferences: Conference[] = [
-        {
-            id: 1,
-            name: 'International Conference on Computer Science 2026',
-            acronym: 'ICCS 2026',
-            chair: 'Nguyễn Văn A',
-            startDate: '2026-06-15',
-            endDate: '2026-06-17',
-            status: 'Active',
-            submissions: 45,
-            reviews: 38,
-            decisions: 32,
-        },
-        {
-            id: 2,
-            name: 'Vietnam Software Engineering Conference 2026',
-            acronym: 'VSEC 2026',
-            chair: 'Trần Thị B',
-            startDate: '2026-05-20',
-            endDate: '2026-05-22',
-            status: 'Active',
-            submissions: 32,
-            reviews: 28,
-            decisions: 10,
-        },
-        {
-            id: 3,
-            name: 'International Symposium on Information Technology 2026',
-            acronym: 'ISIT 2026',
-            chair: 'Lê Văn C',
-            startDate: '2026-07-10',
-            endDate: '2026-07-12',
-            status: 'Draft',
-            submissions: 0,
-            reviews: 0,
-            decisions: 0,
-        },
-        {
-            id: 4,
-            name: 'Asia Pacific Conference on AI & Machine Learning',
-            acronym: 'APCAIML 2026',
-            chair: 'Phạm Thị D',
-            startDate: '2026-08-05',
-            endDate: '2026-08-07',
-            status: 'Active',
-            submissions: 58,
-            reviews: 45,
-            decisions: 28,
-        },
-        {
-            id: 5,
-            name: 'International Conference on Data Science 2025',
-            acronym: 'ICDS 2025',
-            chair: 'Hoàng Văn E',
-            startDate: '2025-12-10',
-            endDate: '2025-12-12',
-            status: 'Completed',
-            submissions: 62,
-            reviews: 62,
-            decisions: 62,
-        },
-    ];
+    // Fetch conferences from API
+    const { data: conferencesData, isLoading, error } = useGetConferencesQuery();
+    const [deleteConference] = useDeleteConferenceMutation();
+
+    // Map API data to component format
+    const apiConferences = Array.isArray(conferencesData) ? conferencesData : (conferencesData?.data || []);
+    
+    const conferences: Conference[] = apiConferences.map((conf: any) => ({
+        id: conf.id,
+        name: conf.name || '',
+        acronym: conf.acronym || conf.name?.substring(0, 10) || `CONF-${conf.id}`,
+        chair: conf.chair || conf.chairName || 'N/A',
+        startDate: conf.startDate || new Date().toISOString(),
+        endDate: conf.endDate || new Date().toISOString(),
+        status: conf.status || 'Draft',
+        submissions: conf.submissions || conf._count?.submissions || 0,
+        reviews: conf.reviews || conf._count?.reviews || 0,
+        decisions: conf.decisions || conf._count?.decisions || 0,
+    }));
 
     // Filter conferences
     const filteredConferences = conferences.filter((conf) => {
         const matchesSearch =
             conf.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            conf.acronym.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            conf.chair.toLowerCase().includes(searchQuery.toLowerCase());
+            (conf.acronym || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (conf.chair || '').toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus = filterStatus === 'all' || conf.status === filterStatus;
         return matchesSearch && matchesStatus;
     });
 
-    const getStatusBadgeColor = (status: string) => {
+    const getStatusBadgeColor = (status?: string) => {
         switch (status) {
             case 'Active':
                 return 'bg-green-100 text-green-800';
@@ -117,7 +76,7 @@ const AllConferencesPage = () => {
         }
     };
 
-    const getStatusLabel = (status: string) => {
+    const getStatusLabel = (status?: string) => {
         switch (status) {
             case 'Active':
                 return 'Đang hoạt động';
@@ -128,14 +87,19 @@ const AllConferencesPage = () => {
             case 'Cancelled':
                 return 'Đã hủy';
             default:
-                return status;
+                return status || 'N/A';
         }
     };
 
-    const handleDeleteConference = (confId: number) => {
+    const handleDeleteConference = async (confId: number) => {
         if (window.confirm('Bạn có chắc chắn muốn xóa hội nghị này?')) {
-            // TODO: Call API to delete conference
-            console.log('Delete conference:', confId);
+            try {
+                await deleteConference(confId).unwrap();
+                showToast.success('Xóa hội nghị thành công!');
+            } catch (err: any) {
+                const errorMessage = err?.data?.message || 'Xóa hội nghị thất bại!';
+                showToast.error(errorMessage);
+            }
         }
     };
 
@@ -236,6 +200,16 @@ const AllConferencesPage = () => {
                 {/* Conferences Table */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                     <div className="overflow-x-auto">
+                        {isLoading ? (
+                            <div className="px-6 py-12 text-center">
+                                <CircularProgress size={40} />
+                                <p className="mt-4 text-gray-600">Đang tải danh sách hội nghị...</p>
+                            </div>
+                        ) : error ? (
+                            <div className="px-6 py-12 text-center">
+                                <p className="text-red-600">Không thể tải danh sách hội nghị</p>
+                            </div>
+                        ) : (
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
@@ -351,9 +325,10 @@ const AllConferencesPage = () => {
                                             </td>
                                         </tr>
                                     ))
-                                )}
+                                )}  
                             </tbody>
                         </table>
+                        )}
                     </div>
 
                     {/* Pagination */}

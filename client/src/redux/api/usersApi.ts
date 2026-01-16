@@ -1,8 +1,6 @@
-// src/redux/api/usersApi.ts
 import { apiSlice } from './apiSlice';
-import type { User } from '../../types/api.types'; // Giả sử bạn có type User
+import type { User } from '../../types/api.types';
 
-// Các DTO / Request interfaces (giữ nguyên)
 export interface ChangePasswordRequest {
   oldPassword: string;
   newPassword: string;
@@ -34,49 +32,32 @@ export interface UpdateUserRolesRequest {
   role: 'ADMIN' | 'CHAIR' | 'AUTHOR' | 'REVIEWER' | 'PC_MEMBER';
 }
 
-// Type cho search params (keyword tìm kiếm)
-export interface SearchUsersParams {
-  q?: string;           // keyword tìm kiếm (tên/email)
-  page?: number;
-  limit?: number;
-}
-
 export const usersApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    // Get all users
-    getUsers: builder.query<any, void>({
-      query: () => '/users',
-      providesTags: (result) => {
-        // Backend returns object with data property: { data: [...] } or { message, data: [...] }
-        const users = Array.isArray(result) ? result : (result?.data || result?.users || []);
-        return users.length > 0
-          ? [
-              ...users.map(({ id }: any) => ({ type: 'User' as const, id })),
-              { type: 'User', id: 'LIST' },
-            ]
-          : [{ type: 'User', id: 'LIST' }];
-      },
-    }),
-
-    // Đổi mật khẩu
-    changePassword: builder.mutation<{ message: string }, ChangePasswordRequest>({
+    changePassword: builder.mutation<
+      { message: string },
+      ChangePasswordRequest
+    >({
       query: (body) => ({
         url: '/users/change-password',
         method: 'PATCH',
         body,
       }),
     }),
-
-    // Quên mật khẩu
-    forgotPassword: builder.mutation<{ message: string }, ForgotPasswordRequest>({
+    
+    // Forgot password
+    forgotPassword: builder.mutation<
+      { message: string },
+      ForgotPasswordRequest
+    >({
       query: (body) => ({
         url: '/users/forgot-password',
         method: 'POST',
         body,
       }),
     }),
-
-    // Lấy code reset (chỉ dev/test)
+    
+    // Get reset code (Dev only)
     getResetCode: builder.query<
       {
         message: string;
@@ -95,38 +76,47 @@ export const usersApi = apiSlice.injectEndpoints({
         params: { email },
       }),
     }),
-
-    // Xác thực code reset
-    verifyResetCode: builder.mutation<{ message: string; valid: boolean }, VerifyResetCodeRequest>({
+    
+    // Verify reset code
+    verifyResetCode: builder.mutation<
+      { message: string; valid: boolean },
+      VerifyResetCodeRequest
+    >({
       query: (body) => ({
         url: '/users/verify-reset-code',
         method: 'POST',
         body,
       }),
     }),
-
-    // Đặt lại mật khẩu
-    resetPassword: builder.mutation<{ message: string }, ResetPasswordRequest>({
+    
+    // Reset password
+    resetPassword: builder.mutation<
+      { message: string },
+      ResetPasswordRequest
+    >({
       query: (body) => ({
         url: '/users/reset-password',
         method: 'POST',
         body,
       }),
     }),
-
-    // Tạo user mới (Admin only)
-    createUser: builder.mutation<{ message: string; user: User }, CreateUserRequest>({
+    
+    // Create user (Admin only)
+    createUser: builder.mutation<
+      { message: string; data: User },
+      CreateUserRequest
+    >({
       query: (body) => ({
         url: '/users/create',
         method: 'POST',
         body,
       }),
-      invalidatesTags: ['User'],
+      invalidatesTags: [{ type: 'User', id: 'LIST' }],
     }),
-
-    // Cập nhật role user (Admin only)
+    
+    // Update user roles (Admin only)
     updateUserRoles: builder.mutation<
-      { message: string; user: User },
+      { message: string; data: User },
       { userId: number; data: UpdateUserRolesRequest }
     >({
       query: ({ userId, data }) => ({
@@ -134,11 +124,17 @@ export const usersApi = apiSlice.injectEndpoints({
         method: 'PATCH',
         body: data,
       }),
-      invalidatesTags: ['User'],
+      invalidatesTags: (_result, _error, { userId }) => [
+        { type: 'User', id: userId },
+        { type: 'User', id: 'LIST' },
+      ],
     }),
-
-    // Xóa user (Admin only)
-    deleteUser: builder.mutation<{ message: string }, number>({
+    
+    // Delete user (Admin only)
+    deleteUser: builder.mutation<
+      { message: string },
+      number
+    >({
       query: (userId) => ({
         url: `/users/${userId}`,
         method: 'DELETE',
@@ -146,66 +142,28 @@ export const usersApi = apiSlice.injectEndpoints({
       invalidatesTags: ['User'],
     }),
 
-    // TÌM KIẾM REVIEWER: fallback qua nhiều endpoint và lọc role REVIEWER phía client
-    searchReviewers: builder.query<User[], SearchUsersParams>({
-      async queryFn(params, _api, _extraOptions, baseQuery) {
-        const q = params.q || undefined;
-        const page = params.page || 1;
-        const limit = params.limit || 20;
+    // Get all users (Admin only)
+    getUsers: builder.query<
+      { message: string; data: User[] },
+      void
+    >({
+      query: () => '/users',
+      providesTags: (result) =>
+        result?.data && Array.isArray(result.data)
+          ? [
+              ...result.data.map(({ id }) => ({ type: 'User' as const, id })),
+              { type: 'User', id: 'LIST' },
+            ]
+          : [{ type: 'User', id: 'LIST' }],
+    }),
 
-        const candidates = [
-          // Gateway custom: /api/reviewers → identity /api/users?... (nếu tồn tại)
-          { url: '/reviewers', params: { q, page, limit } },
-          // Một số triển khai có /api/users/search
-          { url: '/users/search', params: { role: 'REVIEWER', q, page, limit } },
-          // Fallback chung: /api/users
-          { url: '/users', params: { role: 'REVIEWER', q, page, limit } },
-        ];
-
-        const normalize = (payload: any): any[] => {
-          if (Array.isArray(payload)) return payload;
-          if (Array.isArray(payload?.users)) return payload.users;
-          if (Array.isArray(payload?.data)) return payload.data;
-          return [];
-        };
-
-        const isReviewer = (u: any): boolean => {
-          if (!u) return false;
-          if (u.role === 'REVIEWER') return true;
-          if (Array.isArray(u.roles)) {
-            return u.roles.some((r: any) => (typeof r === 'string' ? r : r?.name) === 'REVIEWER');
-          }
-          return false;
-        };
-
-        let lastError: any = null;
-        for (const c of candidates) {
-          const res = await baseQuery({ url: c.url, params: c.params });
-          if (!res.error) {
-            const list = normalize(res.data);
-            const filtered = list.filter(isReviewer);
-            // Nếu có keyword q, lọc tiếp theo tên/email (client-side)
-            const keyword = (q || '').toLowerCase();
-            const finalData = keyword
-              ? filtered.filter(
-                (u: any) =>
-                  String(u.name || u.fullName || '').toLowerCase().includes(keyword) ||
-                  String(u.email || '').toLowerCase().includes(keyword),
-              )
-              : filtered;
-            return { data: finalData as User[] };
-          }
-          lastError = res.error;
-        }
-
-        return {
-          error: {
-            status: lastError?.status || 404,
-            data: { message: 'Không tìm thấy endpoint người dùng phù hợp để tìm reviewer' },
-          } as any,
-        };
-      },
-      providesTags: ['User'],
+    // Get user by ID (Admin only)
+    getUserById: builder.query<
+      { message: string; data: User },
+      number
+    >({
+      query: (id) => `/users/${id}`,
+      providesTags: (_result, _error, id) => [{ type: 'User', id }],
     }),
   }),
 });
@@ -219,7 +177,7 @@ export const {
   useCreateUserMutation,
   useUpdateUserRolesMutation,
   useDeleteUserMutation,
-  useSearchReviewersQuery,            // Hook để search reviewer
-  useLazySearchReviewersQuery,        // Lazy version nếu cần gọi thủ công
-  useGetUsersQuery,                   // Hook để lấy danh sách users
+  useGetUsersQuery,
+  useGetUserByIdQuery,
 } = usersApi;
+

@@ -1,21 +1,39 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowBack, Save, Cancel } from '@mui/icons-material';
+import { useCreateUserMutation } from '../../redux/api/usersApi';
+import { showToast } from '../../utils/toast.ts';
+import CircularProgress from '@mui/material/CircularProgress';
 
 const CreateUserPage = () => {
     const navigate = useNavigate();
+    const [createUser, { isLoading }] = useCreateUserMutation();
+    
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         password: '',
         confirmPassword: '',
-        roles: [] as string[],
-        status: 'Active',
+        role: 'AUTHOR' as 'ADMIN' | 'CHAIR' | 'AUTHOR' | 'REVIEWER' | 'PC_MEMBER',
     });
 
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
-    const availableRoles = ['ADMIN', 'CHAIR', 'REVIEWER', 'AUTHOR'];
+    const availableRoles: Array<'ADMIN' | 'CHAIR' | 'REVIEWER' | 'AUTHOR' | 'PC_MEMBER'> = [
+        'ADMIN', 
+        'CHAIR', 
+        'REVIEWER', 
+        'AUTHOR',
+        'PC_MEMBER'
+    ];
+
+    const roleDescriptions = {
+        ADMIN: 'Quản trị viên hệ thống',
+        CHAIR: 'Chủ tịch hội nghị',
+        REVIEWER: 'Phản biện viên',
+        AUTHOR: 'Tác giả',
+        PC_MEMBER: 'Thành viên Ban Chương trình'
+    };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -26,13 +44,11 @@ const CreateUserPage = () => {
         }
     };
 
-    const handleRoleToggle = (role: string) => {
-        setFormData((prev) => ({
-            ...prev,
-            roles: prev.roles.includes(role)
-                ? prev.roles.filter((r) => r !== role)
-                : [...prev.roles, role],
-        }));
+    const handleRoleChange = (role: typeof formData.role) => {
+        setFormData((prev) => ({ ...prev, role }));
+        if (errors.role) {
+            setErrors((prev) => ({ ...prev, role: '' }));
+        }
     };
 
     const validateForm = () => {
@@ -58,27 +74,32 @@ const CreateUserPage = () => {
             newErrors.confirmPassword = 'Mật khẩu xác nhận không khớp';
         }
 
-        if (formData.roles.length === 0) {
-            newErrors.roles = 'Vui lòng chọn ít nhất một vai trò';
-        }
-
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!validateForm()) {
             return;
         }
 
-        // TODO: Call API to create user
-        console.log('Create user:', formData);
+        try {
+            await createUser({
+                email: formData.email,
+                password: formData.password,
+                fullName: formData.name,
+                role: formData.role,
+            }).unwrap();
 
-        // Show success message and redirect
-        alert('Tạo người dùng thành công!');
-        navigate('/admin/users');
+            showToast.success('Tạo người dùng thành công! Email thông tin tài khoản đã được gửi đến người dùng.');
+            navigate('/admin/users');
+        } catch (err: any) {
+            const errorMessage = err?.data?.message || 'Có lỗi xảy ra khi tạo người dùng';
+            showToast.error(errorMessage);
+            setErrors({ general: errorMessage });
+        }
     };
 
     const handleCancel = () => {
@@ -198,85 +219,54 @@ const CreateUserPage = () => {
                         </div>
                     </div>
 
+                    {/* General Error */}
+                    {errors.general && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                            <p className="text-red-600 text-sm">{errors.general}</p>
+                        </div>
+                    )}
+
                     {/* Roles */}
                     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
                         <h2 className="text-xl font-bold text-gray-900 mb-2">
                             Vai trò <span className="text-red-500">*</span>
                         </h2>
                         <p className="text-sm text-gray-600 mb-4">
-                            Chọn một hoặc nhiều vai trò cho người dùng
+                            Chọn một vai trò cho người dùng
                         </p>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {availableRoles.map((role) => (
                                 <div
                                     key={role}
-                                    onClick={() => handleRoleToggle(role)}
-                                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${formData.roles.includes(role)
+                                    onClick={() => handleRoleChange(role)}
+                                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
+                                        formData.role === role
                                             ? 'border-[#008689] bg-[#e6f7f7]'
                                             : 'border-gray-200 hover:border-gray-300'
-                                        }`}
+                                    }`}
                                 >
                                     <div className="flex items-center">
                                         <input
-                                            type="checkbox"
-                                            checked={formData.roles.includes(role)}
-                                            onChange={() => handleRoleToggle(role)}
-                                            className="w-4 h-4 text-[#008689] border-gray-300 rounded focus:ring-[#008689]"
+                                            type="radio"
+                                            name="role"
+                                            checked={formData.role === role}
+                                            onChange={() => handleRoleChange(role)}
+                                            className="w-4 h-4 text-[#008689] border-gray-300 focus:ring-[#008689]"
                                         />
                                         <label className="ml-3 text-sm font-medium text-gray-900 cursor-pointer">
                                             {role}
                                         </label>
                                     </div>
                                     <p className="ml-7 text-xs text-gray-600 mt-1">
-                                        {role === 'ADMIN' && 'Quản trị viên hệ thống'}
-                                        {role === 'CHAIR' && 'Chủ tịch hội nghị'}
-                                        {role === 'REVIEWER' && 'Phản biện viên'}
-                                        {role === 'AUTHOR' && 'Tác giả'}
+                                        {roleDescriptions[role]}
                                     </p>
                                 </div>
                             ))}
                         </div>
-                        {errors.roles && (
-                            <p className="mt-2 text-sm text-red-500">{errors.roles}</p>
+                        {errors.role && (
+                            <p className="mt-2 text-sm text-red-500">{errors.role}</p>
                         )}
-                    </div>
-
-                    {/* Status */}
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-                        <h2 className="text-xl font-bold text-gray-900 mb-4">
-                            Trạng thái
-                        </h2>
-
-                        <div className="flex items-center gap-4">
-                            <label className="flex items-center cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="status"
-                                    value="Active"
-                                    checked={formData.status === 'Active'}
-                                    onChange={handleInputChange}
-                                    className="w-4 h-4 text-[#008689] border-gray-300 focus:ring-[#008689]"
-                                />
-                                <span className="ml-2 text-sm font-medium text-gray-900">
-                                    Đang hoạt động
-                                </span>
-                            </label>
-
-                            <label className="flex items-center cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="status"
-                                    value="Inactive"
-                                    checked={formData.status === 'Inactive'}
-                                    onChange={handleInputChange}
-                                    className="w-4 h-4 text-[#008689] border-gray-300 focus:ring-[#008689]"
-                                />
-                                <span className="ml-2 text-sm font-medium text-gray-900">
-                                    Không hoạt động
-                                </span>
-                            </label>
-                        </div>
                     </div>
 
                     {/* Action Buttons */}
@@ -284,17 +274,28 @@ const CreateUserPage = () => {
                         <button
                             type="button"
                             onClick={handleCancel}
-                            className="inline-flex items-center px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                            disabled={isLoading}
+                            className="inline-flex items-center px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <Cancel className="w-5 h-5 mr-2" />
                             Hủy
                         </button>
                         <button
                             type="submit"
-                            className="inline-flex items-center px-6 py-3 bg-[#008689] hover:bg-[#006666] text-white font-medium rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg"
+                            disabled={isLoading}
+                            className="inline-flex items-center px-6 py-3 bg-[#008689] hover:bg-[#006666] text-white font-medium rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            <Save className="w-5 h-5 mr-2" />
-                            Tạo người dùng
+                            {isLoading ? (
+                                <>
+                                    <CircularProgress size={20} className="mr-2" style={{ color: 'white' }} />
+                                    Đang tạo...
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="w-5 h-5 mr-2" />
+                                    Tạo người dùng
+                                </>
+                            )}
                         </button>
                     </div>
                 </form>

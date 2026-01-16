@@ -1,5 +1,10 @@
-import { Column, Entity, ManyToMany, PrimaryGeneratedColumn } from 'typeorm';
-// KHÔNG import User ở đây nữa!
+import {
+  Column,
+  Entity,
+  ManyToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { User } from './user.entity';
 
 export enum RoleName {
   ADMIN = 'ADMIN',
@@ -21,7 +26,6 @@ export class Role {
   })
   name: RoleName;
 
-  // Dùng string 'User' hoặc function cũng được, nhưng string an toàn nhất
-  @ManyToMany('User', (user: any) => user.roles)
-  users: any[];  // Hoặc User[] nếu cần type mạnh
+  @ManyToMany(() => User, (user) => user.roles)
+  users: User[];
 }

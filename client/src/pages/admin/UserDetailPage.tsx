@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowBack,
@@ -11,6 +11,9 @@ import {
     Event,
     CheckCircle,
 } from '@mui/icons-material';
+import { useGetUserByIdQuery, useDeleteUserMutation } from '../../redux/api/usersApi';
+import { showToast } from '../../utils/toast.ts';
+import CircularProgress from '@mui/material/CircularProgress';
 
 interface UserActivity {
     id: number;
@@ -24,87 +27,41 @@ interface UserActivity {
 const UserDetailPage = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const userId = Number(id);
+    
+    const { data: userData, isLoading, error } = useGetUserByIdQuery(userId);
+    const [deleteUser, { isLoading: isDeleting }] = useDeleteUserMutation();
     const [activeTab, setActiveTab] = useState('overview');
-    const [loading, setLoading] = useState(true);
 
-    // Mock user data
-    const [user] = useState({
-        id: parseInt(id || '0'),
-        name: 'Nguyễn Văn A',
-        email: 'nguyenvana@example.com',
-        roles: ['ADMIN', 'CHAIR'],
-        status: 'Active',
-        createdAt: '2025-01-15',
-        lastLogin: '2026-01-05 10:30:00',
-        totalSubmissions: 12,
-        totalReviews: 28,
-        totalConferences: 3,
-        totalDecisions: 15,
-    });
 
-    // Mock activity history
-    const activities: UserActivity[] = [
-        {
-            id: 1,
-            type: 'submission',
-            title: 'Nộp bài báo mới',
-            description: 'Deep Learning in Healthcare - ICCS 2026',
-            date: '2026-01-04 14:30:00',
-            status: 'Under Review',
-        },
-        {
-            id: 2,
-            type: 'review',
-            title: 'Hoàn thành đánh giá',
-            description: 'Paper #234 - AI Applications in Medicine',
-            date: '2026-01-03 16:45:00',
-            status: 'Completed',
-        },
-        {
-            id: 3,
-            type: 'conference',
-            title: 'Tạo hội nghị mới',
-            description: 'ICCS 2026 - International Conference on Computer Science',
-            date: '2026-01-02 09:00:00',
-            status: 'Active',
-        },
-        {
-            id: 4,
-            type: 'decision',
-            title: 'Đưa ra quyết định',
-            description: 'Accept - Paper #189',
-            date: '2026-01-01 11:20:00',
-            status: 'Accept',
-        },
-        {
-            id: 5,
-            type: 'review',
-            title: 'Hoàn thành đánh giá',
-            description: 'Paper #198 - Machine Learning Optimization',
-            date: '2025-12-28 15:30:00',
-            status: 'Completed',
-        },
-        {
-            id: 6,
-            type: 'submission',
-            title: 'Nộp bài báo mới',
-            description: 'Neural Networks for Image Processing - VSEC 2026',
-            date: '2025-12-25 10:15:00',
-            status: 'Accepted',
-        },
-    ];
+    // Activity history - will be integrated when API is available
+    const activities: UserActivity[] = [];
 
-    useEffect(() => {
-        // TODO: Fetch user data from API
-        setLoading(false);
-    }, [id]);
+    const user = userData?.data ? {
+        id: userData.data.id,
+        name: userData.data.fullName || '',
+        email: userData.data.email || '',
+        roles: Array.isArray(userData.data.roles)
+            ? userData.data.roles.map(r => typeof r === 'string' ? r : r)
+            : [],
+        status: 'Active', 
+        createdAt: userData.data.createdAt || new Date().toISOString(),
+        totalSubmissions: 0, // Will be populated when API is integrated
+        totalReviews: 0, // Will be populated when API is integrated
+        totalConferences: 0, // Will be populated when API is integrated
+        totalDecisions: 0, // Will be populated when API is integrated
+    } : null;
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (window.confirm('Bạn có chắc chắn muốn xóa người dùng này? Hành động này không thể hoàn tác.')) {
-            // TODO: Call API to delete user
-            console.log('Delete user:', id);
-            alert('Xóa người dùng thành công!');
-            navigate('/admin/users');
+            try {
+                await deleteUser(userId).unwrap();
+                showToast.success('Xóa người dùng thành công!');
+                navigate('/admin/users');
+            } catch (err: any) {
+                const errorMessage = err?.data?.message || 'Có lỗi xảy ra khi xóa người dùng';
+                showToast.error(errorMessage);
+            }
         }
     };
 
@@ -157,10 +114,29 @@ const UserDetailPage = () => {
         );
     };
 
-    if (loading) {
+    if (isLoading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <p className="text-gray-600">Đang tải...</p>
+                <div className="text-center">
+                    <CircularProgress size={40} />
+                    <p className="mt-4 text-gray-600">Đang tải...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error || !user) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <p className="text-red-600">Không thể tải thông tin người dùng</p>
+                    <button
+                        onClick={() => navigate('/admin/users')}
+                        className="mt-4 px-4 py-2 bg-[#008689] text-white rounded-lg hover:bg-[#006666]"
+                    >
+                        Quay lại
+                    </button>
+                </div>
             </div>
         );
     }
@@ -256,12 +232,6 @@ const UserDetailPage = () => {
                                     <p className="text-sm font-medium text-gray-900 flex items-center">
                                         <CalendarMonth className="w-4 h-4 mr-2 text-gray-400" />
                                         {new Date(user.createdAt).toLocaleDateString('vi-VN')}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p className="text-sm text-gray-600 mb-1">Đăng nhập gần nhất</p>
-                                    <p className="text-sm font-medium text-gray-900">
-                                        {new Date(user.lastLogin).toLocaleString('vi-VN')}
                                     </p>
                                 </div>
                             </div>

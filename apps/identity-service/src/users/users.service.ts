@@ -5,13 +5,15 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, IsNull, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from './entities/user.entity';
 import { Role, RoleName } from './entities/role.entity';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
+import { EmailVerificationToken } from '../auth/entities/email-verification-token.entity';
 import { EmailService } from '../common/services/email.service';
+
 
 @Injectable()
 export class UsersService {
@@ -22,9 +24,13 @@ export class UsersService {
     private readonly roleRepository: Repository<Role>,
     @InjectRepository(PasswordResetToken)
     private readonly passwordResetTokenRepository: Repository<PasswordResetToken>,
+    @InjectRepository(EmailVerificationToken)
+    private readonly emailVerificationTokenRepository: Repository<EmailVerificationToken>,
     private readonly dataSource: DataSource,
     private readonly emailService: EmailService,
+    
   ) {}
+  // Đánh dấu email của user đã được xác minh
   async markEmailVerified(userId: number): Promise<User> {
     const user = await this.findById(userId);
     if (!user) {
@@ -36,18 +42,44 @@ export class UsersService {
 
   async findByEmail(email: string): Promise<User | null> {
     return this.usersRepository.findOne({
-      where: { email },
+      where: { 
+        email,
+        deletedAt: IsNull(),
+        isActive: true,
+      },
+      relations: ['roles'],
+    });
+  }
+// Tìm user theo email bao gồm cả những user đã bị xóa mềm
+  async findByEmailIncludingDeleted(email: string): Promise<User | null> {
+    return this.usersRepository.findOne({
+      where: { email }, // No deletedAt filter - includes soft deleted
       relations: ['roles'],
     });
   }
 
   async findById(id: number): Promise<User | null> {
     return this.usersRepository.findOne({
-      where: { id },
+      where: { 
+        id,
+        deletedAt: IsNull(),
+        isActive: true,
+      },
       relations: ['roles'],
     });
   }
-
+// Tìm all
+  async findAll(): Promise<User[]> {
+    return this.usersRepository.find({
+      where: {
+        deletedAt: IsNull(),
+        isActive: true,
+      },
+      relations: ['roles'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+// Tạo user với vai trò tùy chỉnh
   async createUser(params: {
     email: string;
     password: string;
@@ -106,22 +138,17 @@ export class UsersService {
       return userWithRoles;
     }
   }
-
+// Tìm vai trò theo tên
   async findRoleByName(name: string): Promise<Role | null> {
     const role = await this.roleRepository.findOne({ 
       where: { name: name as RoleName } 
     });
-    if (role) {
-      console.log(`[findRoleByName] Found role: ${role.name} (ID: ${role.id}) for search: ${name}`);
-    } else {
-      console.log(`[findRoleByName] Role not found for: ${name}`);
-    }
     return role;
   }
-
+// Tạo user với vai trò cụ thể
   async createUserWithRole(params: {
     email: string;
-    password: string;
+    password: string; // Password gốc (chưa hash)
     fullName: string;
     roleName: string;
   }): Promise<User> {
@@ -135,17 +162,34 @@ export class UsersService {
       throw new BadRequestException(`Role ${params.roleName} not found`);
     }
 
+    // Hash password trước khi lưu
+    const hashedPassword = await bcrypt.hash(params.password, 10);
+
     const user = this.usersRepository.create({
       email: params.email,
-      password: params.password,
+      password: hashedPassword,
       fullName: params.fullName,
       isVerified: false,
       roles: [role],
     });
 
-    return this.usersRepository.save(user);
-  }
+    const savedUser = await this.usersRepository.save(user);
+    
+    // Gửi email thông báo tài khoản đã được tạo (không gửi code verification)
+    // Gửi password gốc để người dùng biết thông tin đăng nhập
+    try {
+      await this.emailService.sendAccountCreatedNotification(
+        savedUser.email,
+        savedUser.fullName,
+        params.password, // Password gốc để gửi trong email
+      );
+    } catch (error) {
+      throw new BadRequestException('Không thể gửi email thông báo tài khoản');
+    }
 
+    return savedUser;
+  }
+// Cập nhật vai trò cho user
   async updateUserRoles(userId: number, roleName: string): Promise<User> {
     const user = await this.findById(userId);
     if (!user) {
@@ -167,7 +211,7 @@ export class UsersService {
     }
     return user;
   }
-
+// Đổi mật khẩu
   async changePassword(
     userId: number,
     dto: ChangePasswordDto,
@@ -182,25 +226,22 @@ export class UsersService {
       user.password,
     );
     if (!isOldPasswordValid) {
-      throw new UnauthorizedException('Old password is incorrect');
+      throw new UnauthorizedException('Mật khẩu cũ không chính xác');
     }
 
     const hashed = await bcrypt.hash(dto.newPassword, 10);
     user.password = hashed;
     await this.usersRepository.save(user);
   }
-
+// Quên mật khẩu - gửi email đặt lại mật khẩu
   async forgotPassword(email: string): Promise<void> {
     const user = await this.findByEmail(email);
     if (!user) {
-      // Không tiết lộ thông tin tồn tại của email cho client
       return;
     }
-
-    // Tạo mã 6 chữ số
     const code = Math.floor(100000 + Math.random() * 900000).toString();
 
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); //
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); 
 
     const resetToken = this.passwordResetTokenRepository.create({
       token: code,
@@ -213,10 +254,10 @@ export class UsersService {
     try {
       await this.emailService.sendPasswordResetCode(user.email, code);
     } catch (error) {
-      console.error(`[ForgotPassword] Failed to send email to ${user.email}:`, error);
+      throw new BadRequestException('Không thể gửi email đặt lại mật khẩu');
     }
   }
-
+// Lấy mã đặt lại mật khẩu theo email
   async getResetCodeByEmail(email: string) {
     const user = await this.findByEmail(email);
     if (!user) {
@@ -241,12 +282,11 @@ export class UsersService {
 
     return {
       email: user.email,
-      code: token.token,
       expiresAt: token.expiresAt,
       createdAt: token.createdAt,
     };
   }
-
+// Xác minh mã đặt lại mật khẩu
   async verifyResetCode(email: string, code: string): Promise<boolean> {
     const user = await this.findByEmail(email);
     if (!user) {
@@ -272,7 +312,7 @@ export class UsersService {
 
     return true;
   }
-
+// Reset mật khẩu
   async resetPassword(
     email: string,
     code: string,
@@ -280,7 +320,7 @@ export class UsersService {
   ): Promise<void> {
     const user = await this.findByEmail(email);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Không tìm thấy tài khoản');
     }
 
     const token = await this.passwordResetTokenRepository.findOne({
@@ -308,31 +348,24 @@ export class UsersService {
     await this.usersRepository.save(user);
   }
 
+  // Xóa mềm user
   async deleteUser(userId: number): Promise<void> {
-    const user = await this.findById(userId);
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+      relations: ['roles'],
+    });
+
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Không tìm thấy tài khoản');
+    }
+    if (user.deletedAt !== null) {
+      throw new BadRequestException('Người dùng này đã bị xóa trước đó');
     }
 
-    await this.usersRepository.remove(user);
-  }
-
-  async findAll(role?: string, searchQuery?: string): Promise<User[]> {
-    let query = this.usersRepository.createQueryBuilder('user')
-      .leftJoinAndSelect('user.roles', 'roles');
-
-    if (role) {
-      query = query.where('roles.name = :role', { role });
-    }
-
-    if (searchQuery) {
-      const searchTerm = `%${searchQuery}%`;
-      query = query.andWhere('(user.fullName ILIKE :search OR user.email ILIKE :search)', {
-        search: searchTerm,
-      });
-    }
-
-    return query.getMany();
+    // Perform Soft Delete
+    user.deletedAt = new Date();
+    user.isActive = false;
+    await this.usersRepository.save(user);
   }
 }
 

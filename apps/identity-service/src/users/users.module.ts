@@ -1,19 +1,33 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigModule } from '@nestjs/config';
+import { HttpModule } from '@nestjs/axios';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
 import { User } from './entities/user.entity';
 import { Role } from './entities/role.entity';
-import { EmailService } from '../common/services/email.service';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
+import { EmailVerificationToken } from '../auth/entities/email-verification-token.entity';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { SeedService } from './seed.service'; // Đường dẫn đúng
+import { EmailService } from '../common/services/email.service';
+import { SubmissionClientService } from '../integrations/submission-client.service';
+import { ReviewClientService } from '../integrations/review-client.service';
 
 @Module({
-  imports: [ConfigModule, TypeOrmModule.forFeature([User, Role, PasswordResetToken])],
+  imports: [
+    TypeOrmModule.forFeature([User, Role, PasswordResetToken, EmailVerificationToken]),
+    HttpModule.register({
+      timeout: 10000,
+      maxRedirects: 5,
+    }),
+  ],
   controllers: [UsersController],
-  providers: [UsersService, RolesGuard, SeedService, EmailService],
+  providers: [
+    UsersService, 
+    RolesGuard, 
+    EmailService,
+    SubmissionClientService,
+    ReviewClientService,
+  ],
   exports: [UsersService],
 })
-export class UsersModule { }
+export class UsersModule {}

@@ -51,8 +51,9 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
-  await app.listen(process.env.port ?? 3001);
-  console.log(`[Identity-Service] Application is running on: http://localhost:${process.env.port ?? 3001}/api`);
-  console.log(`[Identity-Service] Swagger documentation: http://localhost:${process.env.port ?? 3001}/api/docs`);
+  const port = process.env.PORT || process.env.port || 3001;
+  await app.listen(port, '0.0.0.0');
+  console.log(`[Identity-Service] Running on http://0.0.0.0:${port}`);
+  console.log(`[Identity-Service] Swagger documentation: http://localhost:${port}/api/docs`);
 }
 bootstrap();

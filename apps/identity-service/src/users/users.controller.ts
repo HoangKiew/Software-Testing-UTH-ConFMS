@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, UseGuards, Delete, Query, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, UseGuards, Delete, Query, UnauthorizedException, NotFoundException, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -23,36 +24,33 @@ export class UsersController {
   @ApiResponse({ status: 200, description: 'Lấy thông tin thành công' })
   @ApiResponse({ status: 401, description: 'Không có quyền truy cập' })
   async getProfile(@CurrentUser('sub') userId: number) {
-    const user = await this.usersService.getProfile(userId);
-    const { password, ...rest } = user;
-    return {
-      message: 'Lấy thông tin người dùng thành công',
-      user: rest,
-    };
-  }
-
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(RoleName.ADMIN)
-  @Get()
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Lấy danh sách tất cả users (Admin only)' })
-  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  @ApiResponse({ status: 403, description: 'Không có quyền ADMIN' })
-  @ApiQuery({ name: 'role', description: 'Lọc theo role (optional)', required: false })
-  @ApiQuery({ name: 'q', description: 'Tìm kiếm theo tên/email (optional)', required: false })
-  async getAllUsers(
-    @Query('role') role?: string,
-    @Query('q') searchQuery?: string,
-  ) {
-    const users = await this.usersService.findAll(role, searchQuery);
-    const usersWithoutPassword = users.map(user => {
-      const { password, ...rest } = user;
-      return rest;
-    });
-    return {
-      message: 'Lấy danh sách người dùng thành công',
-      data: usersWithoutPassword,
-    };
+    try {
+      if (!userId || typeof userId !== 'number') {
+        throw new UnauthorizedException('Token không hợp lệ hoặc thiếu thông tin người dùng');
+      }
+      
+      const user = await this.usersService.getProfile(userId);
+      if (!user) {
+        throw new NotFoundException('Không tìm thấy thông tin người dùng');
+      }
+      
+      const { password, roles, ...rest } = user;
+      return {
+        message: 'Lấy thông tin người dùng thành công',
+        user: {
+          ...rest,
+          roles: roles?.map((role) => role.name) || [],
+        },
+      };
+    } catch (error: any) {
+      // Re-throw known exceptions
+      if (error instanceof UnauthorizedException || error instanceof NotFoundException) {
+        throw error;
+      }
+      // Log and throw generic error for unknown errors
+      console.error('[UsersController] Error in getProfile:', error);
+      throw new UnauthorizedException('Lỗi khi lấy thông tin người dùng: ' + (error?.message || 'Unknown error'));
+    }
   }
 
   @UseGuards(JwtAuthGuard)
@@ -88,7 +86,7 @@ export class UsersController {
   async getResetCode(@Query('email') email: string) {
     const result = await this.usersService.getResetCodeByEmail(email);
     return {
-      message: 'Lấy reset code thành công (chỉ dùng trong development)',
+      message: 'Lấy reset code thành công',
       data: result,
     };
   }
@@ -123,6 +121,46 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleName.ADMIN, RoleName.CHAIR)
+  @Get()
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Lấy danh sách tất cả users (Admin/Chair only)' })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
+  @ApiResponse({ status: 403, description: 'Không có quyền ADMIN hoặc CHAIR' })
+  async getAllUsers() {
+    const users = await this.usersService.findAll();
+    const usersWithoutPassword = users.map(({ password, roles, ...user }) => ({
+      ...user,
+      roles: roles?.map((role) => role.name) || [],
+    }));
+    return {
+      message: 'Lấy danh sách người dùng thành công',
+      data: usersWithoutPassword,
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Lấy thông tin user theo ID (Authenticated users)' })
+  @ApiResponse({ status: 200, description: 'Lấy thông tin thành công' })
+  @ApiResponse({ status: 404, description: 'User không tồn tại' })
+  async getUserById(@Param('id', ParseIntPipe) userId: number) {
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User không tồn tại');
+    }
+    const { password, roles, ...userWithoutPassword } = user;
+    return {
+      message: 'Lấy thông tin người dùng thành công',
+      data: {
+        ...userWithoutPassword,
+        roles: roles?.map((role) => role.name) || [],
+      },
+    };
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RoleName.ADMIN)
   @Post('create')
   @ApiBearerAuth('JWT-auth')
@@ -130,10 +168,10 @@ export class UsersController {
   @ApiResponse({ status: 201, description: 'Tạo user thành công' })
   @ApiResponse({ status: 403, description: 'Không có quyền ADMIN' })
   async createUser(@Body() dto: CreateUserDto) {
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    // Truyền password gốc để service có thể gửi trong email, service sẽ tự hash
     const user = await this.usersService.createUserWithRole({
       email: dto.email,
-      password: hashedPassword,
+      password: dto.password,
       fullName: dto.fullName,
       roleName: dto.role,
     });
@@ -143,10 +181,13 @@ export class UsersController {
       throw new Error('Failed to create user');
     }
 
-    const { password, ...userWithoutPassword } = userWithRoles;
+    const { password, roles, ...userWithoutPassword } = userWithRoles;
     return {
-      message: 'Tạo tài khoản thành công',
-      user: userWithoutPassword,
+      message: 'Tạo tài khoản thành công. Email thông báo đã được gửi đến người dùng.',
+      data: {
+        ...userWithoutPassword,
+        roles: roles?.map((role) => role.name) || [],
+      },
     };
   }
 
@@ -162,10 +203,13 @@ export class UsersController {
     @Body() dto: UpdateUserRolesDto,
   ) {
     const user = await this.usersService.updateUserRoles(userId, dto.role);
-    const { password, ...userWithoutPassword } = user;
+    const { password, roles, ...userWithoutPassword } = user;
     return {
       message: 'Cập nhật vai trò người dùng thành công',
-      user: userWithoutPassword,
+      data: {
+        ...userWithoutPassword,
+        roles: roles?.map((role) => role.name) || [],
+      },
     };
   }
 
@@ -173,13 +217,14 @@ export class UsersController {
   @Roles(RoleName.ADMIN)
   @Delete(':id')
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Xóa user (Admin only)' })
+  @ApiOperation({ summary: 'Xóa user (Admin only) - Soft Delete' })
   @ApiResponse({ status: 200, description: 'Xóa user thành công' })
+  @ApiResponse({ status: 400, description: 'User đã bị xóa trước đó' })
   @ApiResponse({ status: 403, description: 'Không có quyền ADMIN' })
   @ApiResponse({ status: 404, description: 'User không tồn tại' })
   async deleteUser(@Param('id', ParseIntPipe) userId: number) {
     await this.usersService.deleteUser(userId);
-    return { message: 'Xóa user thành công' };
+    return { message: 'Xóa user thành công (soft delete)' };
   }
 }
 

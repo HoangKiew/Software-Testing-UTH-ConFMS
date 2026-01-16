@@ -112,7 +112,7 @@ export class EmailService {
               </div>
 
               <div class="warning">
-                <strong>⚠️ Lưu ý:</strong>
+                <strong> Lưu ý:</strong>
                 <ul style="margin: 10px 0; padding-left: 20px;">
                   <li>Mã này chỉ có hiệu lực trong <strong>15 phút</strong></li>
                   <li>Không chia sẻ mã này với bất kỳ ai</li>
@@ -153,9 +153,8 @@ Trân trọng,
 
     try {
       await this.transporter.sendMail(mailOptions);
-      console.log(`[EmailService] Password reset code sent to ${email}`);
     } catch (error) {
-      console.error(`[EmailService] Failed to send email to ${email}:`, error);
+      throw new Error(`Failed to send password reset email to ${email}`);
     }
   }
 
@@ -285,9 +284,168 @@ Trân trọng,
 
     try {
       await this.transporter.sendMail(mailOptions);
-      console.log(`[EmailService] Verification email sent to ${email}`);
     } catch (error) {
-      console.error(`[EmailService] Failed to send verification email to ${email}:`, error);
+      throw new Error(`Failed to send verification email to ${email}`);
+    }
+  }
+
+  /**
+   * Gửi email thông báo tài khoản đã được tạo bởi admin
+   */
+  async sendAccountCreatedNotification(email: string, fullName: string, password: string): Promise<void> {
+    const appName = this.configService.get<string>('APP_NAME') || 'UTH ConfMS';
+    const appUrl = this.configService.get<string>('APP_BASE_URL') || 'http://localhost:5173';
+
+    const mailOptions = {
+      from: this.configService.get<string>('SMTP_FROM') || 
+            this.configService.get<string>('SMTP_USER') || 
+            this.configService.get<string>('EMAIL_USER'),
+      to: email,
+      subject: `[${appName}] Tài khoản của bạn đã được tạo`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              line-height: 1.6;
+              color: #333;
+            }
+            .container {
+              max-width: 600px;
+              margin: 0 auto;
+              padding: 20px;
+            }
+            .header {
+              background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+              color: white;
+              padding: 30px;
+              text-align: center;
+              border-radius: 10px 10px 0 0;
+            }
+            .content {
+              background: #f9fafb;
+              padding: 30px;
+              border-radius: 0 0 10px 10px;
+            }
+            .info-box {
+              background: white;
+              border: 2px solid #14b8a6;
+              border-radius: 8px;
+              padding: 20px;
+              margin: 20px 0;
+            }
+            .info-item {
+              margin: 10px 0;
+              padding: 10px;
+              background: #f3f4f6;
+              border-radius: 4px;
+            }
+            .info-label {
+              font-weight: bold;
+              color: #14b8a6;
+              display: inline-block;
+              min-width: 120px;
+            }
+            .button {
+              display: inline-block;
+              padding: 12px 30px;
+              background: #14b8a6;
+              color: white;
+              text-decoration: none;
+              border-radius: 6px;
+              margin: 20px 0;
+              font-weight: bold;
+            }
+            .footer {
+              margin-top: 20px;
+              padding-top: 20px;
+              border-top: 1px solid #e5e7eb;
+              font-size: 12px;
+              color: #6b7280;
+              text-align: center;
+            }
+            .warning {
+              background: #fef3c7;
+              border-left: 4px solid #f59e0b;
+              padding: 12px;
+              margin: 20px 0;
+              border-radius: 4px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>${appName}</h1>
+              <p>Tài khoản của bạn đã được tạo</p>
+            </div>
+            <div class="content">
+              <p>Xin chào <strong>${fullName}</strong>,</p>
+              <p>Tài khoản của bạn đã được tạo thành công trên hệ thống ${appName}. Dưới đây là thông tin đăng nhập của bạn:</p>
+              
+              <div class="info-box">
+                <div class="info-item">
+                  <span class="info-label">Email:</span>
+                  <span>${email}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Mật khẩu:</span>
+                  <span>${password}</span>
+                </div>
+              </div>
+
+              <div class="warning">
+                <strong>⚠️ Lưu ý quan trọng:</strong>
+                <ul style="margin: 10px 0; padding-left: 20px;">
+                  <li>Vui lòng đổi mật khẩu sau lần đăng nhập đầu tiên để bảo mật tài khoản</li>
+                  <li>Không chia sẻ thông tin đăng nhập với bất kỳ ai</li>
+                  <li>Nếu bạn không yêu cầu tạo tài khoản này, vui lòng liên hệ với quản trị viên</li>
+                </ul>
+              </div>
+
+              <p style="text-align: center;">
+                <a href="${appUrl}/login" class="button">Đăng nhập ngay</a>
+              </p>
+
+              <p>Trân trọng,<br>Đội ngũ ${appName}</p>
+            </div>
+            <div class="footer">
+              <p>Email này được gửi tự động, vui lòng không trả lời email này.</p>
+              <p>© ${new Date().getFullYear()} ${appName}. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+${appName} - Tài khoản của bạn đã được tạo
+
+Xin chào ${fullName},
+
+Tài khoản của bạn đã được tạo thành công trên hệ thống ${appName}. Dưới đây là thông tin đăng nhập của bạn:
+
+Email: ${email}
+Mật khẩu: ${password}
+
+⚠️ Lưu ý quan trọng:
+- Vui lòng đổi mật khẩu sau lần đăng nhập đầu tiên để bảo mật tài khoản
+- Không chia sẻ thông tin đăng nhập với bất kỳ ai
+- Nếu bạn không yêu cầu tạo tài khoản này, vui lòng liên hệ với quản trị viên
+
+Đăng nhập tại: ${appUrl}/login
+
+Trân trọng,
+Đội ngũ ${appName}
+      `,
+    };
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+    } catch (error) {
+      throw new Error(`Failed to send account creation notification email to ${email}`);
     }
   }
 
@@ -297,10 +455,10 @@ Trân trọng,
   async verifyConnection(): Promise<boolean> {
     try {
       await this.transporter.verify();
-      console.log('[EmailService] SMTP connection verified');
+      console.log('Email connection verified successfully.');
       return true;
     } catch (error) {
-      console.error('[EmailService] SMTP connection failed:', error);
+      console.error('Email connection verification failed:', error);
       return false;
     }
   }

@@ -28,6 +28,8 @@ import EditUserPage from '../pages/admin/EditUserPage.tsx';
 import AllConferencesPage from '../pages/admin/AllConferencesPage.tsx';
 import PlatformSettingsPage from '../pages/admin/PlatformSettingsPage.tsx';
 import AuditLogsPage from '../pages/admin/AuditLogsPage.tsx';
+import ProfilePage from '../pages/admin/profile/ProfilePage.tsx';
+import ChangePasswordPage from '../pages/admin/profile/ChangePasswordPage.tsx';
 
 const appRouter = createBrowserRouter([
   {
@@ -89,6 +91,14 @@ const appRouter = createBrowserRouter([
       {
         path: 'submissions/:id/camera-ready',
         element: <CameraReadyUploadPage />,
+      },
+      {
+        path: 'profile',
+        element: <ProfilePage />,
+      },
+      {
+        path: 'change-password',
+        element: <ChangePasswordPage />,
       },
       {
         path: 'chair/conferences/create',
