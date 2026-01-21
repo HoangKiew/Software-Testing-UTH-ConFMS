@@ -1,128 +1,136 @@
 services:
-  # =========================
-  # Database (PostgreSQL)
-  # =========================
+  # Database 
   postgres:
     image: postgres:15-alpine
-    container_name: uth-confms-database
+    container_name: uth_postgres
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin123
-      POSTGRES_DB: postgres
-    ports:
-      - '5432:5432' # Giữ 5432 để local dev dễ connect
     volumes:
       - ./database/init-script:/docker-entrypoint-initdb.d
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     networks:
       - uth-net
 
-  # =========================
-  # Identity Service
-  # =========================
   identity-service:
     build:
       context: .
       dockerfile: ./apps/identity-service/Dockerfile
     ports:
-      - '3001:3001'
+      - "3001:3001"
     environment:
+      - DOCKER_ENV=true
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USERNAME=admin
       - DB_PASSWORD=admin123
       - DB_DATABASE=db_identity
-      - JWT_ACCESS_SECRET=jZE6YIUoP_j7SOTLPWgS8kSfX5g4dlOmPMWJVNLMOyg-SMoqXiMRkR0ocJQEGr9HVUjonNIlZNwHzduFfOCJOQ
+      - SUBMISSION_SERVICE_URL=http://submission-service:3003/api
+      - REVIEW_SERVICE_URL=http://review-service:3004/api
     depends_on:
-      - postgres
+      - postgres 
     networks:
       - uth-net
-    restart: unless-stopped
 
-  # =========================
-  # Conference Service
-  # =========================
   conference-service:
     build:
       context: .
-      dockerfile: apps/conference-service/Dockerfile
-    container_name: uth-confms-conference-service
+      dockerfile: ./apps/conference-service/dockerfile
     ports:
-      - '3002:3002'
+      - "3002:3002"
+    env_file:
+      - .env
     environment:
+      - PORT=3002
+      - DOCKER_ENV=true
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USERNAME=admin
       - DB_PASSWORD=admin123
       - DB_DATABASE=db_conference
-      - JWT_ACCESS_SECRET=jZE6YIUoP_j7SOTLPWgS8kSfX5g4dlOmPMWJVNLMOyg-SMoqXiMRkR0ocJQEGr9HVUjonNIlZNwHzduFfOCJOQ
+      - IDENTITY_SERVICE_URL=http://identity-service:3001/api
+      - SUBMISSION_SERVICE_URL=http://submission-service:3003/api
+      - REVIEW_SERVICE_URL=http://review-service:3004/api
+      - EMAIL_USER=${EMAIL_USER}
+      - EMAIL_PASS=${EMAIL_PASS}
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
     depends_on:
       - postgres
       - identity-service
     networks:
       - uth-net
-    restart: unless-stopped
 
-  # =========================
-  # Submission Service
-  # =========================
-  submission-service:
-    build:
-      context: .
-      dockerfile: ./apps/submission-service/Dockerfile
-    container_name: uth-confms-submission-service
-    ports:
-      - '3003:3003'
-    env_file:
-      - ./apps/submission-service/.env
-    depends_on:
-      - postgres
-    networks:
-      - uth-net
-    restart: unless-stopped
-
-  # =========================
-  # Review Service (từ Lebao)
-  # =========================
   review-service:
     build:
       context: .
       dockerfile: ./apps/review-service/Dockerfile
-    container_name: uth-confms-review-service
     ports:
-      - '3004:3000'
+      - "3004:3004"
     environment:
-      - NODE_ENV=development
-      - PORT=3000
+      - PORT=3004
+      - DOCKER_ENV=true
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USERNAME=admin
       - DB_PASSWORD=admin123
       - DB_DATABASE=db_review
-      - JWT_SECRET=your_jwt_secret_here
-      - IDENTITY_SERVICE_URL=http://identity-service:3001
-      - CONFERENCE_SERVICE_URL=http://conference-service:3002
-      - SUBMISSION_SERVICE_URL=http://submission-service:3003
+      - TYPEORM_SYNCHRONIZE=true
+      - CONFERENCE_SERVICE_URL=http://conference-service:3002/api
+      - SUBMISSION_SERVICE_URL=http://submission-service:3003/api
     depends_on:
       - postgres
+      - conference-service
+      - submission-service
+    networks:
+      - uth-net
+
+  submission-service:
+    build:
+      context: .
+      dockerfile: ./apps/submission-service/Dockerfile
+    ports:
+      - "3003:3003"
+    env_file:
+      - .env
+    environment:
+      - PORT=3003
+      - DOCKER_ENV=true
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=admin
+      - DB_PASSWORD=admin123
+      - DB_DATABASE=db_submission
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_KEY=${SUPABASE_KEY:-}
+      - CONFERENCE_SERVICE_URL=http://conference-service:3002/api
+      - REVIEW_SERVICE_URL=http://review-service:3004/api
+      - IDENTITY_SERVICE_URL=http://identity-service:3001/api
+      - EMAIL_USER=${EMAIL_USER}
+      - EMAIL_PASS=${EMAIL_PASS}
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+    depends_on:
+      - postgres
+      - conference-service
       - identity-service
     networks:
       - uth-net
-    restart: unless-stopped
 
-  # =========================
-  # API Gateway
-  # =========================
   api-gateway:
     build:
       context: .
       dockerfile: ./apps/api-gateway/Dockerfile
-    container_name: uth-confms-api-gateway
     ports:
-      - '3000:3000'
+      - "3000:3000"
     environment:
       - DOCKER_ENV=true
       - IDENTITY_SERVICE_URL=http://identity-service:3001
+      - CONFERENCE_SERVICE_URL=http://conference-service:3002
+      - SUBMISSION_SERVICE_URL=http://submission-service:3003
+      - REVIEW_SERVICE_URL=http://review-service:3004
     depends_on:
       - identity-service
       - conference-service
@@ -130,7 +138,6 @@ services:
       - review-service
     networks:
       - uth-net
-    restart: unless-stopped
 
 networks:
   uth-net:

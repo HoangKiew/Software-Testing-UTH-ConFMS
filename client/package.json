@@ -17,13 +17,11 @@
     "@reduxjs/toolkit": "^2.11.2",
     "@tailwindcss/vite": "^4.1.18",
     "axios": "^1.13.2",
-    "csv-writer": "^1.6.0",
-    "pdfkit": "^0.17.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.10.1",
-    "recharts": "^3.6.0",
+    "react-toastify": "^11.0.5",
     "tailwindcss": "^4.1.18"
   },
   "devDependencies": {

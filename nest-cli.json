@@ -1,12 +1,14 @@
 {
   "$schema": "https://json.schemastore.org/nest-cli",
   "collection": "@nestjs/schematics",
-  "sourceRoot": "apps",
-  "monorepo": true,
+  "sourceRoot": "apps/uth-confms/src",
   "compilerOptions": {
     "deleteOutDir": true,
-    "webpack": true
+    "webpack": true,
+    "tsConfigPath": "apps/uth-confms/tsconfig.app.json"
   },
+  "monorepo": true,
+  "root": "apps/uth-confms",
   "projects": {
     "api-gateway": {
       "type": "application",
@@ -51,6 +53,15 @@
       "sourceRoot": "apps/submission-service/src",
       "compilerOptions": {
         "tsConfigPath": "apps/submission-service/tsconfig.app.json"
+      }
+    },
+    "uth-confms": {
+      "type": "application",
+      "root": "apps/uth-confms",
+      "entryFile": "main",
+      "sourceRoot": "apps/uth-confms/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/uth-confms/tsconfig.app.json"
       }
     }
   }

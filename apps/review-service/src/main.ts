@@ -1,24 +1,23 @@
-// src/main.ts (Update để fix crypto error)
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { ReviewServiceModule } from './review-service.module';
-import { webcrypto, randomUUID } from 'crypto';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-
-const g: any = global as any;
-if (typeof g.crypto === 'undefined') {
-  g.crypto = webcrypto;
-}
-if (g.crypto && !g.crypto.randomUUID) {
-  g.crypto.randomUUID = randomUUID;
-}
 
 async function bootstrap() {
   const app = await NestFactory.create(ReviewServiceModule);
   app.setGlobalPrefix('api');
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
+  // Swagger setup
   const config = new DocumentBuilder()
     .setTitle('UTH-ConfMS Review Service')
-    .setDescription('Review Service API (Reviewer & PC)')
+    .setDescription('Hệ thống quản lý bài báo hội nghị nghiên cứu khoa học cho Đại học UTH (UTH-ConfMS) - Review Service: Quản lý Đánh giá, Phân công, Bidding, Quyết định & Phản biện')
     .setVersion('1.0')
     .addBearerAuth(
       {
@@ -32,14 +31,12 @@ async function bootstrap() {
       'JWT-auth',
     )
     .build();
-
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
-  const port = process.env.PORT || 3004;
-  await app.listen(port as any);
-  console.log(`[Review-Service] Application is running on: http://localhost:${port}/api`);
+  const port = process.env.PORT || process.env.port || 3004;
+  await app.listen(port, '0.0.0.0');
+  console.log(`[Review-Service] Running on http://0.0.0.0:${port}`);
   console.log(`[Review-Service] Swagger documentation: http://localhost:${port}/api/docs`);
 }
-
 bootstrap();

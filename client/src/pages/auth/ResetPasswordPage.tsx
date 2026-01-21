@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import CircularProgress from '@mui/material/CircularProgress';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import bgUth from '../../assets/bg_uth.svg';
 import iconUth from '../../assets/icon_uth.svg';
@@ -273,7 +274,14 @@ const ResetPasswordPage = () => {
                 disabled={isLoading}
                 className="w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoading ? 'Đang xử lý...' : 'Đặt mật khẩu'}
+                {isLoading ? (
+                  <span className="flex items-center gap-2 justify-center">
+                    <CircularProgress size={16} disableShrink />
+                    Đang xử lý...
+                  </span>
+                ) : (
+                  'Đặt mật khẩu'
+                )}
               </button>
             </form>
 

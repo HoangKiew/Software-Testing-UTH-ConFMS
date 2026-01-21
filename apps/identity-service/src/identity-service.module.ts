@@ -9,6 +9,7 @@ import { Role } from './users/entities/role.entity';
 import { RefreshToken } from './auth/entities/refresh-token.entity';
 import { EmailVerificationToken } from './auth/entities/email-verification-token.entity';
 import { PasswordResetToken } from './users/entities/password-reset-token.entity';
+import { HealthController } from './health/health.controller';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { PasswordResetToken } from './users/entities/password-reset-token.entity
     UsersModule,
     AuthModule,
   ],
+  controllers: [HealthController],
   providers: [],
 })
 export class IdentityServiceModule {}

@@ -13,7 +13,8 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { EmailVerificationToken } from '../auth/entities/email-verification-token.entity';
 import { EmailService } from '../common/services/email.service';
-
+import { SubmissionClientService } from '../integrations/submission-client.service';
+import { ReviewClientService } from '../integrations/review-client.service';
 
 @Injectable()
 export class UsersService {
@@ -28,7 +29,8 @@ export class UsersService {
     private readonly emailVerificationTokenRepository: Repository<EmailVerificationToken>,
     private readonly dataSource: DataSource,
     private readonly emailService: EmailService,
-    
+    private readonly submissionClient: SubmissionClientService,
+    private readonly reviewClient: ReviewClientService,
   ) {}
   // Đánh dấu email của user đã được xác minh
   async markEmailVerified(userId: number): Promise<User> {
@@ -348,8 +350,8 @@ export class UsersService {
     await this.usersRepository.save(user);
   }
 
-  // Xóa mềm user
-  async deleteUser(userId: number): Promise<void> {
+  // Xóa mềm user với các soft delete check 
+  async deleteUser(userId: number, authToken?: string, force: boolean = false): Promise<void> {
     const user = await this.usersRepository.findOne({
       where: { id: userId },
       relations: ['roles'],
@@ -361,7 +363,49 @@ export class UsersService {
     if (user.deletedAt !== null) {
       throw new BadRequestException('Người dùng này đã bị xóa trước đó');
     }
+    if (!force) {
+      if (!authToken) {
+        throw new BadRequestException({
+          code: 'MISSING_AUTH_TOKEN',
+          message: 'Không thể kiểm tra guard clauses vì thiếu auth token. Vui lòng cung cấp token để xác minh người dùng không có submissions/reviews trước khi xóa.',
+          detail: {
+            userId,
+            reason: 'Auth token required for cross-service guard clause checks',
+          },
+        });
+      }
+      const submissionCount = await this.submissionClient.countSubmissionsByAuthorId(
+        userId,
+        authToken,
+      );
 
+      if (submissionCount > 0) {
+        throw new BadRequestException({
+          code: 'USER_HAS_SUBMISSIONS',
+          message: 'Người dùng này đã nộp bài, không được xóa',
+          detail: {
+            userId,
+            submissionCount,
+          },
+        });
+      }
+      const reviewerStats = await this.reviewClient.getReviewerActivityStats(
+        userId,
+        authToken,
+      );
+
+      if (reviewerStats.assignmentCount > 0 || reviewerStats.reviewCount > 0) {
+        throw new BadRequestException({
+          code: 'USER_IS_REVIEWER',
+          message: 'Người dùng này đang tham gia hội đồng chấm, không được xóa',
+          detail: {
+            userId,
+            assignmentCount: reviewerStats.assignmentCount,
+            reviewCount: reviewerStats.reviewCount,
+          },
+        });
+      }
+    }
     // Perform Soft Delete
     user.deletedAt = new Date();
     user.isActive = false;

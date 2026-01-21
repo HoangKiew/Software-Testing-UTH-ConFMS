@@ -1,35 +1,30 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import LayoutApp from '../layouts/LayoutApp.tsx';
-import LoginPage from '../pages/auth/LoginPage.tsx';
-import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage.tsx';
-import ResetPasswordPage from '../pages/auth/ResetPasswordPage.tsx';
-import ProtectedRoute from '../components/ProtectedRoute.tsx';
-import ActivateAccount from '../pages/auth/ActivateAccount.tsx';
-import HomePage from '../pages/home/HomePage.tsx';
-import SubmitPaperPage from '../pages/submission/SubmitPaperPage.tsx';
-import ConferenceListPage from '../pages/conference/ConferenceListPage.tsx';
-import ConferenceDetailPage from '../pages/conference/ConferenceDetailPage.tsx';
-import MySubmissionsPage from '../pages/submission/MySubmissionsPage.tsx';
-import SubmissionDetailPage from '../pages/submission/SubmissionDetailPage.tsx';
-import EditSubmissionPage from '../pages/submission/EditSubmissionPage.tsx';
-import CameraReadyUploadPage from '../pages/submission/CameraReadyUploadPage.tsx';
-import CreateConferencePage from '../pages/chair/CreateConferencePage.tsx';
-import ConferenceManagementPage from '../pages/chair/ConferenceManagementPage.tsx';
-import TopicAssignmentPage from '../pages/chair/TopicAssignmentPage.tsx';
-import DecisionMakingPage from '../pages/chair/DecisionMakingPage.tsx';
-import ReviewProgressPage from '../pages/chair/ReviewProgressPage.tsx';
-import ConferenceDetailPageChair from '../pages/chair/ConferenceDetailPageChair.tsx';
-import PCMembersManagementPage from '../pages/chair/PCMembersManagementPage.tsx';
-import EditConferencePage from '../pages/chair/EditConferencePage.tsx';
-import UserManagementPage from '../pages/admin/UserManagementPage.tsx';
-import UserDetailPage from '../pages/admin/UserDetailPage.tsx';
-import CreateUserPage from '../pages/admin/CreateUserPage.tsx';
-import EditUserPage from '../pages/admin/EditUserPage.tsx';
-import AllConferencesPage from '../pages/admin/AllConferencesPage.tsx';
-import PlatformSettingsPage from '../pages/admin/PlatformSettingsPage.tsx';
-import AuditLogsPage from '../pages/admin/AuditLogsPage.tsx';
-import ProfilePage from '../pages/admin/profile/ProfilePage.tsx';
-import ChangePasswordPage from '../pages/admin/profile/ChangePasswordPage.tsx';
+import LayoutApp from '../layouts/LayoutApp';
+import LoginPage from '../pages/auth/LoginPage';
+import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
+import ResetPasswordPage from '../pages/auth/ResetPasswordPage';
+import ProtectedRoute from '../components/ProtectedRoute';
+import ActivateAccount from '../pages/auth/ActivateAccount';
+import AccountManagementPage from '../pages/admin/account/AccountManagementPage';
+import ConferenceSetupPage from '../pages/admin/conference/ConferenceSetupPage';
+import TrackManagementPage from '../pages/admin/tracks/TrackManagementPage';
+import SubmissionsPage from '../pages/admin/submission/SubmissionsPage';
+import PCManagementPage from '../pages/admin/pc-management/PCManagementPage';
+import AssignmentsPage from '../pages/admin/review/AssignmentsPage';
+import CameraReadyPage from '../pages/admin/camera-ready/CameraReadyPage';
+import ReportsPage from '../pages/admin/report/ReportsPage';
+import ProfilePage from '../pages/profile/ProfilePage';
+import ChangePasswordPage from '../pages/profile/ChangePasswordPage';
+import LayoutAppStudent from '../layouts/LayoutAppStudent';
+import ContactStudent from '../components/ContactStudent';
+import Competition from '../components/Competition';
+import CompetitionWithTabs from '../components/CompetitionWithTabs';
+import StudentSubmissionLanding from '../pages/student/StudentSubmissionLanding';
+import StudentSubmitForm from '../pages/student/StudentSubmitForm';
+import StudentSubmissionDetail from '../pages/student/StudentSubmissionDetail';
+import ReviewerDashboard from '../pages/reviewer/ReviewerDashboard';
+import RoleProtectedRoute from '../components/RoleProtectedRoute';
+import RejectedPage from '../pages/admin/rejected/RejectedPage';
 
 const appRouter = createBrowserRouter([
   {
@@ -49,6 +44,14 @@ const appRouter = createBrowserRouter([
     element: <ActivateAccount />,
   },
   {
+    path: 'profile',
+    element: <ProfilePage />,
+  },
+  {
+    path: 'change-password',
+    element: <ChangePasswordPage />,
+  },
+  {
     path: '/',
     element: (
       <ProtectedRoute>
@@ -58,108 +61,106 @@ const appRouter = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <HomePage />,
+        element: <ConferenceSetupPage />,
       },
       {
-        path: 'home',
-        element: <HomePage />,
+        path: 'conference-setup',
+        element: <ConferenceSetupPage />,
       },
       {
-        path: 'submission',
-        element: <SubmitPaperPage />,
+        path: 'submissions',
+        element: <SubmissionsPage />,
       },
       {
-        path: 'conferences',
-        element: <ConferenceListPage />,
+        path: 'pc-management',
+        element: <PCManagementPage />,
       },
       {
-        path: 'conferences/:id',
-        element: <ConferenceDetailPage />,
+        path: 'assignments',
+        element: <AssignmentsPage />,
       },
       {
-        path: 'my-submissions',
-        element: <MySubmissionsPage />,
+        path: 'rejected-submissions',
+        element: <RejectedPage />,
       },
       {
-        path: 'submissions/:id',
-        element: <SubmissionDetailPage />,
+        path: 'camera-ready',
+        element: <CameraReadyPage />,
       },
       {
-        path: 'submissions/:id/edit',
-        element: <EditSubmissionPage />,
+        path: 'reports',
+        element: <ReportsPage />,
       },
       {
-        path: 'submissions/:id/camera-ready',
-        element: <CameraReadyUploadPage />,
+        path: 'account-management',
+        element: <AccountManagementPage />,
       },
       {
-        path: 'profile',
-        element: <ProfilePage />,
+        path: 'tracks',
+        element: <TrackManagementPage />,
+      },
+    ],
+  },
+  {
+    path: '/student',
+    element: (
+      <RoleProtectedRoute allowedRoles={['AUTHOR', 'ADMIN', 'CHAIR']}>
+        <LayoutAppStudent />
+      </RoleProtectedRoute>
+    ),
+    children: [
+      {
+        index: true,
+        element: <StudentSubmissionLanding />,
       },
       {
-        path: 'change-password',
-        element: <ChangePasswordPage />,
+        path: 'submit',
+        element: <StudentSubmitForm />,
       },
       {
-        path: 'chair/conferences/create',
-        element: <CreateConferencePage />,
+        path: 'submission/:id',
+        element: <StudentSubmissionDetail />,
+      },
+    ],
+  },
+  {
+    path: '/reviewer',
+    element: (
+      <RoleProtectedRoute allowedRoles={['REVIEWER']}>
+        <LayoutAppStudent />
+      </RoleProtectedRoute>
+    ),
+    children: [
+      {
+        index: true,
+        element: <ReviewerDashboard />,
+      },
+    ],
+  },
+  {
+    path: '/home',
+    element: (
+      <ProtectedRoute>
+        <LayoutAppStudent />
+      </ProtectedRoute>
+    ),
+    children: [
+      {
+        index: true,
+        element: (
+          <>
+            <CompetitionWithTabs />
+            <ContactStudent />
+          </>
+        ),
       },
       {
-        path: 'chair/conferences',
-        element: <ConferenceManagementPage />,
+        path: 'publicconference',
+        element: <Competition />,
       },
       {
-        path: 'chair/conferences/:id',
-        element: <ConferenceDetailPageChair />,
-      },
-      // ── ĐÃ SỬA THEO GIẢI PHÁP 2: Không cần :id nữa ──
-      {
-        path: 'chair/assignments',
-        element: <TopicAssignmentPage />,
-      },
-      {
-        path: 'chair/decisions',
-        element: <DecisionMakingPage />,
-      },
-      {
-        path: 'chair/progress',
-        element: <ReviewProgressPage />,
-      },
-      {
-        path: 'chair/conferences/:id/pc-members',
-        element: <PCMembersManagementPage />,
-      },
-      {
-        path: 'chair/conferences/:id/edit',
-        element: <EditConferencePage />,
-      },
-      {
-        path: 'admin/users',
-        element: <UserManagementPage />,
-      },
-      {
-        path: 'admin/users/create',
-        element: <CreateUserPage />,
-      },
-      {
-        path: 'admin/users/:id',
-        element: <UserDetailPage />,
-      },
-      {
-        path: 'admin/users/:id/edit',
-        element: <EditUserPage />,
-      },
-      {
-        path: 'admin/conferences',
-        element: <AllConferencesPage />,
-      },
-      {
-        path: 'admin/settings',
-        element: <PlatformSettingsPage />,
-      },
-      {
-        path: 'admin/audit-logs',
-        element: <AuditLogsPage />,
+        path: 'contact',
+        element: <ContactStudent />,
       },
     ],
   },

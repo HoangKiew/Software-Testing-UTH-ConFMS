@@ -23,7 +23,8 @@ axiosInstance.interceptors.request.use(
     return Promise.reject(error);
   }
 );
-// Làm mới tb
+
+// Response interceptor - Handle errors and token refresh
 axiosInstance.interceptors.response.use(
   (response) => {
     return response;
@@ -35,35 +36,40 @@ axiosInstance.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const refreshToken = localStorage.getItem('refreshToken');
+        const refreshToken = sessionStorage.getItem('refreshToken');
         if (!refreshToken) {
           localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-          window.location.href = '/login';
+          sessionStorage.removeItem('refreshToken');
+          // Dispatch event to trigger navigation without reload
+          window.dispatchEvent(new CustomEvent('auth:logout'));
           return Promise.reject(error);
         }
 
         const response = await axios.post<{ accessToken: string; refreshToken: string }>(
-          `${API_BASE_URL}/auth/refresh`,
+          `${API_BASE_URL}/auth/refresh-token`,
           { refreshToken }
         );
 
         const { accessToken, refreshToken: newRefreshToken } = response.data;
         localStorage.setItem('accessToken', accessToken);
-        localStorage.setItem('refreshToken', newRefreshToken);
+        sessionStorage.setItem('refreshToken', newRefreshToken);
 
+        // Retry original request with new token
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         }
         return axiosInstance(originalRequest);
       } catch (refreshError) {
+        // Refresh failed, clear tokens and redirect to login
         localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        window.location.href = '/login';
+        sessionStorage.removeItem('refreshToken');
+        // Dispatch event to trigger navigation without reload
+        window.dispatchEvent(new CustomEvent('auth:logout'));
         return Promise.reject(refreshError);
       }
     }
 
+    // Handle other errors
     const apiError: ApiError = {
       message: error.response?.data?.message || error.message || 'An error occurred',
       statusCode: error.response?.status || 500,

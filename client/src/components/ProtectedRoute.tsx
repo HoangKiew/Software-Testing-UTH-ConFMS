@@ -1,14 +1,28 @@
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { tokenUtils } from '../utils/token';
+import { useEffect } from 'react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  //Temporarily disabled for UI development
   const location = useLocation();
+  const navigate = useNavigate();
   const isAuthenticated = tokenUtils.hasToken();
+
+  // Listen for auth:logout event to navigate without reload
+  useEffect(() => {
+    const handleLogout = () => {
+      navigate('/login', { replace: true });
+    };
+    
+    window.addEventListener('auth:logout', handleLogout);
+    
+    return () => {
+      window.removeEventListener('auth:logout', handleLogout);
+    };
+  }, [navigate]);
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
@@ -18,3 +32,9 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 };
 
 export default ProtectedRoute;
+
+
+
+
+
+

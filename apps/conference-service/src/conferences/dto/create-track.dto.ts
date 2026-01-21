@@ -1,13 +1,15 @@
-// apps/conference-service/src/conferences/dto/create-track.dto.ts
+import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty } from 'class-validator';
 
 export class CreateTrackDto {
   @ApiProperty({
-    description: 'Tên của track (e.g., "AI Track")',
-    example: 'Machine Learning Track',
+    description: 'Tên của track',
+    example: 'Artificial Intelligence & Machine Learning',
+    maxLength: 255,
   })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(255)
   name: string;
 }
+

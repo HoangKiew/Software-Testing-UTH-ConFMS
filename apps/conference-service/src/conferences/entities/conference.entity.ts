@@ -1,124 +1,68 @@
-// apps/conference-service/src/conferences/entities/conference.entity.ts
-
-import {
-  Column,
-  Entity,
-  PrimaryGeneratedColumn,
-  CreateDateColumn,
-  UpdateDateColumn,
-  OneToMany,
-  Index,
-} from 'typeorm';
-import { ConferenceMember } from './conference-member.entity';
+import { Column, Entity, OneToMany, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Track } from './track.entity';
-
-/**
- * Trạng thái của hội nghị
- */
-export enum ConferenceStatus {
-  DRAFT = 'draft',          // Soạn thảo
-  OPEN = 'open',            // Mở nộp bài
-  REVIEW = 'review',        // Đang review
-  DECIDED = 'decided',      // Đã quyết định
-  FINAL = 'final',          // Hoàn tất, chuẩn bị tổ chức
-  ARCHIVED = 'archived',    // Lưu trữ
-}
+import { ConferenceMember } from './conference-member.entity';
+import { CfpSetting } from '../../cfp/entities/cfp-setting.entity';
+import { EmailTemplate } from '../../template/entities/email-template.entity';
+import { FormTemplate } from '../../template/entities/form-template.entity';
+import { CfpTemplate } from '../../template/entities/cfp-template.entity';
+import { AuditLog } from '../../audit/entities/audit-log.entity';
 
 @Entity({ name: 'conferences' })
-@Index('idx_conference_chair_id', ['chairId'])               // Index cho query theo chair
-@Index('idx_conference_status', ['status'])                  // Index cho filter theo status
-@Index('idx_conference_start_date', ['startDate'])           // Index cho query thời gian
 export class Conference {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  @Column({ comment: 'Tên đầy đủ của hội nghị' })
+  @Column({ type: 'varchar', length: 255 })
   name: string;
 
-  @Column({ comment: 'Tên viết tắt (acronym)' })
-  acronym: string;
-
-  @Column({ type: 'text', nullable: true, comment: 'Mô tả chi tiết hội nghị' })
-  description: string;
-
-  @Column({ type: 'timestamptz', comment: 'Ngày bắt đầu hội nghị' })
+  @Column({ type: 'timestamptz' })
   startDate: Date;
 
-  @Column({ type: 'timestamptz', comment: 'Ngày kết thúc hội nghị' })
+  @Column({ type: 'timestamptz' })
   endDate: Date;
 
-  @Column({ type: 'jsonb', default: [], comment: 'Danh sách chủ đề (topics)' })
-  topics: string[];
+  @Column({ type: 'varchar', length: 255 })
+  venue: string;
 
-  @Column({
-    type: 'jsonb',
-    default: {
-      submission: null,
-      review: null,
-      cameraReady: null,
-    },
-    comment: 'Các mốc thời gian quan trọng',
-  })
-  deadlines: {
-    submission?: Date | null;
-    review?: Date | null;
-    cameraReady?: Date | null;
-  };
+  @Column({ type: 'text', nullable: true })
+  description: string | null;
 
-  @Column({
-    type: 'enum',
-    enum: ConferenceStatus,
-    default: ConferenceStatus.DRAFT,
-    comment: 'Trạng thái hiện tại của hội nghị',
-  })
-  status: ConferenceStatus;
+  @Column({ type: 'varchar', length: 500, nullable: true, name: 'short_description' })
+  shortDescription: string | null;
 
-  @Column({ name: 'chair_id', type: 'integer', comment: 'ID của chair (từ identity-service)' })
-  chairId: number;
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'contact_email' })
+  contactEmail: string | null;
 
-  @Column({ default: true, comment: 'Hội nghị có đang hoạt động không' })
+  @Column({ type: 'int' })
+  organizerId: number;
+
+  @Column({ type: 'timestamptz', nullable: true, name: 'deleted_at' })
+  deletedAt: Date | null;
+
+  @Column({ type: 'boolean', default: true, name: 'is_active' })
   isActive: boolean;
 
-  @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date;
+  @OneToMany(() => Track, (track) => track.conference)
+  tracks: Track[];
 
-  @UpdateDateColumn({ name: 'updated_at' })
-  updatedAt: Date;
-
-  @Column({ type: 'jsonb', default: [], comment: 'Lịch trình hội nghị (sessions)' })
-  schedule: Array<{
-    time: string;
-    sessionName: string;
-    paperIds: string[];
-  }>;
-
-  // === Các field mới ===
-
-  @Column({ name: 'ai_features_enabled', default: false, comment: 'Bật/tắt toàn bộ tính năng AI' })
-  aiFeaturesEnabled: boolean;
-
-  @Column({
-    type: 'jsonb',
-    name: 'ai_config',
-    default: {
-      emailDraft: true,
-      keywordSuggestion: true,
-      neutralSummary: true,
-    },
-    comment: 'Cấu hình chi tiết từng tính năng AI',
-  })
-  aiConfig: {
-    emailDraft?: boolean;
-    keywordSuggestion?: boolean;
-    neutralSummary?: boolean;
-  };
-
-  @Column({ default: false, comment: 'Cho phép công khai proceedings' })
-  openAccess: boolean;
-
-  @OneToMany(() => ConferenceMember, (member) => member.conference, { cascade: true })
+  @OneToMany(
+    () => ConferenceMember,
+    (conferenceMember) => conferenceMember.conference,
+  )
   members: ConferenceMember[];
 
-  @OneToMany(() => Track, (track) => track.conference, { cascade: true })
-  tracks: Track[];
+  @OneToOne(() => CfpSetting, (cfp) => cfp.conference)
+  cfpSetting: CfpSetting | null;
+
+  @OneToMany(() => EmailTemplate, (template) => template.conference)
+  emailTemplates: EmailTemplate[];
+
+  @OneToMany(() => FormTemplate, (template) => template.conference)
+  formTemplates: FormTemplate[];
+
+  @OneToOne(() => CfpTemplate, (template) => template.conference)
+  cfpTemplate: CfpTemplate | null;
+
+  @OneToMany(() => AuditLog, (log) => log.conference)
+  auditLogs: AuditLog[];
 }

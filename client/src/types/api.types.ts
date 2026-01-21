@@ -88,15 +88,29 @@ export interface User {
 }
 
 // Conference Types
+export interface CfpSetting {
+  id: number;
+  submissionDeadline: string;
+  reviewDeadline: string;
+  notificationDate: string;
+  cameraReadyDeadline: string;
+  conferenceId: number;
+}
+
 export interface Conference {
   id: number;
   name: string;
   description?: string;
+  venue?: string;
   startDate: string;
   endDate: string;
-  submissionDeadline: string;
+  submissionDeadline?: string;
   reviewDeadline?: string;
   cameraReadyDeadline?: string;
+  notificationDate?: string;
+  shortDescription?: string;
+  contactEmail?: string;
+  cfpSetting?: CfpSetting | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -106,6 +120,17 @@ export interface Track {
   conferenceId: number;
   name: string;
   description?: string;
+  conference?: Conference;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TrackMember {
+  id: number;
+  trackId: number;
+  userId: number;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  track?: Track;
   createdAt: string;
   updatedAt: string;
 }
@@ -133,11 +158,13 @@ export interface Submission {
   status: SubmissionStatus;
   authorId: number;
   authorName?: string;
+  authorAffiliation?: string;
   trackId: number;
   conferenceId: number;
   coAuthors?: Array<{ name: string; email: string; affiliation?: string }>;
   createdAt: string;
   updatedAt: string;
+  submittedAt?: string;
   versions?: SubmissionVersion[];
 }
 
@@ -165,6 +192,8 @@ export interface UpdateSubmissionDto {
   abstract?: string;
   keywords?: string;
   trackId?: number;
+  authorAffiliation?: string;
+  coAuthors?: string;
 }
 
 export interface UpdateStatusDto {
@@ -183,12 +212,16 @@ export interface QuerySubmissionsDto extends PaginationParams {
 // Review Types
 export interface Review {
   id: number;
+  assignmentId: number;
   submissionId: string;
   reviewerId: number;
+  reviewerName?: string; // Enriched by backend from identity service
   score: number;
+  confidence?: 'LOW' | 'MEDIUM' | 'HIGH';
   commentForAuthor: string;
+  commentForPC?: string;
   commentForChair?: string;
-  recommendation: 'ACCEPT' | 'REJECT' | 'MAJOR_REVISION' | 'MINOR_REVISION';
+  recommendation: 'ACCEPT' | 'WEAK_ACCEPT' | 'REJECT' | 'WEAK_REJECT';
   createdAt: string;
   updatedAt: string;
 }
@@ -203,7 +236,11 @@ export interface ReviewAssignment {
   id: number;
   submissionId: string;
   reviewerId: number;
-  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED';
   createdAt: string;
+  submission?: Submission;
+  conferenceId?: number;
+  trackId?: number;
+  dueDate?: string;
 }
 

@@ -1,24 +1,46 @@
 import {
   Column,
+  CreateDateColumn,
   Entity,
-  JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { Conference } from './conference.entity';
+import { TrackMember } from './track-member.entity';
 
 @Entity({ name: 'tracks' })
 export class Track {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ type: 'varchar', length: 255 })
   name: string;
+
+  @Column({ type: 'int' })
+  conferenceId: number;
+
+  @Column({ type: 'text', nullable: true })
+  description: string | null;
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  createdAt: Date;
+
+  @UpdateDateColumn({ type: 'timestamptz' })
+  updatedAt: Date;
+
+  @Column({ type: 'timestamptz', nullable: true, name: 'deleted_at' })
+  deletedAt: Date | null;
+
+  @Column({ type: 'boolean', default: true, name: 'is_active' })
+  isActive: boolean;
 
   @ManyToOne(() => Conference, (conference) => conference.tracks, {
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'conference_id' })
   conference: Conference;
-}
 
+  @OneToMany(() => TrackMember, (member) => member.track)
+  members: TrackMember[];
+}

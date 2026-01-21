@@ -9,7 +9,6 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { RoleName } from './entities/role.entity';
-import * as bcrypt from 'bcrypt';
 import { UpdateUserRolesDto } from './dto/update-user-roles.dto';
 
 @ApiTags('Users')
@@ -217,13 +216,21 @@ export class UsersController {
   @Roles(RoleName.ADMIN)
   @Delete(':id')
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Xóa user (Admin only) - Soft Delete' })
+  @ApiOperation({ summary: 'Xóa user (Admin only) - Soft Delete với Guard Clauses' })
   @ApiResponse({ status: 200, description: 'Xóa user thành công' })
-  @ApiResponse({ status: 400, description: 'User đã bị xóa trước đó' })
+  @ApiResponse({ status: 400, description: 'Không thể xóa user (có submissions/reviews)' })
   @ApiResponse({ status: 403, description: 'Không có quyền ADMIN' })
   @ApiResponse({ status: 404, description: 'User không tồn tại' })
-  async deleteUser(@Param('id', ParseIntPipe) userId: number) {
-    await this.usersService.deleteUser(userId);
+  async deleteUser(
+    @Param('id', ParseIntPipe) userId: number,
+    @Req() req: Request,
+  ) {
+    const authHeader = req.headers.authorization;
+    const authToken = authHeader?.startsWith('Bearer ') 
+      ? authHeader.substring(7) 
+      : undefined;
+
+    await this.usersService.deleteUser(userId, authToken);
     return { message: 'Xóa user thành công (soft delete)' };
   }
 }

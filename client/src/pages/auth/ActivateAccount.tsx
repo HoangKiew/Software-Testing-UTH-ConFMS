@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
+import CircularProgress from '@mui/material/CircularProgress';
 import bgUth from '../../assets/bg_uth.svg';
 import { Link, useNavigate } from 'react-router-dom';
-import { useGetVerificationTokenQuery, useVerifyEmailMutation } from '../../redux/api/authApi';
+import {
+  useGetVerificationTokenQuery,
+  useVerifyEmailMutation,
+} from '../../redux/api/authApi';
 import { formatApiError } from '../../utils/api-helpers';
+import { showToast } from '../../utils/toast';
 
 const ActivateAccount = () => {
   const navigate = useNavigate();
@@ -10,25 +15,40 @@ const ActivateAccount = () => {
   const [isSubmit, setIsSubmit] = useState(false);
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
-  
-  const { data: tokenData, isLoading: isLoadingToken, error: tokenError, refetch: refetchToken } = useGetVerificationTokenQuery(
-    { email },
-    { skip: !isSubmit || !email }
-  );
 
+  // Query để lấy verification token (chỉ query khi đã submit email)
+  const {
+    data: tokenData,
+    isLoading: isLoadingToken,
+    error: tokenError,
+    refetch: refetchToken,
+  } = useGetVerificationTokenQuery({ email }, { skip: !isSubmit || !email });
+
+  // Xử lý kết quả query
   useEffect(() => {
     if (tokenData?.data) {
       if (tokenData.data.isVerified) {
-        setError('Email đã được xác minh. Vui lòng đăng nhập.');
+        showToast.info('Email đã được xác minh. Bạn có thể đăng nhập ngay.');
+        setError('Email đã được xác minh. Bạn có thể đăng nhập ngay.');
         setIsSubmit(false);
       }
     }
     if (tokenError) {
-      setError(formatApiError(tokenError));
+      const errorMessage = formatApiError(tokenError);
+      // Kiểm tra nếu là lỗi đã được xác minh
+      if (
+        errorMessage.includes('đã được xác minh') ||
+        errorMessage.includes('đã được xác thực')
+      ) {
+        showToast.info('Tài khoản này đã được xác thực. Bạn có thể đăng nhập ngay.');
+        setError('Tài khoản này đã được xác thực. Bạn có thể đăng nhập ngay.');
+      } else {
+        setError(errorMessage);
+      }
       setIsSubmit(false);
     }
   }, [tokenData, tokenError]);
-  
+
   const [verifyEmail, { isLoading: isVerifying }] = useVerifyEmailMutation();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -52,12 +72,29 @@ const ActivateAccount = () => {
 
     try {
       await verifyEmail({ token: code.trim() }).unwrap();
-      
+
+      // Hiển thị toast thông báo thành công
+      showToast.success('Kích hoạt tài khoản thành công! Vui lòng đăng nhập.');
+
       navigate('/login', {
-        state: { message: 'Kích hoạt tài khoản thành công! Vui lòng đăng nhập.' },
+        state: {
+          message: 'Kích hoạt tài khoản thành công! Vui lòng đăng nhập.',
+        },
       });
-    } catch (err: unknown) {
-      setError(formatApiError(err));
+    } catch (err: any) {
+      // Kiểm tra nếu tài khoản đã được xác thực rồi
+      const errorMessage = err?.data?.message || err?.message || '';
+      if (
+        err?.status === 400 &&
+        (errorMessage.includes('đã được xác minh') ||
+          errorMessage.includes('đã được xác thực'))
+      ) {
+        // Hiển thị toast thông báo đã được xác thực
+        showToast.info('Tài khoản này đã được xác thực. Bạn có thể đăng nhập ngay.');
+        setError('Tài khoản này đã được xác thực. Bạn có thể đăng nhập ngay.');
+      } else {
+        setError(formatApiError(err));
+      }
     }
   };
 
@@ -104,17 +141,6 @@ const ActivateAccount = () => {
           <p className="text-gray-600 mb-5">
             Mã xác thực đã được gửi đến {email}.
           </p>
-          {tokenData?.data?.code && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-xs text-blue-800 font-semibold mb-1">💡 Development Mode:</p>
-              <p className="text-sm text-blue-700">
-                Verification code: <strong className="text-lg">{tokenData.data.code}</strong>
-              </p>
-              <p className="text-xs text-blue-600 mt-1">
-                Hết hạn: {new Date(tokenData.data.expiresAt).toLocaleString('vi-VN')}
-              </p>
-            </div>
-          )}
 
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -264,7 +290,14 @@ const ActivateAccount = () => {
             disabled={isLoadingToken}
             className="w-full bg-primary hover:bg-teal-600 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoadingToken ? 'Đang xử lý...' : 'Xác nhận'}
+            {isLoadingToken ? (
+              <span className="flex items-center gap-2 justify-center">
+                <CircularProgress size={16} disableShrink />
+                Đang xử lý...
+              </span>
+            ) : (
+              'Xác nhận'
+            )}
           </button>
         </form>
       </div>

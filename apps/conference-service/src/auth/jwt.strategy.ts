@@ -1,24 +1,36 @@
-// src/auth/jwt.strategy.ts
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { ConfigService } from '@nestjs/config';
+
+export interface JwtPayload {
+  sub: number;
+  roles: string[];
+  email?: string;
+}
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private configService: ConfigService) {
-    const secret = configService.get<string>('JWT_ACCESS_SECRET');
-    if (!secret) {
-      throw new Error('JWT_ACCESS_SECRET is not defined in .env file');
-    }
+  constructor(configService: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: secret,
+      secretOrKey: configService.get<string>('JWT_ACCESS_SECRET') || 'access_secret',
     });
   }
 
-  async validate(payload: any) {
-    return { userId: payload.sub, email: payload.email, roles: payload.roles || [] };  // Thêm roles array từ identity JWT
+  async validate(payload: JwtPayload) {
+    return payload;
   }
 }
+
+
+
+
+
+
+
+
+
+
+
