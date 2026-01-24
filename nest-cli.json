@@ -4,7 +4,6 @@
   "sourceRoot": "apps/uth-confms/src",
   "compilerOptions": {
     "deleteOutDir": true,
-    "webpack": true,
     "tsConfigPath": "apps/uth-confms/tsconfig.app.json"
   },
   "monorepo": true,
