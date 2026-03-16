@@ -100,10 +100,20 @@ export interface CfpSetting {
 export interface Conference {
   id: number;
   name: string;
+  acronym: string;
   description?: string;
+  location?: string;
   venue?: string;
+  status?: string;
   startDate: string;
   endDate: string;
+  organizerId?: number;
+  deadlines?: {
+    submission?: string;
+    review?: string;
+    cameraReady?: string;
+  };
+  topics?: string[];
   submissionDeadline?: string;
   reviewDeadline?: string;
   cameraReadyDeadline?: string;

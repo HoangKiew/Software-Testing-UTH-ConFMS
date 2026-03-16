@@ -73,9 +73,9 @@ export class DecisionsService {
     userRoles: string[],
   ): Promise<void> {
     if (userRoles.includes('ADMIN')) return;
-    const conference = await this.conferencesService.findOne(conferenceId);
+    const conference = await this.conferencesService.findOne(Number(conferenceId));
     if (!conference) throw new NotFoundException(`Conference ${conferenceId} not found`);
-    if (conference.chairId !== userId) throw new ForbiddenException('Only chair or ADMIN can perform this action');
+    if (conference.organizerId !== userId) throw new ForbiddenException('Only chair or ADMIN can perform this action');
   }
 
   private async getSubmissionOrThrow(submissionId: string): Promise<Submission> {
@@ -133,7 +133,7 @@ export class DecisionsService {
       })
     ).then(results => results.filter(item => item !== null));
 
-    const conference = await this.conferencesService.findOne(conferenceId);
+    const conference = await this.conferencesService.findOne(Number(conferenceId));
     if (!conference) throw new NotFoundException(`Conference ${conferenceId} not found`);
 
     return {
@@ -186,10 +186,10 @@ export class DecisionsService {
         submissionTitle: submission.title ?? 'Chưa có tiêu đề',
         decision: dto.decision.toUpperCase(),
         feedback: dto.feedback ?? 'No additional feedback',
-        conferenceName: (await this.conferencesService.findOne(String(submission.conference_id!)))?.name ?? 'Conference',
+        conferenceName: (await this.conferencesService.findOne(Number(submission.conference_id!)))?.name ?? 'Conference',
       });
 
-      await this.auditService.log('MAKE_DECISION', userId, 'Decision', decision.id, dto);
+      await this.auditService.log(Number(submission.conference_id), userId, 'MAKE_DECISION', 'Decision', Number(decision.id) || null, null, dto as any);
 
       await queryRunner.commitTransaction();
 

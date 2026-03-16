@@ -22,7 +22,7 @@ const SubmitPaperPage = () => {
     const [keywords, setKeywords] = useState('');
     const [conferenceId, setConferenceId] = useState<number | ''>('');
     const [trackId, setTrackId] = useState<number | ''>('');
-    const [createSubmission, { isLoading }] = useCreateSubmissionMutation();
+    const [createSubmission, { isLoading: _isLoading }] = useCreateSubmissionMutation();
 
     const addCoAuthor = () => {
         const newId = coAuthors.length > 0 ? Math.max(...coAuthors.map(a => a.id)) + 1 : 1;

@@ -93,7 +93,7 @@ const TrackSubmissionsView = ({ trackAssignment, onEvaluate }: TrackSubmissionsV
     return null;
   }
 
-  const handleSelfAssign = useCallback(async (submissionId: string, conferenceId: number) => {
+  const handleSelfAssign = useCallback(async (submissionId: string, _conferenceId: number) => {
     if (!track || !track.conferenceId) {
       showToast.error('Không thể xác định conference');
       return;

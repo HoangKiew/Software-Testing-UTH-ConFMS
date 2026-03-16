@@ -37,9 +37,9 @@ export class InvitationsService {
     reviewerEmailFromBody?: string,
     reviewerNameFromBody?: string, // NEW
   ) {
-    const conference = await this.conferencesService.findOne(conferenceId);
+    const conference = await this.conferencesService.findOne(Number(conferenceId));
     if (!conference) throw new NotFoundException('Conference not found');
-    if (conference.chairId !== chairId) throw new ForbiddenException('Only chair can invite');
+    if (conference.organizerId !== chairId) throw new ForbiddenException('Only chair can invite');
 
     // Lấy lời mời mới nhất của user này trong hội nghị này
     const existing = await this.invitationRepo.findOne({
@@ -57,7 +57,7 @@ export class InvitationsService {
           existing.reviewerName = reviewerNameFromBody;
         }
         await this.invitationRepo.save(existing);
-        await this.auditService.log('RE_INVITE_REVIEWER', chairId, 'Invitation', existing.id, { userId });
+        await this.auditService.log(Number(conferenceId), chairId, 'RE_INVITE_REVIEWER', 'Invitation', Number(existing.id) || null, null, { userId });
         return { message: 'Re-invitation sent', invitationId: existing.id };
       }
 
@@ -122,7 +122,7 @@ export class InvitationsService {
       this.logger.warn(`[INVITE] Không gửi email mời cho user ${userId} vì không có email hợp lệ`);
     }
 
-    await this.auditService.log('INVITE_REVIEWER', chairId, 'Invitation', saved.id, { userId, conferenceId });
+    await this.auditService.log(Number(conferenceId), chairId, 'INVITE_REVIEWER', 'Invitation', Number(saved.id) || null, null, { userId, conferenceId });
 
     return { message: 'Invitation sent successfully', invitationId: saved.id };
   }
@@ -156,7 +156,7 @@ export class InvitationsService {
       this.logger.error(`Failed to add REVIEWER role to user ${invitation.userId}:`, err);
     }
 
-    await this.auditService.log('ACCEPT_INVITATION', userId, 'Invitation', invitationId);
+    await this.auditService.log(Number(invitation.conferenceId), userId, 'ACCEPT_INVITATION', 'Invitation', Number(invitationId) || null);
 
     return { message: 'Accepted successfully. You are now a reviewer!' };
   }
@@ -180,14 +180,14 @@ export class InvitationsService {
     invitation.declinedAt = new Date();
     await this.invitationRepo.save(invitation);
 
-    await this.auditService.log('DECLINE_INVITATION', userId, 'Invitation', invitationId);
+    await this.auditService.log(Number(invitation.conferenceId), userId, 'DECLINE_INVITATION', 'Invitation', Number(invitationId) || null);
 
     return { message: 'Invitation declined' };
   }
 
   async getAcceptedReviewers(conferenceId: string, chairId: number) {
-    const conference = await this.conferencesService.findOne(conferenceId);
-    if (conference.chairId !== chairId) throw new ForbiddenException('Only chair can view');
+    const conference = await this.conferencesService.findOne(Number(conferenceId));
+    if (conference.organizerId !== chairId) throw new ForbiddenException('Only chair can view');
 
     const invitations = await this.invitationRepo.find({
       where: { conferenceId, status: InvitationStatus.ACCEPTED },
@@ -219,10 +219,10 @@ export class InvitationsService {
       relations: ['conference'],
     });
     if (!invitation) throw new NotFoundException('Invitation not found');
-    if (invitation.conference.chairId !== chairId) throw new ForbiddenException('Only chair can remove');
+    if (invitation.conference.organizerId !== chairId) throw new ForbiddenException('Only chair can remove');
 
     await this.invitationRepo.remove(invitation);
-    await this.auditService.log('REMOVE_INVITATION', chairId, 'Invitation', invitationId);
+    await this.auditService.log(Number(invitation.conferenceId), chairId, 'REMOVE_INVITATION', 'Invitation', Number(invitationId) || null);
 
     return { message: 'Invitation removed' };
   }
@@ -257,7 +257,7 @@ export class InvitationsService {
     invitation.topics = uniqueTopics;
     await this.invitationRepo.save(invitation);
 
-    await this.auditService.log('UPDATE_INVITATION_TOPICS', userId, 'Invitation', invitationId, { topics: uniqueTopics });
+    await this.auditService.log(Number(invitation.conferenceId), userId, 'UPDATE_INVITATION_TOPICS', 'Invitation', Number(invitationId) || null, null, { topics: uniqueTopics });
 
     return { message: 'Topics updated successfully', invitationId, topics: uniqueTopics };
   }
@@ -294,7 +294,7 @@ export class InvitationsService {
     invitation.coiInstitutions = uniqueCoiInstitutions;
     await this.invitationRepo.save(invitation);
 
-    await this.auditService.log('UPDATE_INVITATION_COI', userId, 'Invitation', invitationId, {
+    await this.auditService.log(Number(invitation.conferenceId), userId, 'UPDATE_INVITATION_COI', 'Invitation', Number(invitationId) || null, null, {
       coiUserIds: uniqueCoiUserIds,
       coiInstitutions: uniqueCoiInstitutions,
     });

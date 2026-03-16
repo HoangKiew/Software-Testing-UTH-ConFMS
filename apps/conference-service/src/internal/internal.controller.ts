@@ -18,7 +18,7 @@ export class InternalController {
         console.log(`[InternalController] Checking deadline for conference ID: ${id}`);
         try {
             console.log(`[InternalController] Calling findOne...`);
-            const conference = await this.conferencesService.findOne(id.toString());
+            const conference = await this.conferencesService.findOne(Number(id));
 
             if (!conference) {
                 return {
@@ -54,7 +54,7 @@ export class InternalController {
 
             // ✅ CASE 2: Check deadline (check trước status vì quan trọng hơn)
             const now = new Date();
-            const deadline = new Date(conference.deadlines.submission);
+            const deadline = new Date(conference.deadlines!.submission!);
             deadline.setHours(23, 59, 59, 999);
 
             const canSubmit = now <= deadline;
@@ -66,28 +66,28 @@ export class InternalController {
                     message: 'Đã quá hạn nộp bài',
                     conferenceId: id,
                     conferenceName: conference.name,
-                    deadline: conference.deadlines.submission,
+                    deadline: conference.deadlines?.submission,
                     deadlineFormatted: deadline.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
                     currentTime: now.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
-                    currentStatus: conference.status,
+                    currentStatus: conference.status ?? null,
                     details: `Deadline: ${deadline.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}. Hiện tại: ${now.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`
                 };
             }
 
             // ✅ CASE 3: Check status (chỉ check khi deadline còn hạn)
             const validStatus = ['open_for_submission', 'open'];
-            if (!validStatus.includes(conference.status?.toLowerCase())) {
+            if (!validStatus.includes((conference.status ?? '').toLowerCase())) {
                 return {
                     canSubmit: false,
                     reason: 'INVALID_STATUS',
                     message: `Hội nghị chưa mở nhận bài`,
                     conferenceId: id,
                     conferenceName: conference.name,
-                    currentStatus: conference.status,
+                    currentStatus: conference.status ?? null,
                     requiredStatus: 'OPEN_FOR_SUBMISSION',
-                    deadline: conference.deadlines.submission,
+                    deadline: conference.deadlines?.submission,
                     deadlineFormatted: deadline.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
-                    details: `Trạng thái hiện tại: ${conference.status}. Cần chuyển sang OPEN_FOR_SUBMISSION để nhận bài.`
+                    details: `Trạng thái hiện tại: ${conference.status ?? 'N/A'}. Cần chuyển sang OPEN_FOR_SUBMISSION để nhận bài.`
                 };
             }
 
@@ -100,7 +100,7 @@ export class InternalController {
                 message: 'Có thể nộp bài',
                 conferenceId: id,
                 conferenceName: conference.name,
-                deadline: conference.deadlines.submission,
+                deadline: conference.deadlines?.submission,
                 deadlineFormatted: deadline.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
                 currentTime: now.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
                 daysRemaining,
@@ -125,7 +125,7 @@ export class InternalController {
     @ApiResponse({ status: 404, description: 'Conference not found' })
     async getTopics(@Param('id') id: string) {
         try {
-            const conference = await this.conferencesService.findOne(id.toString());
+            const conference = await this.conferencesService.findOne(Number(id));
 
             if (!conference) {
                 return {
@@ -139,7 +139,7 @@ export class InternalController {
                 success: true,
                 conferenceId: id,
                 conferenceName: conference.name,
-                topics: conference.topics || []
+                topics: conference.topics || conference.tracks?.map(t => t.name) || []
             };
         } catch (error) {
             return {

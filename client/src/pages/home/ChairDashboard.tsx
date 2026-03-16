@@ -18,6 +18,25 @@ interface ChairDashboardProps {
 const ChairDashboard = ({ currentRole }: ChairDashboardProps) => {
     // Fetch conferences from API
     const { data: conferencesData, isLoading, error } = useGetConferencesQuery();
+    const { user } = useAuth();
+
+    // Determine if current user is admin
+    const isAdmin = (() => {
+        if (currentRole) {
+            return currentRole.toLowerCase() === 'admin';
+        }
+        const rolesInput = user?.roles as any;
+        let roles: string[] = [];
+        if (Array.isArray(rolesInput)) {
+            roles = (rolesInput as any[])
+                .map((r: any) => (typeof r === 'string' ? r : r?.name ?? r?.role ?? r?.value))
+                .filter(Boolean)
+                .map((s: string) => s.toString().toLowerCase().replace(/^role_/, '').trim());
+        } else if (typeof rolesInput === 'string') {
+            roles = [(rolesInput as string).toLowerCase().replace(/^role_/, '').trim()];
+        }
+        return roles.includes('admin');
+    })();
     
     // Map API data to component format
     const apiConferences = Array.isArray(conferencesData) ? conferencesData : (conferencesData?.data || []);
@@ -116,43 +135,20 @@ const ChairDashboard = ({ currentRole }: ChairDashboardProps) => {
                         </Link>
 
                         {/* Show user-management quick action for Admin users */}
-                        {(() => {
-                            let isAdmin = false;
-                            if (currentRole) {
-                                isAdmin = currentRole.toLowerCase() === 'admin';
-                            } else {
-                                const { user } = useAuth();
-                                const rolesInput = user?.roles;
-                                let roles: string[] = [];
-                                if (Array.isArray(rolesInput)) {
-                                    roles = rolesInput
-                                        .map((r) => (typeof r === 'string' ? r : r?.name ?? r?.role ?? r?.value))
-                                        .filter(Boolean)
-                                        .map((s) => s!.toString().toLowerCase().replace(/^role_/, '').trim());
-                                } else if (typeof rolesInput === 'string') {
-                                    roles = [rolesInput.toLowerCase().replace(/^role_/, '').trim()];
-                                }
-                                isAdmin = roles.includes('admin');
-                            }
-
-                            if (isAdmin) {
-                                return (
-                                    <Link
-                                        to="/admin/users"
-                                        className="flex flex-col items-center p-6 border-2 border-gray-200 rounded-lg hover:border-[#008689] hover:bg-[#e6f7f7] transition-all duration-300 text-center"
-                                    >
-                                        <People className="w-12 h-12 text-[#008689] mb-3" />
-                                        <h3 className="font-semibold text-gray-900 mb-1">
-                                            Quản lý người dùng
-                                        </h3>
-                                        <p className="text-xs text-gray-600">
-                                            Xem, tạo, sửa, xóa người dùng
-                                        </p>
-                                    </Link>
-                                );
-                            }
-                            return null;
-                        })()}
+                        {isAdmin && (
+                            <Link
+                                to="/admin/users"
+                                className="flex flex-col items-center p-6 border-2 border-gray-200 rounded-lg hover:border-[#008689] hover:bg-[#e6f7f7] transition-all duration-300 text-center"
+                            >
+                                <People className="w-12 h-12 text-[#008689] mb-3" />
+                                <h3 className="font-semibold text-gray-900 mb-1">
+                                    Quản lý người dùng
+                                </h3>
+                                <p className="text-xs text-gray-600">
+                                    Xem, tạo, sửa, xóa người dùng
+                                </p>
+                            </Link>
+                        )}
                     </div>
                 </div>
             </div>

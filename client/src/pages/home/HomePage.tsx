@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import AuthorDashboard from './AuthorDashboard';
 import ChairDashboard from './ChairDashboard';
-import AdminDashboard from './AdminDashboard';
 
 type UserRole = 'AUTHOR' | 'CHAIR' | 'REVIEWER' | 'ADMIN';
 
@@ -13,12 +12,12 @@ const HomePage = () => {
 
     useEffect(() => {
         if (!user) return;
-        const rolesInput = user.roles;
+        const rolesInput = user.roles as any;
         let roles: string[] = [];
         if (Array.isArray(rolesInput)) {
-            roles = rolesInput.map((r) => (typeof r === 'string' ? r : r?.name ?? r?.role ?? r?.value)).filter(Boolean).map((s) => s!.toString().toUpperCase());
+            roles = (rolesInput as any[]).map((r: any) => (typeof r === 'string' ? r : r?.name ?? r?.role ?? r?.value)).filter(Boolean).map((s: string) => s.toString().toUpperCase());
         } else if (typeof rolesInput === 'string') {
-            roles = [rolesInput.toUpperCase()];
+            roles = [(rolesInput as string).toUpperCase()];
         }
 
         if (roles.includes('ADMIN')) setCurrentRole('ADMIN');

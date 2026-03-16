@@ -77,7 +77,7 @@ export class ReportsService {
   ) { }
 
   private async getConferenceOrThrow(conferenceId: string): Promise<Conference> {
-    const conference = await this.conferenceRepo.findOne({ where: { id: conferenceId } });
+    const conference = await this.conferenceRepo.findOne({ where: { id: Number(conferenceId) } });
     if (!conference) {
       throw new NotFoundException(`Conference with ID ${conferenceId} not found`);
     }

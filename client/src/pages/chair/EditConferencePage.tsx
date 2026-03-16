@@ -12,77 +12,78 @@ import { useGetConferenceByIdQuery, useUpdateConferenceMutation } from '../../re
 const EditConferencePage = () => {
     const navigate = useNavigate();
     const { id } = useParams();
-    const { data: conference, isLoading } = useGetConferenceByIdQuery(id || '', {
+    const { data: conferenceResponse, isLoading } = useGetConferenceByIdQuery(Number(id as string), {
         skip: !id,
     });
     const [updateConference] = useUpdateConferenceMutation();
 
     // Form state
     const [formData, setFormData] = useState({
-        shortName: '',
-        fullName: '',
+        acronym: '',
+        name: '',
         startDate: '',
         endDate: '',
-        cfpDescription: '',
-        submissionDeadline: '',
+        description: '',
+        paperSubmissionDeadline: '',
         reviewDeadline: '',
         cameraReadyDeadline: '',
-        tracks: [''],
+        topics: [''],
     });
 
     // Load conference data from API
     useEffect(() => {
-        if (conference) {
+        if (conferenceResponse?.data) {
+            const conf = conferenceResponse.data;
             setFormData({
-                shortName: conference.acronym || '',
-                fullName: conference.name || '',
-                startDate: conference.startDate?.split('T')[0] || '',
-                endDate: conference.endDate?.split('T')[0] || '',
-                cfpDescription: conference.description || '',
-                submissionDeadline: conference.deadlines?.submission?.split('T')[0] || '',
-                reviewDeadline: conference.deadlines?.review?.split('T')[0] || '',
-                cameraReadyDeadline: conference.deadlines?.cameraReady?.split('T')[0] || '',
-                tracks: conference.topics && conference.topics.length > 0 ? conference.topics : [''],
+                acronym: conf.acronym || '',
+                name: conf.name || '',
+                startDate: conf.startDate ? new Date(conf.startDate).toISOString().split('T')[0] : '',
+                endDate: conf.endDate ? new Date(conf.endDate).toISOString().split('T')[0] : '',
+                description: conf.description || '',
+                paperSubmissionDeadline: conf.deadlines?.submission ? new Date(conf.deadlines.submission).toISOString().split('T')[0] : '',
+                reviewDeadline: conf.deadlines?.review ? new Date(conf.deadlines.review).toISOString().split('T')[0] : '',
+                cameraReadyDeadline: conf.deadlines?.cameraReady ? new Date(conf.deadlines.cameraReady).toISOString().split('T')[0] : '',
+                topics: conf.topics && conf.topics.length > 0 ? conf.topics : [''],
             });
         }
-    }, [conference]);
+    }, [conferenceResponse]);
 
     const handleInputChange = (field: string, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
     const handleTrackChange = (index: number, value: string) => {
-        const newTracks = [...formData.tracks];
+        const newTracks = [...formData.topics];
         newTracks[index] = value;
-        setFormData(prev => ({ ...prev, tracks: newTracks }));
+        handleInputChange('topics', newTracks);
     };
 
     const addTrack = () => {
-        setFormData(prev => ({ ...prev, tracks: [...prev.tracks, ''] }));
+        handleInputChange('topics', [...formData.topics, '']);
     };
 
     const removeTrack = (index: number) => {
-        const newTracks = formData.tracks.filter((_, i) => i !== index);
-        setFormData(prev => ({ ...prev, tracks: newTracks }));
+        const newTracks = formData.topics.filter((_, i) => i !== index);
+        handleInputChange('topics', newTracks);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
         const payload: any = {
-            name: formData.fullName,
-            acronym: formData.shortName,
+            name: formData.name,
+            acronym: formData.acronym,
             startDate: formData.startDate,
             endDate: formData.endDate,
         };
         
-        if (formData.cfpDescription) payload.description = formData.cfpDescription;
+        if (formData.description) payload.description = formData.description;
         
-        const validTopics = formData.tracks.filter(t => t.trim());
+        const validTopics = formData.topics.filter(t => t.trim());
         if (validTopics.length > 0) payload.topics = validTopics;
         
         const deadlines: any = {};
-        if (formData.submissionDeadline) deadlines.submission = formData.submissionDeadline;
+        if (formData.paperSubmissionDeadline) deadlines.submission = formData.paperSubmissionDeadline;
         if (formData.reviewDeadline) deadlines.review = formData.reviewDeadline;
         if (formData.cameraReadyDeadline) deadlines.cameraReady = formData.cameraReadyDeadline;
         if (Object.keys(deadlines).length > 0) payload.deadlines = deadlines;
@@ -91,7 +92,7 @@ const EditConferencePage = () => {
         console.log('🔍 Conference ID:', id);
         
         try {
-            await updateConference({ id: id!, data: payload }).unwrap();
+            await updateConference({ id: Number(id!), ...payload }).unwrap();
             alert('✅ Hội nghị đã được cập nhật thành công!');
             navigate(`/chair/conferences/${id}`);
         } catch (err) {
@@ -149,8 +150,8 @@ const EditConferencePage = () => {
                                 </label>
                                 <input
                                     type="text"
-                                    value={formData.shortName}
-                                    onChange={(e) => handleInputChange('shortName', e.target.value)}
+                                    value={formData.acronym}
+                                    onChange={(e) => handleInputChange('acronym', e.target.value)}
                                     placeholder="VD: ICCS 2026"
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#008689] focus:border-transparent"
                                     required
@@ -164,8 +165,8 @@ const EditConferencePage = () => {
                                 </label>
                                 <input
                                     type="text"
-                                    value={formData.fullName}
-                                    onChange={(e) => handleInputChange('fullName', e.target.value)}
+                                    value={formData.name}
+                                    onChange={(e) => handleInputChange('name', e.target.value)}
                                     placeholder="VD: International Conference on Computer Science"
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#008689] focus:border-transparent"
                                     required
@@ -222,8 +223,8 @@ const EditConferencePage = () => {
                                     Mô tả chi tiết *
                                 </label>
                                 <textarea
-                                    value={formData.cfpDescription}
-                                    onChange={(e) => handleInputChange('cfpDescription', e.target.value)}
+                                    value={formData.description}
+                                    onChange={(e) => handleInputChange('description', e.target.value)}
                                     placeholder="Nhập mô tả chi tiết về hội nghị, chủ đề, yêu cầu nộp bài..."
                                     rows={6}
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#008689] focus:border-transparent resize-none"
@@ -237,16 +238,16 @@ const EditConferencePage = () => {
                                     Chủ đề hội nghị (Tracks)
                                 </label>
                                 <div className="space-y-2">
-                                    {formData.tracks.map((track, index) => (
+                                    {formData.topics.map((topic, index) => (
                                         <div key={index} className="flex gap-2">
                                             <input
                                                 type="text"
-                                                value={track}
+                                                value={topic}
                                                 onChange={(e) => handleTrackChange(index, e.target.value)}
-                                                placeholder={`Chủ đề ${index + 1}`}
+                                                placeholder={`Topic ${index + 1}`}
                                                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#008689] focus:border-transparent"
                                             />
-                                            {formData.tracks.length > 1 && (
+                                            {formData.topics.length > 1 && (
                                                 <button
                                                     type="button"
                                                     onClick={() => removeTrack(index)}
@@ -276,8 +277,8 @@ const EditConferencePage = () => {
                                     </label>
                                     <input
                                         type="date"
-                                        value={formData.submissionDeadline}
-                                        onChange={(e) => handleInputChange('submissionDeadline', e.target.value)}
+                                        value={formData.paperSubmissionDeadline}
+                                        onChange={(e) => handleInputChange('paperSubmissionDeadline', e.target.value)}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#008689] focus:border-transparent"
                                         required
                                     />

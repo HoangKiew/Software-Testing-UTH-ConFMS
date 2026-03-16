@@ -23,7 +23,7 @@ import { EmailService } from '../common/services/email.service';
 export class AuthService {
   private readonly refreshSecret: string;
   private readonly refreshExpiresIn: string;
-  
+
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
@@ -41,7 +41,7 @@ export class AuthService {
     this.refreshExpiresIn =
       this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') || '7d';
   }
-// APi 1:  Đăng ký tài admin
+  // APi 1:  Đăng ký tài admin
   async register(dto: RegisterDto) {
     const existingActive = await this.usersService.findByEmail(dto.email);
     if (existingActive) {
@@ -73,10 +73,10 @@ export class AuthService {
       message: 'Vui lòng kiểm tra email để xác minh tài khoản',
     };
   }
-// Api 2: Xác tài khoản qua email với mã 6 số
+  // Api 2: Xác tài khoản qua email với mã 6 số
   private async createAndSendEmailVerificationToken(user: User) {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); 
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
     const entity = this.emailVerificationTokenRepository.create({
       token: code,
@@ -85,14 +85,14 @@ export class AuthService {
       used: false,
     });
     await this.emailVerificationTokenRepository.save(entity);
-    
+
     try {
       await this.emailService.sendVerificationEmail(user.email, code, user.fullName);
     } catch (error) {
       throw new BadRequestException('Không thể gửi email xác minh');
     }
   }
-// Api 3: Đăng nhập
+  // Api 3: Đăng nhập
   async login(dto: LoginDto) {
     const user = await this.usersService.findByEmail(dto.email);
     if (!user) {
@@ -113,7 +113,7 @@ export class AuthService {
     const tokens = await this.issueTokens(user);
     return { user: this.stripPassword(user), ...tokens };
   }
-// Api 4: Tạo lại token
+  // Api 4: Tạo lại token
   async refreshToken(dto: RefreshTokenDto) {
     const payload = await this.verifyRefreshToken(dto.refreshToken);
     const stored = await this.refreshTokenRepository.findOne({
@@ -137,12 +137,12 @@ export class AuthService {
     const tokens = await this.issueTokens(user);
     return { user: this.stripPassword(user), ...tokens };
   }
-// Api 5: Đăng xuất
+  // Api 5: Đăng xuất
   async logout(dto: RefreshTokenDto) {
     await this.refreshTokenRepository.delete({ token: dto.refreshToken });
     return { message: 'Đã đăng xuất' };
   }
-// Api 6: Xác thực tk bằng token từ gmail
+  // Api 6: Xác thực tk bằng token từ gmail
   async verifyEmail(code: string) {
     const record = await this.emailVerificationTokenRepository.findOne({
       where: { token: code, used: false },
@@ -159,7 +159,7 @@ export class AuthService {
       // Mark token as used even though user is already verified
       record.used = true;
       await this.emailVerificationTokenRepository.save(record);
-      
+
       throw new BadRequestException('Tài khoản này đã được xác minh email trước đó');
     }
 
@@ -172,12 +172,12 @@ export class AuthService {
     record.used = true;
     await this.emailVerificationTokenRepository.save(record);
 
-    return { 
+    return {
       message: 'Xác minh email thành công',
       isVerified: true,
     };
   }
-// Api 7: Lấy code xác minh từ db
+  // Api 7: Lấy code xác minh từ db
   async getVerificationTokenByEmail(email: string) {
     const user = await this.usersService.findByEmail(email);
     if (!user) {
@@ -189,9 +189,9 @@ export class AuthService {
     await this.emailVerificationTokenRepository.delete({
       userId: user.id,
     });
-    
+
     await this.createAndSendEmailVerificationToken(user);
-    
+
     const token = await this.emailVerificationTokenRepository.findOne({
       where: { userId: user.id, used: false },
       order: { createdAt: 'DESC' },
@@ -203,13 +203,13 @@ export class AuthService {
 
     return {
       email: user.email,
-      code: token.token, 
+      code: token.token,
       expiresAt: token.expiresAt,
       createdAt: token.createdAt,
       isVerified: false,
     };
   }
-// Api update password
+  // Api update password
   private stripPassword(user: User) {
     const { password, ...rest } = user;
     return rest;
@@ -267,7 +267,7 @@ export class AuthService {
 
   private parseExpiryToMs(expiry: string): number {
     const match = /^(\d+)([smhd])$/.exec(expiry);
-    if (!match) return 7 * 24 * 60 * 60 * 1000; 
+    if (!match) return 7 * 24 * 60 * 60 * 1000;
     const value = Number(match[1]);
     const unit = match[2];
     const unitMs =

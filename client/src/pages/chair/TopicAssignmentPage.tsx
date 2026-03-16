@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo, MouseEvent } from 'react';
-import { Search, Person, Assignment, AutoAwesome, FilterList, Delete } from '@mui/icons-material';
+import { useState, useEffect, useMemo } from 'react';
+import type { MouseEvent } from 'react';
+import { Assignment, AutoAwesome, Delete } from '@mui/icons-material';
 import bgUth from '../../assets/bg_uth.svg';
 
 // ── API hooks ──
@@ -19,33 +20,39 @@ const TopicAssignmentPage = () => {
     const [topN, setTopN] = useState(5);
 
     const {
-        data: conferences = [],
+        data: conferencesResponse,
         isLoading: loadingConfs,
         isError: confError,
-    } = useGetConferencesQuery({});
+    } = useGetConferencesQuery();
+    const conferences = conferencesResponse?.data || [];
 
     useEffect(() => {
         if (conferences.length === 1 && !selectedConferenceId) {
-            setSelectedConferenceId(conferences[0].id);
+            setSelectedConferenceId(String(conferences[0].id));
         }
     }, [conferences, selectedConferenceId]);
 
-    const { data: assignments = [], refetch: refetchAssignments } =
-        useGetAssignmentsByConferenceQuery(selectedConferenceId!, {
+    const { data: assignmentsResponse, refetch: refetchAssignments } =
+        useGetAssignmentsByConferenceQuery(selectedConferenceId || '', {
             skip: !selectedConferenceId,
         });
+    const assignments = Array.isArray(assignmentsResponse) ? assignmentsResponse : [];
 
-    const { data: acceptedReviewers = [] } = useGetAcceptedReviewersQuery(
-        selectedConferenceId!,
+    const { data: acceptedReviewersResponse } = useGetAcceptedReviewersQuery(
+        selectedConferenceId || '',
         { skip: !selectedConferenceId },
     );
+    const acceptedReviewers = Array.isArray(acceptedReviewersResponse) ? acceptedReviewersResponse : [];
 
     // Lấy thông tin user cho các reviewer đã chấp nhận để hiển thị tên/email
     const shouldLoadReviewers = acceptedReviewers.length > 0;
-    const { data: reviewers = [] } = useSearchReviewersQuery(
-        { q: undefined, page: 1, limit: 200 },
+    const { data: reviewersResponse } = useSearchReviewersQuery(
+        { query: '' },
         { skip: !shouldLoadReviewers },
     );
+    const reviewers = Array.isArray(reviewersResponse)
+        ? reviewersResponse
+        : (reviewersResponse?.data ?? []);
 
     const reviewersById = useMemo(() => {
         const map = new Map<number, any>();
@@ -55,18 +62,19 @@ const TopicAssignmentPage = () => {
         return map;
     }, [reviewers]);
 
-    const { data: suggestions = [] } = useSuggestReviewersForTopicQuery(
-        { conferenceId: selectedConferenceId!, topic: selectedTopic || '', top: topN },
+    const { data: suggestionsResponse } = useSuggestReviewersForTopicQuery(
+        { conferenceId: selectedConferenceId || '', topic: selectedTopic || '', top: topN },
         { skip: !selectedConferenceId || !selectedTopic },
     );
+    const suggestions = Array.isArray(suggestionsResponse) ? suggestionsResponse : [];
 
     // SỬA: lấy thêm isAssigning để disable nút khi đang gọi API
     const [assignReviewers, { isLoading: isAssigning }] = useAssignReviewersToTopicMutation();
     const [unassignReviewer] = useUnassignMutation();
 
-    const selectedConf = conferences.find((c: any) => c.id === selectedConferenceId);
+    const selectedConf = conferences.find((c: any) => String(c.id) === String(selectedConferenceId));
     const topics =
-        selectedConf?.topics?.length > 0
+        (selectedConf?.topics && selectedConf.topics.length > 0)
             ? selectedConf.topics
             : ['Artificial Intelligence', 'Cybersecurity', 'Data Science', 'IoT'];
 
@@ -74,7 +82,7 @@ const TopicAssignmentPage = () => {
         if (!selectedTopic || !selectedConferenceId || isAssigning) return;
         try {
             await assignReviewers({
-                conferenceId: selectedConferenceId,
+                conferenceId: selectedConferenceId!,
                 topic: selectedTopic,
                 reviewerIds: [reviewerId],
             }).unwrap();
@@ -118,7 +126,7 @@ const TopicAssignmentPage = () => {
 
         try {
             await assignReviewers({
-                conferenceId: selectedConferenceId,
+                conferenceId: selectedConferenceId!,
                 topic: selectedTopic,
                 reviewerIds: topIds,
             }).unwrap();
@@ -224,7 +232,7 @@ const TopicAssignmentPage = () => {
                             <option value="">-- Chọn một hội nghị --</option>
                             {conferences.map((conf: any) => (
                                 <option key={conf.id} value={conf.id}>
-                                    {conf.name} {conf.acronym ? `(${conf.acronym})` : ''} - ID: {conf.id.slice(0, 8)}
+                                    {conf.name} {conf.acronym ? `(${conf.acronym})` : ''} - ID: {String(conf.id).slice(0, 8)}
                                 </option>
                             ))}
                         </select>

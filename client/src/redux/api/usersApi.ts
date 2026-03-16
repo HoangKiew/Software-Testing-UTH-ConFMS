@@ -142,6 +142,18 @@ export const usersApi = apiSlice.injectEndpoints({
       invalidatesTags: ['User'],
     }),
 
+    searchReviewers: builder.query<
+      { message: string; data: User[] },
+      { query?: string; conferenceId?: number; trackId?: number } | void
+    >({
+      query: (params) => ({
+        url: '/users/search-reviewers',
+        method: 'GET',
+        params: params || undefined,
+      }),
+      providesTags: ['User'],
+    }),
+
     // Get all users (Admin only)
     getUsers: builder.query<
       { message: string; data: User[] },
@@ -179,5 +191,6 @@ export const {
   useDeleteUserMutation,
   useGetUsersQuery,
   useGetUserByIdQuery,
+  useSearchReviewersQuery,
 } = usersApi;
 

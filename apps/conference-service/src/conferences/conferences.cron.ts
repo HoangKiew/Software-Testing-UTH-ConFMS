@@ -12,7 +12,6 @@ export class ConferencesCron {
 
   // Chạy mỗi ngày lúc 00:05 sáng
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
-  // Hoặc test nhanh: @Cron('*/30 * * * * *') // mỗi 30 giây
   async handleDeadlineChecks() {
     this.logger.log('Bắt đầu kiểm tra deadlines của các hội nghị...');
 
@@ -21,26 +20,22 @@ export class ConferencesCron {
     const now = new Date();
 
     for (const conf of conferences) {
-      const { deadlines, status } = conf;
+      const deadlines = conf.deadlines;
+      const status = conf.status;
 
       // Kiểm tra deadline nộp bài — chuyển từ OPEN → REVIEW khi quá hạn nộp
       if (
         status === ConferenceStatus.OPEN &&
-        deadlines.submission &&
+        deadlines?.submission &&
         now > new Date(deadlines.submission)
       ) {
-        await this.conferencesService.updateStatus(
-          conf.id,
-          ConferenceStatus.REVIEW,
-          conf.chairId,
-        );
-        this.logger.log(
-          `Hội nghị "${conf.name}" tự động chuyển từ OPEN sang REVIEW (hết hạn nộp)`,
+        // updateStatus method not yet implemented in ConferencesService
+        // TODO: implement ConferencesService.updateStatus(id, status, userId)
+        this.logger.warn(
+          `Hội nghị "${conf.name}" (ID: ${conf.id}) đã hết hạn nộp bài và cần chuyển sang REVIEW. ` +
+          `ConferencesService.updateStatus() chưa được implement.`,
         );
       }
-
-      // Có thể thêm các điều kiện khác sau:
-      // Ví dụ: UNDER_REVIEW → REVIEW_COMPLETED khi hết deadline review
     }
 
     this.logger.log('Kiểm tra deadlines hoàn tất.');

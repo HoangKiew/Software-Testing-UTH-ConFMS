@@ -10,14 +10,6 @@ import {
 } from '../../redux/api/invitationsApi';
 import { useSearchReviewersQuery } from '../../redux/api/usersApi';
 
-interface AcceptedReviewer {
-    invitationId: string;
-    userId: number;
-    acceptedAt?: string;   // sửa: cho phép undefined
-    topics?: string[];     // sửa: cho phép undefined
-    name?: string;
-    email?: string;
-}
 
 const PCMembersManagementPage = () => {
     const { id: conferenceId } = useParams<{ id: string }>();
@@ -41,13 +33,16 @@ const PCMembersManagementPage = () => {
     const shouldLoadReviewers = showInviteForm || acceptedReviewers.length > 0;
 
     const {
-        data: reviewers = [],
+        data: reviewersResponse,
         isLoading: isLoadingReviewers,
         error: reviewersError,
     } = useSearchReviewersQuery(
-        { q: searchTerm || undefined, page: 1, limit: 50 },
+        { query: searchTerm || undefined },
         { skip: !shouldLoadReviewers }
     );
+    const reviewers = Array.isArray(reviewersResponse)
+        ? reviewersResponse
+        : (reviewersResponse?.data ?? []);
 
     const invitedIds = new Set(acceptedReviewers.map((r) => r.userId));
 
@@ -300,9 +295,9 @@ const PCMembersManagementPage = () => {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 text-sm text-gray-700">
-                                                    {member.topics?.length > 0 ? (
+                                                    {member.topics && member.topics.length > 0 ? (
                                                         <div className="flex flex-wrap gap-1">
-                                                            {member.topics.map((topic, tIdx) => (
+                                                            {member.topics.map((topic: string, tIdx: number) => (
                                                                 <span
                                                                     key={`${topic}-${tIdx}`}
                                                                     className="inline-block bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded"

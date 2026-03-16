@@ -16,7 +16,7 @@ interface TrackDetailProps {
   onBack: () => void;
 }
 
-const TrackDetail = ({ conferenceId, onBack }: TrackDetailProps) => {
+const TrackDetail = ({ conferenceId, onBack: _onBack }: TrackDetailProps) => {
   const { data: tracksData, isLoading } = useGetTracksQuery(conferenceId);
   const [updateTrack, { isLoading: isUpdating }] = useUpdateTrackMutation();
   const [deleteTrack] = useDeleteTrackMutation();

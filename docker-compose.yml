@@ -20,6 +20,8 @@ services:
       dockerfile: ./apps/identity-service/Dockerfile
     ports:
       - "3001:3001"
+    env_file:
+      - .env
     environment:
       - DOCKER_ENV=true
       - DB_HOST=postgres
@@ -30,14 +32,14 @@ services:
       - SUBMISSION_SERVICE_URL=http://submission-service:3003/api
       - REVIEW_SERVICE_URL=http://review-service:3004/api
     depends_on:
-      - postgres 
+      - postgres
     networks:
       - uth-net
 
   conference-service:
     build:
       context: .
-      dockerfile: ./apps/conference-service/dockerfile
+      dockerfile: ./apps/conference-service/Dockerfile
     ports:
       - "3002:3002"
     env_file:
@@ -69,6 +71,8 @@ services:
       dockerfile: ./apps/review-service/Dockerfile
     ports:
       - "3004:3004"
+    env_file:
+      - .env
     environment:
       - PORT=3004
       - DOCKER_ENV=true
@@ -136,6 +140,19 @@ services:
       - conference-service
       - submission-service
       - review-service
+    networks:
+      - uth-net
+
+  client:
+    build:
+      context: .
+      dockerfile: ./client/Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+    ports:
+      - "5173:80"
+    depends_on:
+      - api-gateway
     networks:
       - uth-net
 

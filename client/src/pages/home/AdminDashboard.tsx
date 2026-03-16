@@ -5,7 +5,6 @@ import {
     Description,
     Assessment,
     CalendarMonth,
-    BarChart as BarChartIcon,
     Dashboard as DashboardIcon,
 } from '@mui/icons-material';
 import {

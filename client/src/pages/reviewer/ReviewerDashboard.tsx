@@ -124,7 +124,7 @@ const ReviewerDashboard = () => {
                   Phân công chờ xác nhận
                 </h2>
                 <TrackAssignmentList
-                  onAcceptTrack={(trackId, conferenceId) => {
+                  onAcceptTrack={(_trackId, _conferenceId) => {
                   }}
                 />
               </div>

@@ -45,27 +45,27 @@ interface PCMember {
 const ConferenceDetailPageChair = () => {
     const { id } = useParams();
     const [activeTab, setActiveTab] = useState<'overview' | 'papers' | 'pc-members'>('overview');
-    const { data: apiConference, isLoading } = useGetConferenceByIdQuery(id || '', {
+    const { data: conferenceResponse, isLoading } = useGetConferenceByIdQuery(Number(id as string), {
         skip: !id,
     });
 
     // Map API data to display format
-    const conference = apiConference ? {
-        id: apiConference.id,
-        name: apiConference.name,
-        acronym: apiConference.acronym,
-        description: apiConference.description || 'Không có mô tả',
-        startDate: apiConference.startDate,
-        endDate: apiConference.endDate,
-        location: apiConference.location || 'N/A',
+    const conference = conferenceResponse?.data ? {
+        id: conferenceResponse.data.id,
+        name: conferenceResponse.data.name,
+        acronym: conferenceResponse.data.acronym,
+        description: conferenceResponse.data.description || 'Không có mô tả',
+        startDate: conferenceResponse.data.startDate,
+        endDate: conferenceResponse.data.endDate,
+        location: conferenceResponse.data.location || 'N/A',
         venue: 'N/A',
         website: 'N/A',
-        status: apiConference.status === 'draft' ? 'Draft' : apiConference.status === 'active' ? 'Active' : 'Closed',
-        submissionDeadline: apiConference.deadlines?.submission || 'N/A',
-        reviewDeadline: apiConference.deadlines?.review || 'N/A',
+        status: conferenceResponse.data.status === 'draft' ? 'Draft' : conferenceResponse.data.status === 'active' ? 'Active' : 'Closed',
+        submissionDeadline: conferenceResponse.data.deadlines?.submission || 'N/A',
+        reviewDeadline: conferenceResponse.data.deadlines?.review || 'N/A',
         notificationDate: 'N/A',
-        cameraReadyDeadline: apiConference.deadlines?.cameraReady || 'N/A',
-        tracks: apiConference.topics || [],
+        cameraReadyDeadline: conferenceResponse.data.deadlines?.cameraReady || 'N/A',
+        tracks: conferenceResponse.data.topics || [],
         totalSubmissions: 0,
         underReview: 0,
         reviewed: 0,
@@ -441,7 +441,7 @@ const ConferenceDetailPageChair = () => {
                                 <div>
                                     <h3 className="text-lg font-bold text-gray-900 mb-3">Tracks</h3>
                                     <div className="flex flex-wrap gap-2">
-                                        {conference.tracks.map((track, idx) => (
+                                        {(conferenceResponse?.data?.topics || []).map((track: any, idx: number) => (
                                             <span
                                                 key={idx}
                                                 className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium"

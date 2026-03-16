@@ -48,7 +48,7 @@ const CreateConferencePage = () => {
         setFormData(prev => ({ ...prev, tracks: newTracks }));
     };
 
-    const [createConference, { isLoading: creating }] = useCreateConferenceMutation();
+    const [createConference, { isLoading: _creating }] = useCreateConferenceMutation();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -81,7 +81,7 @@ const CreateConferencePage = () => {
         }
 
         try {
-            const result = await createConference(payload).unwrap();
+            await createConference(payload).unwrap();
             alert('Hội nghị đã được tạo thành công!');
             navigate('/chair/conferences');
         } catch (err) {

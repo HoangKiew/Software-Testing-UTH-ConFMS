@@ -69,7 +69,7 @@ const AssignmentsPage = () => {
     );
   }, [allSubmissions, searchQuery]);
 
-  const handleViewDetails = (submissionId: string) => {
+  const handleViewDetails = (_submissionId: string) => {
   };
 
 

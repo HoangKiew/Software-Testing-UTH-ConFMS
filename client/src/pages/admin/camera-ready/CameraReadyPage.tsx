@@ -69,7 +69,7 @@ const CameraReadyPage = () => {
     );
   }, [allSubmissions, searchQuery]);
 
-  const handleViewDetails = (submissionId: string) => {
+  const handleViewDetails = (_submissionId: string) => {
     // Handle view details if needed
   };
 
