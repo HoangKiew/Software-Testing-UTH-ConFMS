@@ -18,6 +18,7 @@ import { ConferenceClientService } from '../integrations/conference-client.servi
 import { ReviewClientService } from '../integrations/review-client.service';
 import { IdentityClientService } from '../integrations/identity-client.service';
 import { EmailService } from '../common/services/email.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class SubmissionsService {
@@ -27,6 +28,7 @@ export class SubmissionsService {
     @InjectRepository(SubmissionVersion)
     private submissionVersionRepository: Repository<SubmissionVersion>,
     private supabaseService: SupabaseService,
+    private configService: ConfigService,
     private dataSource: DataSource,
     private conferenceClient: ConferenceClientService,
     private reviewClient: ReviewClientService,
@@ -59,7 +61,9 @@ export class SubmissionsService {
     };
 
     const supabase = this.supabaseService.getClient();
-    const bucketName = 'submissions';
+    const bucketName =
+      this.configService.get<string>('SUPABASE_BUCKET_NAME') || 'submission';
+    console.log('[Submissions] upload bucket', bucketName);
     const timestamp = Date.now();
     const uuid = crypto.randomUUID();
     const fileExtension = getFileExtension(file.mimetype);

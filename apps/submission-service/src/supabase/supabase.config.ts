@@ -8,9 +8,16 @@ export class SupabaseService {
 
   constructor(private configService: ConfigService) {
     const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
-    const supabaseKey = this.configService.get<string>('SUPABASE_KEY');
-    if (supabaseUrl && supabaseKey) {
-      this.supabase = createClient(supabaseUrl, supabaseKey);
+    const serviceRoleKey = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY');
+    const anonKey = this.configService.get<string>('SUPABASE_KEY');
+    const keyUsed = serviceRoleKey || anonKey;
+
+    console.log('[SupabaseService] URL', supabaseUrl);
+    console.log('[SupabaseService] keyType', serviceRoleKey ? 'service_role' : anonKey ? 'anon' : 'none');
+    console.log('[SupabaseService] bucket', this.configService.get('SUPABASE_BUCKET_NAME'));
+
+    if (supabaseUrl && keyUsed) {
+      this.supabase = createClient(supabaseUrl, keyUsed);
     } else {
       this.supabase = null;
     }
