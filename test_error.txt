@@ -1,0 +1,221 @@
+﻿  console.log
+    đŸ” Checking deadline for conference: conf-1
+
+      at SubmissionServiceService.updateSubmission (apps/submission-service/src/submission-service.service.ts:424:15)
+
+  console.log
+    âœ… Deadline check passed
+
+      at SubmissionServiceService.updateSubmission (apps/submission-service/src/submission-service.service.ts:426:15)
+
+  console.log
+    đŸ“ Starting field updates...
+
+      at SubmissionServiceService.updateSubmission (apps/submission-service/src/submission-service.service.ts:430:17)
+
+  console.log
+    âœ… Title updated: New Title
+
+      at SubmissionServiceService.updateSubmission (apps/submission-service/src/submission-service.service.ts:434:19)
+
+  console.log
+    âœ… Abstract updated
+
+      at SubmissionServiceService.updateSubmission (apps/submission-service/src/submission-service.service.ts:439:19)
+
+  console.log
+    đŸ”„ Saving submission...
+
+      at SubmissionServiceService.updateSubmission (apps/submission-service/src/submission-service.service.ts:451:17)
+
+  console.log
+    âœ… Submission saved
+
+      at SubmissionServiceService.updateSubmission (apps/submission-service/src/submission-service.service.ts:453:17)
+
+  console.error
+    Submission Error: TypeError: Cannot read properties of undefined (reading 'topics')
+        at SubmissionServiceService.validateTopic (D:\1.KCPM\KCPM\uth-confms-1\apps\submission-service\src\submission-service.service.ts:665:21)
+        at SubmissionServiceService.handleSubmission (D:\1.KCPM\KCPM\uth-confms-1\apps\submission-service\src\submission-service.service.ts:155:7)
+        at Object.<anonymous> (D:\1.KCPM\KCPM\uth-confms-1\apps\submission-service\src\submission-service.service.spec.ts:338:17)
+
+    [0m [90m 257 |[39m
+     [90m 258 |[39m     } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 259 |[39m       console[33m.[39merror([32m'Submission Error:'[39m[33m,[39m error)[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 260 |[39m       [36mif[39m (error [36minstanceof[39m [33mBadRequestException[39m [33m||[39m error [36minstanceof[39m [33mNotFoundException[39m) {
+     [90m 261 |[39m         [36mthrow[39m error[33m;[39m
+     [90m 262 |[39m       }[0m
+
+      at SubmissionServiceService.handleSubmission (apps/submission-service/src/submission-service.service.ts:259:15)
+      at Object.<anonymous> (apps/submission-service/src/submission-service.service.spec.ts:338:17)
+
+  console.error
+    Submission Error: TypeError: Cannot read properties of undefined (reading 'topics')
+        at SubmissionServiceService.validateTopic (D:\1.KCPM\KCPM\uth-confms-1\apps\submission-service\src\submission-service.service.ts:665:21)
+        at SubmissionServiceService.handleSubmission (D:\1.KCPM\KCPM\uth-confms-1\apps\submission-service\src\submission-service.service.ts:155:7)
+        at Object.<anonymous> (D:\1.KCPM\KCPM\uth-confms-1\apps\submission-service\src\submission-service.service.spec.ts:358:7)
+
+    [0m [90m 257 |[39m
+     [90m 258 |[39m     } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 259 |[39m       console[33m.[39merror([32m'Submission Error:'[39m[33m,[39m error)[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 260 |[39m       [36mif[39m (error [36minstanceof[39m [33mBadRequestException[39m [33m||[39m error [36minstanceof[39m [33mNotFoundException[39m) {
+     [90m 261 |[39m         [36mthrow[39m error[33m;[39m
+     [90m 262 |[39m       }[0m
+
+      at SubmissionServiceService.handleSubmission (apps/submission-service/src/submission-service.service.ts:259:15)
+      at Object.<anonymous> (apps/submission-service/src/submission-service.service.spec.ts:358:7)
+
+node.exe : FAIL apps/submission-service/src/submission
+-service.service.spec.ts
+At C:\Program Files\nodejs\npx.ps1:29 char:3
++   & $NODE_EXE $NPX_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (FAIL app 
+   s/submi...service.spec.ts:String) [], RemoteExcep  
+  tion
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  SubmissionServiceService
+    âˆ should be defined (24 ms)
+    getSubmissionsByUser
+      âˆ [Normal] tráº£ vá» danh sĂ¡ch bĂi ná»™p 
+cá»§a user (5 ms)
+      âˆ [Boundary] tráº£ vá» máº£ng rá»—ng khi 
+user khĂ´ng cĂ³ bĂi ná»™p nĂo (4 ms)
+      âˆ [Abnormal] nĂ©m 
+InternalServerErrorException khi DB lá»—i (27 ms)
+    getSubmissionById
+      âˆ [Normal] owner xem Ä‘Æ°á»£c bĂi cá»§a mĂ¬nh 
+(4 ms)
+      âˆ [Normal] CHAIR xem Ä‘Æ°á»£c má»i bĂi ná»™p 
+(5 ms)
+      âˆ [Abnormal] nĂ©m NotFoundException khi 
+submission khĂ´ng tá»“n táº¡i (4 ms)
+      âˆ [Abnormal] nĂ©m ForbiddenException khi 
+khĂ´ng pháº£i owner vĂ khĂ´ng lĂ CHAIR (3 ms)
+    getSubmissionsByConference
+      âˆ [Normal] tráº£ vá» danh sĂ¡ch bĂi ná»™p 
+theo conferenceId (4 ms)
+      âˆ [Boundary] tráº£ vá» total=0 khi 
+conference chÆ°a cĂ³ bĂi nĂo (3 ms)
+      âˆ [Abnormal] nĂ©m 
+InternalServerErrorException khi DB lá»—i (3 ms)
+    updateStatus
+      âˆ [Normal] CHAIR cáºp nháºt tráº¡ng thĂ¡i thĂ
+nh cĂ´ng (4 ms)
+      âˆ [Normal] owner cáºp nháºt tráº¡ng thĂ¡i thĂ
+nh cĂ´ng (18 ms)
+      âˆ [Abnormal] nĂ©m ForbiddenException khi 
+khĂ´ng cĂ³ quyá»n (5 ms)
+      âˆ [Abnormal] nĂ©m NotFoundException khi 
+submission khĂ´ng tá»“n táº¡i (4 ms)
+    withdrawSubmission
+      âˆ [Normal] owner rĂºt bĂ i thĂ nh cĂ´ng (6 ms)
+      âˆ [Abnormal] nĂ©m ForbiddenException khi 
+khĂ´ng pháº£i owner (11 ms)
+      âˆ [Abnormal] nĂ©m BadRequestException khi bĂi 
+Ä‘Ă£ ACCEPTED (4 ms)
+      âˆ [Abnormal] nĂ©m NotFoundException khi 
+submission khĂ´ng tá»“n táº¡i (3 ms)
+    updateSubmission
+      âˆ [Normal] owner cáºp nháºt title vĂ abstract 
+thĂnh cĂ´ng (51 ms)
+      âˆ [Abnormal] nĂ©m ForbiddenException khi 
+khĂ´ng pháº£i owner (3 ms)
+      âˆ [Abnormal] nĂ©m BadRequestException khi bĂi 
+Ä‘Ă£ ACCEPTED (5 ms)
+      âˆ [Abnormal] nĂ©m BadRequestException khi bĂi 
+Ä‘Ă£ WITHDRAWN (5 ms)
+    getSubmissionReviews
+      âˆ [Normal] CHAIR láº¥y reviews vá»›i full 
+thĂ´ng tin (4 ms)
+      âˆ [Abnormal] nĂ©m ForbiddenException khi 
+khĂ´ng pháº£i owner vĂ khĂ´ng lĂ CHAIR (5 ms)
+      âˆ [Abnormal] nĂ©m NotFoundException khi 
+submission khĂ´ng tá»“n táº¡i (5 ms)
+    getPublicFileInfoBySubmissionId
+      âˆ [Normal] tráº£ vá» thĂ´ng tin file má»›i 
+nháº¥t (3 ms)
+      âˆ [Abnormal] nĂ©m NotFoundException khi 
+khĂ´ng cĂ³ file nĂo (2 ms)
+    handleSubmission
+      Ă— [Normal] táº¡o submission má»›i vĂ upload 
+file thĂnh cĂ´ng (13 ms)
+      Ă— [Abnormal] nĂ©m BadRequestException khi 
+Supabase upload lá»—i (21 ms)
+    findAllWithPagination
+      âˆ [Normal] tráº£ vá» danh sĂ¡ch phĂ¢n trang 
+cĂ³ filter (4 ms)
+      âˆ [Boundary] tráº£ vá» trang 1 náº¿u page < 
+1 (3 ms)
+
+  â— SubmissionServiceService â€º handleSubmission 
+â€º [Normal] táº¡o submission má»›i vĂ upload file thĂ
+nh cĂ´ng
+
+    InternalServerErrorException: Cannot read 
+properties of undefined (reading 'topics')
+
+    [0m [90m 261 |[39m         [36mthrow[39m 
+error[33m;[39m
+     [90m 262 |[39m       }
+    [31m[1m>[22m[39m[90m 263 |[39m       
+[36mthrow[39m [36mnew[39m [33mInternalServerError
+Exception[39m(error[33m.[39mmessage [33m||[39m 
+[32m'CĂ³ lá»—i xáº£y ra trong quĂ¡ trĂ¬nh xá» lĂ½ bĂ
+i ná»™p.'[39m)[33m;[39m
+     [90m     |[39m             [31m[1m^[22m[39m
+     [90m 264 |[39m     }
+     [90m 265 |[39m   }
+     [90m 266 |[39m[0m
+
+      at SubmissionServiceService.handleSubmission (ap
+ps/submission-service/src/submission-service.service.t
+s:263:13)
+      at Object.<anonymous> (apps/submission-service/s
+rc/submission-service.service.spec.ts:338:17)
+
+  â— SubmissionServiceService â€º handleSubmission 
+â€º [Abnormal] nĂ©m BadRequestException khi Supabase 
+upload lá»—i
+
+    expect(received).rejects.toThrow(expected)
+
+    Expected constructor: BadRequestException
+    Received constructor: InternalServerErrorException
+
+    Received message: "Cannot read properties of 
+undefined (reading 'topics')"
+
+        [0m [90m 261 |[39m         [36mthrow[39m 
+error[33m;[39m
+         [90m 262 |[39m       }
+        [31m[1m>[22m[39m[90m 263 |[39m       
+[36mthrow[39m [36mnew[39m [33mInternalServerError
+Exception[39m(error[33m.[39mmessage [33m||[39m 
+[32m'CĂ³ lá»—i xáº£y ra trong quĂ¡ trĂ¬nh xá» lĂ½ bĂ
+i ná»™p.'[39m)[33m;[39m
+         [90m     |[39m             
+[31m[1m^[22m[39m
+         [90m 264 |[39m     }
+         [90m 265 |[39m   }
+         [90m 266 |[39m[0m
+
+      at SubmissionServiceService.handleSubmission (ap
+ps/submission-service/src/submission-service.service.t
+s:263:13)
+      at Object.<anonymous> (apps/submission-service/s
+rc/submission-service.service.spec.ts:358:7)
+      at Object.toThrow 
+(node_modules/expect/build/index.js:2155:20)
+      at Object.<anonymous> (apps/submission-service/s
+rc/submission-service.service.spec.ts:359:18)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 30 passed, 32 total
+Snapshots:   0 total
+Time:        1.857 s, estimated 2 s
+Ran all test suites matching 
+submission-service.service.spec.
