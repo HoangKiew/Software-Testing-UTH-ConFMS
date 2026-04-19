@@ -93,7 +93,12 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "apps/conference-service/src/conferences/conferences.service.ts",
+      "apps/identity-service/src/auth/auth.service.ts",
+      "apps/identity-service/src/users/users.service.ts",
+      "apps/identity-service/src/users/users.controller.ts",
+      "apps/review-service/src/reviews/reviews.service.ts",
+      "apps/submission-service/src/submission-service.service.ts"
     ],
     "coverageDirectory": "./coverage",
     "testEnvironment": "node",

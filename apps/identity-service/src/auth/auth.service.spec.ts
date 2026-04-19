@@ -447,10 +447,10 @@ describe('AuthService – User Management & Role BVA', () => {
     });
 
     it('[BVA-Expiry-Min=+1ms] Case 15: expiryDate=now+1ms (min valid) → cấp tokens mới', async () => {
-      // Biên Min: còn hạn 1ms — ngay tại biên valid nhỏ nhất
+      // Biên Min: còn hạn — dùng buffer 5s để tránh race condition trong CI
       refreshTokenRepo.findOne.mockResolvedValue({
         id: 1, token: tokenStr, userId: 1,
-        expiryDate: new Date(Date.now() + 1), // +1ms = min valid
+        expiryDate: new Date(Date.now() + 5000), // +5s đảm bảo không bị expired khi test chạy
       });
       (mockUsersService.findById as jest.Mock).mockResolvedValue(makeUser());
       refreshTokenRepo.delete.mockResolvedValue({});

@@ -173,6 +173,29 @@ describe('ConferencesService', () => {
         service.createConference({ ...base, startDate: 'not-a-date', endDate: '2026-06-03' } as any, 99),
       ).rejects.toThrow(BadRequestException);
     });
+
+    it('[BVA-Name-Duplicate] tên hội nghị đã tồn tại (isActive=true) → BadRequestException', async () => {
+      // Nhánh mới: existingConference != null → throw
+      confRepo.findOne.mockResolvedValue(makeConf({ name: base.name })); // conf trùng tên đang active
+      await expect(
+        service.createConference({ ...base, startDate: '2026-07-01', endDate: '2026-07-10' } as any, 99),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('[BVA-Name-Unique] tên hội nghị chưa tồn tại → tạo mới thành công', async () => {
+      // Nhánh mới: existingConference == null → tiến hành tạo
+      confRepo.findOne.mockResolvedValue(null); // không có conf nào trùng tên
+      const saved = makeConf({ name: 'New Unique Conf 2027' });
+      confRepo.create.mockReturnValue(saved);
+      confRepo.save.mockResolvedValue(saved);
+      memberRepo.create.mockReturnValue({});
+      memberRepo.save.mockResolvedValue({});
+      const r = await service.createConference({
+        ...base, name: 'New Unique Conf 2027', startDate: '2027-01-01', endDate: '2027-01-10',
+      } as any, 99);
+      expect(r.name).toBe('New Unique Conf 2027');
+      expect(confRepo.save).toHaveBeenCalled();
+    });
   });
 
   // ═══════════════════════════════════════════════════════════════════════════
