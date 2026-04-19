@@ -41,14 +41,24 @@ export class ConferencesService {
     private readonly identityClient: IdentityClientService,
     private readonly submissionClient: SubmissionClientService,
     private readonly reviewClient: ReviewClientService,
-  ) {}
+  ) { }
   // Tạo hội nghị mới
   async createConference(
     dto: CreateConferenceDto,
     organizerId: number,
   ): Promise<Conference> {
     this.ensureValidDateRange(dto.startDate, dto.endDate);
-
+    // Kiểm tra tên hội nghị đã tồn tại chưa
+    const existingConference = await this.conferenceRepository.findOne({
+      where: {
+        name: dto.name,
+        deletedAt: IsNull(),
+        isActive: true,
+      },
+    });
+    if (existingConference) {
+      throw new BadRequestException('Tên hội nghị đã tồn tại');
+    }
     const conference = this.conferenceRepository.create({
       name: dto.name,
       startDate: new Date(dto.startDate),
