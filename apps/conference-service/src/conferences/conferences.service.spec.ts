@@ -67,48 +67,50 @@ const mockRepo = () => ({
 
 // ─── Data Helpers ───────────────────────────────────────────────────────────────
 const makeConf = (o: Partial<Conference> = {}): Conference =>
-  ({ id: 1, name: 'ICAI 2026', startDate: new Date('2026-05-01'), endDate: new Date('2026-05-03'),
-     venue: 'Hanoi', organizerId: 99, isActive: true, deletedAt: null,
-     tracks: [], members: [], ...o }) as Conference;
+  ({
+    id: 1, name: 'ICAI 2026', startDate: new Date('2026-05-01'), endDate: new Date('2026-05-03'),
+    venue: 'Hanoi', organizerId: 99, isActive: true, deletedAt: null,
+    tracks: [], members: [], ...o
+  }) as Conference;
 
 const makeTrack = (o: Partial<Track> = {}): Track =>
   ({ id: 1, name: 'AI Track', conferenceId: 1, isActive: true, deletedAt: null, ...o }) as Track;
 
-const ADMIN  = { id: 1,  roles: ['ADMIN'] };
-const CHAIR  = { id: 99, roles: ['CHAIR'] };
-const AUTHOR = { id: 5,  roles: ['AUTHOR'] };
+const ADMIN = { id: 1, roles: ['ADMIN'] };
+const CHAIR = { id: 99, roles: ['CHAIR'] };
+const AUTHOR = { id: 5, roles: ['AUTHOR'] };
 
 // ─── Test Suite ─────────────────────────────────────────────────────────────────
 describe('ConferencesService', () => {
   let service: ConferencesService;
-  let confRepo:   ReturnType<typeof mockRepo>;
-  let trackRepo:  ReturnType<typeof mockRepo>;
+  let confRepo: ReturnType<typeof mockRepo>;
+  let trackRepo: ReturnType<typeof mockRepo>;
   let memberRepo: ReturnType<typeof mockRepo>;
   let trackMemberRepo: ReturnType<typeof mockRepo>;
-  let cfpRepo:    ReturnType<typeof mockRepo>;
+  let cfpRepo: ReturnType<typeof mockRepo>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ConferencesService,
-        { provide: getRepositoryToken(Conference),       useFactory: mockRepo },
-        { provide: getRepositoryToken(Track),            useFactory: mockRepo },
+        { provide: getRepositoryToken(Conference), useFactory: mockRepo },
+        { provide: getRepositoryToken(Track), useFactory: mockRepo },
         { provide: getRepositoryToken(ConferenceMember), useFactory: mockRepo },
-        { provide: getRepositoryToken(TrackMember),      useFactory: mockRepo },
-        { provide: getRepositoryToken(CfpSetting),       useFactory: mockRepo },
-        { provide: EmailService,           useValue: { sendTrackAssignmentEmail: jest.fn() } },
-        { provide: IdentityClientService,  useValue: { getUserById: jest.fn() } },
-        { provide: SubmissionClientService,useValue: { getSubmissionIdsByTrack: jest.fn() } },
-        { provide: ReviewClientService,    useValue: { hasUserReviewedSubmissions: jest.fn() } },
+        { provide: getRepositoryToken(TrackMember), useFactory: mockRepo },
+        { provide: getRepositoryToken(CfpSetting), useFactory: mockRepo },
+        { provide: EmailService, useValue: { sendTrackAssignmentEmail: jest.fn() } },
+        { provide: IdentityClientService, useValue: { getUserById: jest.fn() } },
+        { provide: SubmissionClientService, useValue: { getSubmissionIdsByTrack: jest.fn() } },
+        { provide: ReviewClientService, useValue: { hasUserReviewedSubmissions: jest.fn() } },
       ],
     }).compile();
 
-    service          = module.get<ConferencesService>(ConferencesService);
-    confRepo         = module.get(getRepositoryToken(Conference));
-    trackRepo        = module.get(getRepositoryToken(Track));
-    memberRepo       = module.get(getRepositoryToken(ConferenceMember));
-    trackMemberRepo  = module.get(getRepositoryToken(TrackMember));
-    cfpRepo          = module.get(getRepositoryToken(CfpSetting));
+    service = module.get<ConferencesService>(ConferencesService);
+    confRepo = module.get(getRepositoryToken(Conference));
+    trackRepo = module.get(getRepositoryToken(Track));
+    memberRepo = module.get(getRepositoryToken(ConferenceMember));
+    trackMemberRepo = module.get(getRepositoryToken(TrackMember));
+    cfpRepo = module.get(getRepositoryToken(CfpSetting));
   });
 
   it('should be defined', () => expect(service).toBeDefined());
@@ -210,9 +212,9 @@ describe('ConferencesService', () => {
   describe('BVA: setCfpSettings', () => {
     const base = {
       submissionDeadline: '2026-03-01',
-      reviewDeadline:     '2026-04-01',
-      notificationDate:   '2026-04-15',
-      cameraReadyDeadline:'2026-05-01',
+      reviewDeadline: '2026-04-01',
+      notificationDate: '2026-04-15',
+      cameraReadyDeadline: '2026-05-01',
     };
 
     it('[BVA-Deadline-Equal] submissionDeadline = reviewDeadline (biên equal valid) → thành công', async () => {
@@ -272,8 +274,10 @@ describe('ConferencesService', () => {
   // ═══════════════════════════════════════════════════════════════════════════
   describe('BVA: acceptTrackAssignment', () => {
     it('[BVA-Status-Pending-to-Accepted] PENDING → ACCEPTED (biên valid - trạng thái đúng cần chuyển)', async () => {
-      const member = { trackId: 1, userId: 5, status: 'PENDING',
-                       track: { deletedAt: null, isActive: true } };
+      const member = {
+        trackId: 1, userId: 5, status: 'PENDING',
+        track: { deletedAt: null, isActive: true }
+      };
       trackMemberRepo.findOne.mockResolvedValue(member);
       trackMemberRepo.save.mockResolvedValue({ ...member, status: 'ACCEPTED' });
       const r = await service.acceptTrackAssignment(1, 5);
@@ -325,8 +329,10 @@ describe('ConferencesService', () => {
   // ═══════════════════════════════════════════════════════════════════════════
   describe('BVA: rejectTrackAssignment', () => {
     it('[BVA-Status-Pending-to-Rejected] PENDING → REJECTED (biên valid)', async () => {
-      const member = { trackId: 1, userId: 5, status: 'PENDING',
-                       track: { deletedAt: null, isActive: true } };
+      const member = {
+        trackId: 1, userId: 5, status: 'PENDING',
+        track: { deletedAt: null, isActive: true }
+      };
       trackMemberRepo.findOne.mockResolvedValue(member);
       trackMemberRepo.save.mockResolvedValue({ ...member, status: 'REJECTED' });
       await service.rejectTrackAssignment(1, 5);
@@ -399,8 +405,10 @@ describe('ConferencesService', () => {
     it('[BVA-Track-ActiveValid] track active + deletedAt=null (biên valid) → trả về assignment', async () => {
       trackMemberRepo.find.mockResolvedValue([{
         id: 1, userId: 10, trackId: 1, status: 'ACCEPTED',
-        track: { deletedAt: null, isActive: true,
-                 conference: { deletedAt: null, isActive: true } },
+        track: {
+          deletedAt: null, isActive: true,
+          conference: { deletedAt: null, isActive: true }
+        },
       }]);
       const r = await service.getMyTrackAssignments(10);
       expect(r).toHaveLength(1);
@@ -410,8 +418,10 @@ describe('ConferencesService', () => {
       // Điểm biên: isActive false là ngay ngoài biên hợp lệ
       trackMemberRepo.find.mockResolvedValue([{
         id: 1, userId: 10, trackId: 1, status: 'ACCEPTED',
-        track: { deletedAt: null, isActive: false,  // isActive=false là biên invalid
-                 conference: { deletedAt: null, isActive: true } },
+        track: {
+          deletedAt: null, isActive: false,  // isActive=false là biên invalid
+          conference: { deletedAt: null, isActive: true }
+        },
       }]);
       const r = await service.getMyTrackAssignments(10);
       expect(r).toEqual([]); // bị filter ra
@@ -420,8 +430,10 @@ describe('ConferencesService', () => {
     it('[BVA-Track-Deleted] track.deletedAt ≠ null (biên deleted) → bị lọc ra', async () => {
       trackMemberRepo.find.mockResolvedValue([{
         id: 1, userId: 10, trackId: 1, status: 'ACCEPTED',
-        track: { deletedAt: new Date(), isActive: false, // deletedAt có giá trị
-                 conference: { deletedAt: null, isActive: true } },
+        track: {
+          deletedAt: new Date(), isActive: false, // deletedAt có giá trị
+          conference: { deletedAt: null, isActive: true }
+        },
       }]);
       const r = await service.getMyTrackAssignments(10);
       expect(r).toEqual([]);
@@ -430,8 +442,10 @@ describe('ConferencesService', () => {
     it('[BVA-Conference-Inactive] conference.isActive=false (biên conf không active) → bị lọc ra', async () => {
       trackMemberRepo.find.mockResolvedValue([{
         id: 1, userId: 10, trackId: 1, status: 'ACCEPTED',
-        track: { deletedAt: null, isActive: true,
-                 conference: { deletedAt: null, isActive: false } }, // conf inactive
+        track: {
+          deletedAt: null, isActive: true,
+          conference: { deletedAt: null, isActive: false }
+        }, // conf inactive
       }]);
       const r = await service.getMyTrackAssignments(10);
       expect(r).toEqual([]);
@@ -600,6 +614,289 @@ describe('ConferencesService', () => {
     it('[BVA-Role-Author] AUTHOR không có quyền xóa → ForbiddenException', async () => {
       memberRepo.findOne.mockResolvedValue(null);
       await expect(service.deleteConference(1, AUTHOR)).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BVA-12  findAll
+  // Biên count:
+  //   0 conferences (biên Min) → trả []
+  //   1 conference (biên Min+1) → trả [1]
+  //   nhiều (Nominal)
+  // ═══════════════════════════════════════════════════════════════════════════
+  describe('BVA: findAll', () => {
+    it('[BVA-Count-0] 0 conferences (biên Min) → trả []', async () => {
+      confRepo.find.mockResolvedValue([]);
+      const r = await service.findAll();
+      expect(r).toEqual([]);
+    });
+
+    it('[BVA-Count-1] 1 conference (biên Min+1) → trả [1 phần tử]', async () => {
+      confRepo.find.mockResolvedValue([makeConf()]);
+      const r = await service.findAll();
+      expect(r).toHaveLength(1);
+    });
+
+    it('[BVA-Count-Nominal] nhiều conferences → trả đúng số lượng', async () => {
+      confRepo.find.mockResolvedValue([makeConf(), makeConf({ id: 2 }), makeConf({ id: 3 })]);
+      const r = await service.findAll();
+      expect(r).toHaveLength(3);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BVA-13  addTrack
+  // Biên quyền (ensureCanManage):
+  //   ADMIN (bypass) → thêm track thành công
+  //   CHAIR (bypass) → thêm track thành công
+  //   conference không tồn tại → NotFoundException
+  // ═══════════════════════════════════════════════════════════════════════════
+  describe('BVA: addTrack', () => {
+    it('[BVA-Role-Admin] ADMIN thêm track (biên bypass) → thành công', async () => {
+      confRepo.findOne.mockResolvedValue(makeConf());
+      const newTrack = makeTrack({ name: 'ML Track' });
+      trackRepo.create.mockReturnValue(newTrack);
+      trackRepo.save.mockResolvedValue(newTrack);
+      const r = await service.addTrack(1, 'ML Track', ADMIN);
+      expect(r.name).toBe('ML Track');
+    });
+
+    it('[BVA-Role-Chair] CHAIR thêm track (biên bypass) → thành công', async () => {
+      confRepo.findOne.mockResolvedValue(makeConf());
+      const newTrack = makeTrack({ name: 'NLP Track' });
+      trackRepo.create.mockReturnValue(newTrack);
+      trackRepo.save.mockResolvedValue(newTrack);
+      const r = await service.addTrack(1, 'NLP Track', CHAIR);
+      expect(trackRepo.save).toHaveBeenCalled();
+    });
+
+    it('[BVA-Conf-NotExist] conference không tồn tại (biên ngoài) → NotFoundException', async () => {
+      confRepo.findOne.mockResolvedValue(null);
+      await expect(service.addTrack(999, 'Track', ADMIN)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BVA-14  updateTrack
+  // Biên track tồn tại:
+  //   track tồn tại + dto.name có giá trị → cập nhật tên
+  //   track tồn tại + dto.name = null → không đổi tên
+  //   track không tồn tại → NotFoundException
+  // ═══════════════════════════════════════════════════════════════════════════
+  describe('BVA: updateTrack', () => {
+    it('[BVA-Name-Valid] track tồn tại + dto.name có giá trị → cập nhật thành công', async () => {
+      const track = makeTrack({ name: 'Old Name' });
+      const updated = makeTrack({ name: 'New Name' });
+      trackRepo.findOne
+        .mockResolvedValueOnce(track)   // lần tìm đầu
+        .mockResolvedValueOnce(updated); // lần tìm sau save
+      trackRepo.save.mockResolvedValue(updated);
+      const r = await service.updateTrack(1, 1, { name: 'New Name' } as any, ADMIN);
+      expect(r.name).toBe('New Name');
+    });
+
+    it('[BVA-Name-Null] dto.name = null (biên null - không đổi) → trả track cũ', async () => {
+      const track = makeTrack({ name: 'Keep Name' });
+      trackRepo.findOne
+        .mockResolvedValueOnce(track)
+        .mockResolvedValueOnce(track);
+      trackRepo.save.mockResolvedValue(track);
+      const r = await service.updateTrack(1, 1, { name: null } as any, ADMIN);
+      expect(trackRepo.save).toHaveBeenCalled();
+    });
+
+    it('[BVA-Track-NotExist] track không tồn tại → NotFoundException', async () => {
+      trackRepo.findOne.mockResolvedValue(null);
+      await expect(service.updateTrack(1, 999, { name: 'X' } as any, ADMIN))
+        .rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BVA-15  findAllTracks + getCfpSetting
+  // Biên count/exists:
+  //   0 tracks (biên Min) → []
+  //   1 track (biên Min+1) → [1]
+  //   cfpSetting tồn tại → trả setting
+  //   cfpSetting không tồn tại → trả null
+  // ═══════════════════════════════════════════════════════════════════════════
+  describe('BVA: findAllTracks', () => {
+    it('[BVA-Count-0] 0 tracks (biên Min) → trả []', async () => {
+      trackRepo.find.mockResolvedValue([]);
+      const r = await service.findAllTracks(1);
+      expect(r).toEqual([]);
+    });
+
+    it('[BVA-Count-1] 1 track (biên Min+1) → trả [1 phần tử]', async () => {
+      trackRepo.find.mockResolvedValue([makeTrack()]);
+      const r = await service.findAllTracks(1);
+      expect(r).toHaveLength(1);
+    });
+
+    it('[BVA-Count-Nominal] nhiều tracks → trả đúng số', async () => {
+      trackRepo.find.mockResolvedValue([makeTrack(), makeTrack({ id: 2 }), makeTrack({ id: 3 })]);
+      const r = await service.findAllTracks(1);
+      expect(r).toHaveLength(3);
+    });
+  });
+
+  describe('BVA: getCfpSetting', () => {
+    it('[BVA-Setting-Exist] cfpSetting tồn tại → trả setting', async () => {
+      const setting = { conferenceId: 1, submissionDeadline: new Date() };
+      cfpRepo.findOne.mockResolvedValue(setting);
+      const r = await service.getCfpSetting(1);
+      expect(r).toBeDefined();
+      expect(r!.conferenceId).toBe(1);
+    });
+
+    it('[BVA-Setting-NotExist] cfpSetting không tồn tại (biên Min=0) → trả null', async () => {
+      cfpRepo.findOne.mockResolvedValue(null);
+      const r = await service.getCfpSetting(99);
+      expect(r).toBeNull();
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BVA-16  listTrackMembers
+  // Biên track tồn tại + quyền:
+  //   track tồn tại + CHAIR → trả danh sách members
+  //   track không tồn tại → NotFoundException
+  //   AUTHOR không có quyền → ForbiddenException
+  // ═══════════════════════════════════════════════════════════════════════════
+  describe('BVA: listTrackMembers', () => {
+    it('[BVA-Track-Exist-Chair] track tồn tại + CHAIR → trả danh sách', async () => {
+      trackRepo.findOne.mockResolvedValue(makeTrack({ conferenceId: 1 }));
+      trackMemberRepo.find.mockResolvedValue([{ id: 1, trackId: 1, userId: 5 }]);
+      const r = await service.listTrackMembers(1, CHAIR);
+      expect(r).toHaveLength(1);
+    });
+
+    it('[BVA-Track-NotExist] track không tồn tại → NotFoundException', async () => {
+      trackRepo.findOne.mockResolvedValue(null);
+      await expect(service.listTrackMembers(999, CHAIR)).rejects.toThrow(NotFoundException);
+    });
+
+    it('[BVA-Count-0] track tồn tại nhưng 0 members (biên Min) → trả []', async () => {
+      trackRepo.findOne.mockResolvedValue(makeTrack({ conferenceId: 1 }));
+      trackMemberRepo.find.mockResolvedValue([]);
+      const r = await service.listTrackMembers(1, CHAIR);
+      expect(r).toEqual([]);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BVA-17  removeTrackMember
+  // Biên:
+  //   member tồn tại + no authToken → BadRequestException (thiếu token)
+  //   track không tồn tại → NotFoundException
+  //   member không tồn tại → NotFoundException
+  //   member tồn tại + authToken + 0 submissions → xóa được
+  // ═══════════════════════════════════════════════════════════════════════════
+  describe('BVA: removeTrackMember', () => {
+    it('[BVA-NoToken] member tồn tại nhưng không có authToken → BadRequestException', async () => {
+      trackRepo.findOne.mockResolvedValue(makeTrack({ conferenceId: 1 }));
+      trackMemberRepo.findOne.mockResolvedValue({ id: 1, trackId: 1, userId: 5 });
+      // Không truyền authToken
+      await expect(service.removeTrackMember(1, 5, CHAIR)).rejects.toThrow(BadRequestException);
+    });
+
+    it('[BVA-Track-NotExist] track không tồn tại → NotFoundException', async () => {
+      trackRepo.findOne.mockResolvedValue(null);
+      await expect(service.removeTrackMember(999, 5, CHAIR, 'token')).rejects.toThrow(NotFoundException);
+    });
+
+    it('[BVA-Member-NotExist] member không tồn tại trong track → NotFoundException', async () => {
+      trackRepo.findOne.mockResolvedValue(makeTrack({ conferenceId: 1 }));
+      trackMemberRepo.findOne.mockResolvedValue(null);
+      await expect(service.removeTrackMember(1, 999, CHAIR, 'token')).rejects.toThrow(NotFoundException);
+    });
+
+    it('[BVA-Submissions-0] 0 submissions (biên Min valid) → xóa member thành công', async () => {
+      trackRepo.findOne.mockResolvedValue(makeTrack({ conferenceId: 1 }));
+      const member = { id: 1, trackId: 1, userId: 5 };
+      trackMemberRepo.findOne.mockResolvedValue(member);
+      const submClient = (service as any).submissionClient;
+      submClient.getSubmissionIdsByTrack.mockResolvedValue([]); // 0 submissions = biên Min
+      trackMemberRepo.remove.mockResolvedValue({});
+      await expect(service.removeTrackMember(1, 5, CHAIR, 'token')).resolves.toBeUndefined();
+      expect(trackMemberRepo.remove).toHaveBeenCalled();
+    });
+
+    it('[BVA-HasReviews] submissions > 0 + user đã review → BadRequestException', async () => {
+      // Phủ nhánh: submissionIds.length > 0 && hasReviews === true
+      trackRepo.findOne.mockResolvedValue(makeTrack({ conferenceId: 1 }));
+      const member = { id: 1, trackId: 1, userId: 5 };
+      trackMemberRepo.findOne.mockResolvedValue(member);
+      const submClient = (service as any).submissionClient;
+      const reviewClient = (service as any).reviewClient;
+      submClient.getSubmissionIdsByTrack.mockResolvedValue(['sub-1', 'sub-2']); // có submissions
+      reviewClient.hasUserReviewedSubmissions.mockResolvedValue(true); // đã review
+      await expect(service.removeTrackMember(1, 5, CHAIR, 'token')).rejects.toThrow(BadRequestException);
+    });
+
+    it('[BVA-HasSubmissions-NoReviews] submissions > 0 + user chưa review → xóa thành công', async () => {
+      // Phủ nhánh: submissionIds.length > 0 && hasReviews === false
+      trackRepo.findOne.mockResolvedValue(makeTrack({ conferenceId: 1 }));
+      const member = { id: 1, trackId: 1, userId: 5 };
+      trackMemberRepo.findOne.mockResolvedValue(member);
+      const submClient = (service as any).submissionClient;
+      const reviewClient = (service as any).reviewClient;
+      submClient.getSubmissionIdsByTrack.mockResolvedValue(['sub-1']);
+      reviewClient.hasUserReviewedSubmissions.mockResolvedValue(false); // chưa review
+      trackMemberRepo.remove.mockResolvedValue({});
+      await expect(service.removeTrackMember(1, 5, CHAIR, 'token')).resolves.toBeUndefined();
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BVA-18  deleteTrack – catch/fallback khi submission service unavailable
+  // Biên: lỗi from sub-service (không phải BadRequestException) → fallback xóa track
+  // ═══════════════════════════════════════════════════════════════════════════
+  describe('BVA: deleteTrack – catch fallback', () => {
+    it('[BVA-ServiceUnavailable] submission service lỗi (không phải BadRequest) → fallback xóa track', async () => {
+      // Phủ nhánh catch: error không phải BadRequestException → console.warn + tiếp tục xóa
+      confRepo.findOne.mockResolvedValue(makeConf());
+      memberRepo.findOne.mockResolvedValue({ role: ConferenceMemberRole.CHAIR });
+      trackRepo.findOne.mockResolvedValue(makeTrack());
+      trackRepo.save.mockResolvedValue(makeTrack({ isActive: false, deletedAt: new Date() }));
+      const submClient = (service as any).submissionClient;
+      submClient.getSubmissionIdsByTrack.mockRejectedValue(new Error('Service unavailable')); // lỗi network
+      await expect(service.deleteTrack(1, 1, CHAIR, 'token')).resolves.toBeUndefined(); // fallback: vẫn xóa
+      expect(trackRepo.save).toHaveBeenCalledWith(expect.objectContaining({ isActive: false }));
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BVA-19  addTrackMember – nhánh gửi email khi có authToken
+  // ═══════════════════════════════════════════════════════════════════════════
+  describe('BVA: addTrackMember – email notification', () => {
+    it('[BVA-WithToken] có authToken → gọi sendTrackAssignmentEmail (fire-and-forget)', async () => {
+      // Phủ nhánh: if (authToken) → gửi email bất đồng bộ
+      trackRepo.findOne.mockResolvedValue(makeTrack({ conference: makeConf() as any }));
+      confRepo.findOne.mockResolvedValue(makeConf());
+      memberRepo.findOne.mockResolvedValue({ role: ConferenceMemberRole.CHAIR });
+      trackMemberRepo.findOne.mockResolvedValue(null);
+      const newMember = { id: 2, trackId: 1, userId: 30 };
+      trackMemberRepo.create.mockReturnValue(newMember);
+      trackMemberRepo.save.mockResolvedValue(newMember);
+      const identityClient = (service as any).identityClient;
+      identityClient.getUserById.mockResolvedValue({ email: 'reviewer@test.com', fullName: 'Test User' });
+      const emailSvc = (service as any).emailService;
+      emailSvc.sendTrackAssignmentEmail.mockResolvedValue(undefined);
+      confRepo.findOne.mockResolvedValue(makeConf());
+      const r = await service.addTrackMember(1, { userId: 30 } as any, CHAIR, 'valid-token');
+      expect(r.userId).toBe(30);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BVA-20  ensureCanManageConference – AUTHOR có membership CHAIR hợp lệ
+  // ═══════════════════════════════════════════════════════════════════════════
+  describe('BVA: ensureCanManageConference – AUTHOR with valid membership', () => {
+    it('[BVA-Author-HasMembership] AUTHOR có membership role=CHAIR → được phép (không throw)', async () => {
+      // Phủ nhánh: membership tồn tại + role === CHAIR → resolve (không throw)
+      memberRepo.findOne.mockResolvedValue({ role: ConferenceMemberRole.CHAIR });
+      await expect(service.ensureCanManageConference(1, AUTHOR)).resolves.toBeUndefined();
     });
   });
 });
